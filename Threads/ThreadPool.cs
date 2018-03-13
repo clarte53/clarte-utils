@@ -13,13 +13,19 @@ using MyThread = System.Threading.Thread;
 
 namespace CLARTE.Threads
 {
+	/// <summary>
+	/// A thread pool to avoid creating a new thread for every async tasks.
+	/// </summary>
 	public class Pool : IDisposable
 	{
 		protected class Task
 		{
+			#region Members
 			public Action callback;
 			public Result result;
+			#endregion
 
+			#region Constructors
 			protected Task(Action func)
 			{
 				callback = func;
@@ -31,7 +37,9 @@ namespace CLARTE.Threads
 				callback = func;
 				result = res;
 			}
+			#endregion
 
+			#region Public methods
 			public static Task Create(Action callback)
 			{
 				return new Task(callback);
@@ -50,6 +58,7 @@ namespace CLARTE.Threads
 
 				return task;
 			}
+			#endregion
 		}
 
 		#region Members
@@ -99,30 +108,56 @@ namespace CLARTE.Threads
 		#endregion
 
 		#region IDisposable implementation
-		public void Dispose()
+		protected virtual void Dispose(bool disposing)
 		{
-			if(disposed)
+			if(!disposed)
 			{
-				return;
-			}
-
-			if(threads != null && threads.Count > 0)
-			{
-				stopEvent.Set();
-
-				foreach(MyThread thread in threads)
+				if(disposing)
 				{
+					// TODO: delete managed state (managed objects).
+
+					if(threads != null && threads.Count > 0)
+					{
+						stopEvent.Set();
+
+						foreach(MyThread thread in threads)
+						{
 #if UNITY_WSA
-					thread.Wait();
+							thread.Wait();
 #else
-					thread.Join();
+							thread.Join();
 #endif
+						}
+
+						threads.Clear();
+					}
 				}
 
-				threads.Clear();
-			}
+				// TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
+				// TODO: set fields of large size with null value.
 
-			disposed = true;
+				disposed = true;
+			}
+		}
+
+		// TODO: replace finalizer only if the above Dispose(bool disposing) function as code to free unmanaged resources.
+		//~Pool()
+		//{
+		//	Dispose(false);
+		//}
+
+		/// <summary>
+		/// Dispose of the thread pool. Wait for curently executing async task to complete and release all the allocated threads.
+		/// </summary>
+		/// <remarks>Note that async tasks that are planned but not started yet will be discarded.</remarks>
+		public void Dispose()
+		{
+			// Pass true in dispose method to clean managed resources too and say GC to skip finalize in next line.
+			Dispose(true);
+
+			// If dispose is called already then say GC to skip finalize on this instance.
+			// TODO: uncomment next line if finalizer is replaced above.
+			// GC.SuppressFinalize(this);
 		}
 		#endregion
 
@@ -198,7 +233,12 @@ namespace CLARTE.Threads
 		#endregion
 
 		#region Public methods
-		internal Result AddTask(Action task)
+		/// <summary>
+		/// Add a new task to be executed asynchronously.
+		/// </summary>
+		/// <param name="task">A method (task) that does not return any value.</param>
+		/// <returns>A helper class to be notified when the task is complete.</returns>
+		public Result AddTask(Action task)
 		{
 			Task t = Task.Create(task);
 
@@ -212,7 +252,13 @@ namespace CLARTE.Threads
 			return null;
 		}
 
-		internal Result<T> AddTask<T>(Func<T> task)
+		/// <summary>
+		/// Add a new task to be executed asynchronously.
+		/// </summary>
+		/// <typeparam name="T">The type of the returned value.</typeparam>
+		/// <param name="task">A method (task) that does return a value.</param>
+		/// <returns>A helper class to be notified when the task is complete and get the returned value.</returns>
+		public Result<T> AddTask<T>(Func<T> task)
 		{
 			Task t = Task.Create(task);
 
@@ -226,7 +272,11 @@ namespace CLARTE.Threads
 			return null;
 		}
 
-		internal long TaskCount()
+		/// <summary>
+		/// Get the number of tasks currentlty planned or executing.
+		/// </summary>
+		/// <returns>The number of tasks.</returns>
+		public long TaskCount()
 		{
 			if(disposed)
 			{
@@ -243,7 +293,11 @@ namespace CLARTE.Threads
 			return count;
 		}
 
-		internal IEnumerator WaitForTasksCompletion()
+		/// <summary>
+		/// Wait for all tasks (planned or executing) to complete. This is a barrier instruction.
+		/// </summary>
+		/// <returns>An enumerator that will return null as long as some tasks are present.</returns>
+		public IEnumerator WaitForTasksCompletion()
 		{
 			if(disposed)
 			{
@@ -256,7 +310,14 @@ namespace CLARTE.Threads
 			}
 		}
 
-		internal void ExecAndSaveToArray<T>(T[] array, int index, Func<T> callback)
+		/// <summary>
+		/// Utility method to execute a task and store the result in an array at a given index.
+		/// </summary>
+		/// <typeparam name="T">The type of the task return value.</typeparam>
+		/// <param name="array">The array where to store the result.</param>
+		/// <param name="index">The index at which store the result.</param>
+		/// <param name="callback">The task to execute.</param>
+		public void ExecAndSaveToArray<T>(T[] array, int index, Func<T> callback)
 		{
 			if(index >= 0 && index < array.Length)
 			{

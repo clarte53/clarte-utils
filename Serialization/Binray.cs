@@ -7,8 +7,15 @@ using UnityEngine;
 
 namespace CLARTE.Serialization
 {
+	/// <summary>
+	/// Binary serializer. It provide a fast and memory efficient way to serialize data into binary representation.
+	/// </summary>
+	/// <remarks>This class is pure C# and is compatible with all platforms, including hololens.</remarks>
 	public class Binary
 	{
+		/// <summary>
+		/// The types that are supported natively by the serializer. Other types can be added by implementing IBinarySerializable.
+		/// </summary>
 		public enum SupportedTypes
 		{
 			BINARY_SERIALIZABLE,
@@ -30,15 +37,26 @@ namespace CLARTE.Serialization
 			DICTIONARY,
 		}
 
+		/// <summary>
+		/// A buffer of bytes.
+		/// </summary>
 		public class Buffer : IDisposable
 		{
 			#region Members
 			protected Binary serializer;
 			protected uint resizeCount;
 			protected byte[] data;
+			private bool disposed = false;
 			#endregion
 
 			#region Constructors
+			/// <summary>
+			/// Create a new buffer of at least min_size bytes.
+			/// </summary>
+			/// <remarks>The buffer can potentially be bigger, depending on the available allocated resources.</remarks>
+			/// <param name="manager">The associated serializer.</param>
+			/// <param name="min_size">The minimal size of the buffer.</param>
+			/// <param name="resize_count">The number of times this buffer as been resized.</param>
 			public Buffer(Binary manager, uint min_size, uint resize_count = 0)
 			{
 				serializer = manager;
@@ -47,6 +65,11 @@ namespace CLARTE.Serialization
 				data = serializer.Grab(min_size);
 			}
 
+			/// <summary>
+			/// Create a new buffer from existing data.
+			/// </summary>
+			/// <param name="manager">The associated serializer.</param>
+			/// <param name="existing_data">The existing data.</param>
 			public Buffer(Binary manager, byte[] existing_data)
 			{
 				serializer = manager;
@@ -57,6 +80,9 @@ namespace CLARTE.Serialization
 			#endregion
 
 			#region Getter / Setter
+			/// <summary>
+			/// Get the buffer bytes data.
+			/// </summary>
 			public byte[] Data
 			{
 				get
@@ -65,6 +91,9 @@ namespace CLARTE.Serialization
 				}
 			}
 
+			/// <summary>
+			/// Get the number of times this buffer has been resized.
+			/// </summary>
 			public uint ResizeCount
 			{
 				get
@@ -75,16 +104,19 @@ namespace CLARTE.Serialization
 			#endregion
 
 			#region IDisposable implementation
-			private bool disposed = false;
-
 			protected virtual void Dispose(bool disposing)
 			{
 				if(!disposed)
 				{
 					if(disposing)
 					{
+						// TODO: delete managed state (managed objects).
+
 						serializer.Release(data);
 					}
+
+					// TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
+					// TODO: set fields of large size with null value.
 
 					resizeCount = 0;
 					serializer = null;
@@ -94,9 +126,23 @@ namespace CLARTE.Serialization
 				}
 			}
 
+			// TODO: replace finalizer only if the above Dispose(bool disposing) function as code to free unmanaged resources.
+			//~Buffer()
+			//{
+			//	Dispose(false);
+			//}
+
+			/// <summary>
+			/// Dispose of the buffer. Release the allocated memory to the serializer for futur use.
+			/// </summary>
 			public void Dispose()
 			{
+				// Pass true in dispose method to clean managed resources too and say GC to skip finalize in next line.
 				Dispose(true);
+
+				// If dispose is called already then say GC to skip finalize on this instance.
+				// TODO: uncomment next line if finalizer is replaced above.
+				// GC.SuppressFinalize(this);
 			}
 			#endregion
 		}
@@ -323,6 +369,11 @@ namespace CLARTE.Serialization
 		#endregion
 
 		#region Getter / Setter
+		/// <summary>
+		/// Get the size in bytes of a supported type.
+		/// </summary>
+		/// <param name="type">The type from which to get the size.</param>
+		/// <returns>The number of bytes of the type once serialized, or 0 if unknown.</returns>
 		public static uint Size(SupportedTypes type)
 		{
 			uint size;
@@ -337,6 +388,14 @@ namespace CLARTE.Serialization
 		#endregion
 
 		#region Public serialization methods
+		/// <summary>
+		/// Serialize an object to a file.
+		/// </summary>
+		/// <typeparam name="T">The type of the object to serialize.</typeparam>
+		/// <param name="value">The value to serialize.</param>
+		/// <param name="filename">The name of the file where to save the serialized data.</param>
+		/// <param name="callback">A callback called once the data is serialized to know if the serialization was a success.</param>
+		/// <returns>An enumerator to wait for the serialization completion.</returns>
 		public IEnumerator Serialize<T>(T value, string filename, Action<bool> callback = null)
 		{
 			return Serialize(value, (b, s) =>
@@ -367,6 +426,13 @@ namespace CLARTE.Serialization
 			});
 		}
 
+		/// <summary>
+		/// Serialize an object to a byte array.
+		/// </summary>
+		/// <typeparam name="T">The type of the object to serialize.</typeparam>
+		/// <param name="value">The value to serialize.</param>
+		/// <param name="callback">A callback called once the data is serialized to get the result byte array and serialized size.</param>
+		/// <returns>An enumerator to wait for the serialization completion.</returns>
 		public IEnumerator Serialize<T>(T value, Action<byte[], uint> callback)
 		{
 			Buffer buffer = GetBuffer(1024 * 1024 * 10); // Start with 10 Mo buffer
@@ -386,6 +452,13 @@ namespace CLARTE.Serialization
 			}
 		}
 
+		/// <summary>
+		/// Deserialize an object from a file
+		/// </summary>
+		/// <typeparam name="T">The type of the object to deserialize.</typeparam>
+		/// <param name="filename">The name of the file where to get the deserialized data.</param>
+		/// <param name="callback">A callback to get the deserialized object.</param>
+		/// <returns>An enumerator to wait for the deserialization completion.</returns>
 		public IEnumerator Deserialize<T>(string filename, Action<T> callback)
 		{
 			byte[] data = System.IO.File.ReadAllBytes(filename);
@@ -393,6 +466,13 @@ namespace CLARTE.Serialization
 			return Deserialize(data, callback);
 		}
 
+		/// <summary>
+		/// Deserialize an object from a byte array.
+		/// </summary>
+		/// <typeparam name="T">The type of the object to deserialize.</typeparam>
+		/// <param name="data">The byte array containing the serialized data.</param>
+		/// <param name="callback">A callback to get the deserialized object.</param>
+		/// <returns>An enumerator to wait for the deserialization completion.</returns>
 		public IEnumerator Deserialize<T>(byte[] data, Action<T> callback)
 		{
 			T value = default(T);
@@ -421,16 +501,33 @@ namespace CLARTE.Serialization
 		#endregion
 
 		#region Buffer handling
+		/// <summary>
+		/// Get a buffer of at least min_size.
+		/// </summary>
+		/// <remarks>The buffer can potentially be bigger, depending on the available allocated resources.</remarks>
+		/// <param name="min_size">The minimal size of the buffer.</param>
+		/// <returns>A buffer.</returns>
 		public Buffer GetBuffer(uint min_size)
 		{
 			return new Buffer(this, min_size);
 		}
 
+		/// <summary>
+		/// Get a buffer from existing data.
+		/// </summary>
+		/// <param name="data">The existing data/</param>
+		/// <returns>A buffer.</returns>
 		public Buffer GetBufferFromExistingData(byte[] data)
 		{
 			return new Buffer(this, data);
 		}
 
+		/// <summary>
+		/// Resize a buffer to a new size of at least min_size.
+		/// </summary>
+		/// <remarks>The buffer can potentially be bigger, depending on the available allocated resources.</remarks>
+		/// <param name="buffer">The buffer to resize.</param>
+		/// <param name="min_size">The new minimal size of the buffer.</param>
 		public void ResizeBuffer(ref Buffer buffer, uint min_size)
 		{
 			if(buffer == null) // No buffer: create one
@@ -543,6 +640,15 @@ namespace CLARTE.Serialization
 		#endregion
 
 		#region Convert from bytes
+		/// <summary>
+		/// Deserialize a IBinarySerializable object.
+		/// </summary>
+		/// <typeparam name="T">The type of the IBinarySerializable object.</typeparam>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized object.</param>
+		/// <param name="value">The deserialized object.</param>
+		/// <param name="optional">If true, no error will be raised if the value is missing and null will be returned.</param>
+		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes<T>(Buffer buffer, uint start, out T value, bool optional = false) where T : IBinarySerializable
 		{
 			IBinarySerializable ret;
@@ -581,6 +687,13 @@ namespace CLARTE.Serialization
 			return read;
 		}
 
+		/// <summary>
+		/// Deserialize a byte value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out byte value)
 		{
 			CheckDeserializationParameters(buffer, start);
@@ -597,6 +710,13 @@ namespace CLARTE.Serialization
 			return byteSize;
 		}
 
+		/// <summary>
+		/// Deserialize a bool value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out bool value)
 		{
 			byte ret;
@@ -608,6 +728,13 @@ namespace CLARTE.Serialization
 			return read;
 		}
 
+		/// <summary>
+		/// Deserialize a int value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out int value)
 		{
 			int begin, end, iter;
@@ -645,6 +772,13 @@ namespace CLARTE.Serialization
 			return intSize;
 		}
 
+		/// <summary>
+		/// Deserialize a uint value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out uint value)
 		{
 			int ret;
@@ -656,6 +790,13 @@ namespace CLARTE.Serialization
 			return read;
 		}
 
+		/// <summary>
+		/// Deserialize a long value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out long value)
 		{
 			int i1, i2;
@@ -675,6 +816,13 @@ namespace CLARTE.Serialization
 			return read;
 		}
 
+		/// <summary>
+		/// Deserialize a ulong value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out ulong value)
 		{
 			long ret;
@@ -686,6 +834,13 @@ namespace CLARTE.Serialization
 			return read;
 		}
 
+		/// <summary>
+		/// Deserialize a float value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out float value)
 		{
 			int ret;
@@ -697,6 +852,13 @@ namespace CLARTE.Serialization
 			return read;
 		}
 
+		/// <summary>
+		/// Deserialize a double value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out double value)
 		{
 			int i1, i2;
@@ -716,6 +878,13 @@ namespace CLARTE.Serialization
 			return read;
 		}
 
+		/// <summary>
+		/// Deserialize a Vector2 value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out Vector2 value)
 		{
 			float x, y;
@@ -728,6 +897,13 @@ namespace CLARTE.Serialization
 			return read;
 		}
 
+		/// <summary>
+		/// Deserialize a Vector3 value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out Vector3 value)
 		{
 			float x, y, z;
@@ -741,6 +917,13 @@ namespace CLARTE.Serialization
 			return read;
 		}
 
+		/// <summary>
+		/// Deserialize a Vector4 value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out Vector4 value)
 		{
 			float w, x, y, z;
@@ -755,6 +938,13 @@ namespace CLARTE.Serialization
 			return read;
 		}
 
+		/// <summary>
+		/// Deserialize a Quaternion value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out Quaternion value)
 		{
 			float w, x, y, z;
@@ -769,6 +959,13 @@ namespace CLARTE.Serialization
 			return read;
 		}
 
+		/// <summary>
+		/// Deserialize a Color value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out Color value)
 		{
 			byte r, g, b, a;
@@ -783,6 +980,13 @@ namespace CLARTE.Serialization
 			return read;
 		}
 
+		/// <summary>
+		/// Deserialize a string value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out string value)
 		{
 			uint size;
@@ -815,6 +1019,14 @@ namespace CLARTE.Serialization
 		#endregion
 
 		#region Convert to bytes
+		/// <summary>
+		/// Serialize a IBinarySerializable object.
+		/// </summary>
+		/// <param name="buffer">The buffer where to serialize the data.</param>
+		/// <param name="start">The start index in the buffer where to serialize the data.</param>
+		/// <param name="value">The object to serialize.</param>
+		/// <param name="optional">If true, no error will be raised if the value is null.</param>
+		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, IBinarySerializable value, bool optional = false)
 		{
 			uint written = 0;
@@ -838,6 +1050,13 @@ namespace CLARTE.Serialization
 			return written;
 		}
 
+		/// <summary>
+		/// Serialize a byte value.
+		/// </summary>
+		/// <param name="buffer">The buffer where to serialize the data.</param>
+		/// <param name="start">The start index in the buffer where to serialize the data.</param>
+		/// <param name="value">The value to serialize.</param>
+		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, byte value)
 		{
 			CheckSerializationParameters(buffer, start);
@@ -850,11 +1069,25 @@ namespace CLARTE.Serialization
 			return byteSize;
 		}
 
+		/// <summary>
+		/// Serialize a bool value.
+		/// </summary>
+		/// <param name="buffer">The buffer where to serialize the data.</param>
+		/// <param name="start">The start index in the buffer where to serialize the data.</param>
+		/// <param name="value">The value to serialize.</param>
+		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, bool value)
 		{
 			return ToBytes(ref buffer, start, value ? (byte) 0x1 : (byte) 0x0);
 		}
 
+		/// <summary>
+		/// Serialize a int value.
+		/// </summary>
+		/// <param name="buffer">The buffer where to serialize the data.</param>
+		/// <param name="start">The start index in the buffer where to serialize the data.</param>
+		/// <param name="value">The value to serialize.</param>
+		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, int value)
 		{
 			int begin, end, iter;
@@ -888,11 +1121,25 @@ namespace CLARTE.Serialization
 			return intSize;
 		}
 
+		/// <summary>
+		/// Serialize a uint value.
+		/// </summary>
+		/// <param name="buffer">The buffer where to serialize the data.</param>
+		/// <param name="start">The start index in the buffer where to serialize the data.</param>
+		/// <param name="value">The value to serialize.</param>
+		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, uint value)
 		{
 			return ToBytes(ref buffer, start, (int) value);
 		}
 
+		/// <summary>
+		/// Serialize a long value.
+		/// </summary>
+		/// <param name="buffer">The buffer where to serialize the data.</param>
+		/// <param name="start">The start index in the buffer where to serialize the data.</param>
+		/// <param name="value">The value to serialize.</param>
+		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, long value)
 		{
 			int i1, i2;
@@ -916,16 +1163,37 @@ namespace CLARTE.Serialization
 			return written;
 		}
 
+		/// <summary>
+		/// Serialize a ulong value.
+		/// </summary>
+		/// <param name="buffer">The buffer where to serialize the data.</param>
+		/// <param name="start">The start index in the buffer where to serialize the data.</param>
+		/// <param name="value">The value to serialize.</param>
+		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, ulong value)
 		{
 			return ToBytes(ref buffer, start, (long) value);
 		}
 
+		/// <summary>
+		/// Serialize a float value.
+		/// </summary>
+		/// <param name="buffer">The buffer where to serialize the data.</param>
+		/// <param name="start">The start index in the buffer where to serialize the data.</param>
+		/// <param name="value">The value to serialize.</param>
+		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, float value)
 		{
 			return ToBytes(ref buffer, start, new Converter(value).Int1);
 		}
 
+		/// <summary>
+		/// Serialize a double value.
+		/// </summary>
+		/// <param name="buffer">The buffer where to serialize the data.</param>
+		/// <param name="start">The start index in the buffer where to serialize the data.</param>
+		/// <param name="value">The value to serialize.</param>
+		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, double value)
 		{
 			int i1, i2;
@@ -949,6 +1217,13 @@ namespace CLARTE.Serialization
 			return written;
 		}
 
+		/// <summary>
+		/// Serialize a Vector2 value.
+		/// </summary>
+		/// <param name="buffer">The buffer where to serialize the data.</param>
+		/// <param name="start">The start index in the buffer where to serialize the data.</param>
+		/// <param name="value">The value to serialize.</param>
+		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, Vector2 value)
 		{
 			uint written = ToBytes(ref buffer, start, value.x);
@@ -957,6 +1232,13 @@ namespace CLARTE.Serialization
 			return written;
 		}
 
+		/// <summary>
+		/// Serialize a Vector3 value.
+		/// </summary>
+		/// <param name="buffer">The buffer where to serialize the data.</param>
+		/// <param name="start">The start index in the buffer where to serialize the data.</param>
+		/// <param name="value">The value to serialize.</param>
+		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, Vector3 value)
 		{
 			uint written = ToBytes(ref buffer, start, value.x);
@@ -966,6 +1248,13 @@ namespace CLARTE.Serialization
 			return written;
 		}
 
+		/// <summary>
+		/// Serialize a Vector4 value.
+		/// </summary>
+		/// <param name="buffer">The buffer where to serialize the data.</param>
+		/// <param name="start">The start index in the buffer where to serialize the data.</param>
+		/// <param name="value">The value to serialize.</param>
+		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, Vector4 value)
 		{
 			uint written = ToBytes(ref buffer, start, value.x);
@@ -976,6 +1265,13 @@ namespace CLARTE.Serialization
 			return written;
 		}
 
+		/// <summary>
+		/// Serialize a Quaternion value.
+		/// </summary>
+		/// <param name="buffer">The buffer where to serialize the data.</param>
+		/// <param name="start">The start index in the buffer where to serialize the data.</param>
+		/// <param name="value">The value to serialize.</param>
+		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, Quaternion value)
 		{
 			uint written = ToBytes(ref buffer, start, value.x);
@@ -986,6 +1282,13 @@ namespace CLARTE.Serialization
 			return written;
 		}
 
+		/// <summary>
+		/// Serialize a Color value.
+		/// </summary>
+		/// <param name="buffer">The buffer where to serialize the data.</param>
+		/// <param name="start">The start index in the buffer where to serialize the data.</param>
+		/// <param name="value">The value to serialize.</param>
+		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, Color value)
 		{
 			Color32 val = value;
@@ -998,6 +1301,13 @@ namespace CLARTE.Serialization
 			return written;
 		}
 
+		/// <summary>
+		/// Serialize a string value.
+		/// </summary>
+		/// <param name="buffer">The buffer where to serialize the data.</param>
+		/// <param name="start">The start index in the buffer where to serialize the data.</param>
+		/// <param name="value">The value to serialize.</param>
+		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, string value)
 		{
 			uint written = 0;
@@ -1038,6 +1348,14 @@ namespace CLARTE.Serialization
 		#endregion
 
 		#region Arrays
+		/// <summary>
+		/// Deserialize an array of supported objects.
+		/// </summary>
+		/// <typeparam name="T">The type of objects in the array.</typeparam>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized object.</param>
+		/// <param name="array">The deserialized array.</param>
+		/// <returns>The number of deserialized bytes.</returns>
 		[MethodLocator(MethodLocatorAttribute.Type.FROM_BYTES, MethodLocatorAttribute.Parameter.ARRAY)]
 		public uint FromBytes<T>(Buffer buffer, uint start, out T[] array)
 		{
@@ -1078,6 +1396,13 @@ namespace CLARTE.Serialization
 			return read;
 		}
 
+		/// <summary>
+		/// Deserialize an array of bytes.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized object.</param>
+		/// <param name="array">The deserialized array.</param>
+		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out byte[] array)
 		{
 			uint array_size, read;
@@ -1115,6 +1440,14 @@ namespace CLARTE.Serialization
 			return read;
 		}
 
+		/// <summary>
+		/// Serialize an array of supported objects.
+		/// </summary>
+		/// <typeparam name="T">The type of objects in the array.</typeparam>
+		/// <param name="buffer">The buffer where to serialize the data.</param>
+		/// <param name="start">The start index in the buffer where to serialize the data.</param>
+		/// <param name="array">The array to serialize.</param>
+		/// <returns>The number of serialized bytes.</returns>
 		[MethodLocator(MethodLocatorAttribute.Type.TO_BYTES, MethodLocatorAttribute.Parameter.ARRAY)]
 		public uint ToBytes<T>(ref Buffer buffer, uint start, T[] array)
 		{
@@ -1165,6 +1498,13 @@ namespace CLARTE.Serialization
 			return written;
 		}
 
+		/// <summary>
+		/// Serialize an array of bytes.
+		/// </summary>
+		/// <param name="buffer">The buffer where to serialize the data.</param>
+		/// <param name="start">The start index in the buffer where to serialize the data.</param>
+		/// <param name="array">The array to serialize.</param>
+		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, byte[] array)
 		{
 			uint written;
@@ -1209,6 +1549,15 @@ namespace CLARTE.Serialization
 		#endregion
 
 		#region Dictionaries
+		/// <summary>
+		/// Deserialize a dictionary of supported objects.
+		/// </summary>
+		/// <typeparam name="T">The type of keys in the dictionary.</typeparam>
+		/// <typeparam name="U">The type of values in the dictionary.</typeparam>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized object.</param>
+		/// <param name="dict">The deserialized dictionary.</param>
+		/// <returns>The number of deserialized bytes.</returns>
 		[MethodLocator(MethodLocatorAttribute.Type.FROM_BYTES, MethodLocatorAttribute.Parameter.DICTIONARY)]
 		public uint FromBytes<T, U>(Buffer buffer, uint start, out Dictionary<T, U> dict)
 		{
@@ -1250,6 +1599,15 @@ namespace CLARTE.Serialization
 			return read;
 		}
 
+		/// <summary>
+		/// Serialize a dictionary of supported objects.
+		/// </summary>
+		/// <typeparam name="T">The type of keys in the dictionary.</typeparam>
+		/// <typeparam name="U">The type of values in the dictionary.</typeparam>
+		/// <param name="buffer">The buffer where to serialize the data.</param>
+		/// <param name="start">The start index in the buffer where to serialize the data.</param>
+		/// <param name="dict">The dictionary to serialize.</param>
+		/// <returns>The number of serialized bytes.</returns>
 		[MethodLocator(MethodLocatorAttribute.Type.TO_BYTES, MethodLocatorAttribute.Parameter.DICTIONARY)]
 		public uint ToBytes<T, U>(ref Buffer buffer, uint start, Dictionary<T, U> dict)
 		{
@@ -1307,11 +1665,19 @@ namespace CLARTE.Serialization
 		#endregion
 
 		#region Object dynamic serialization
-		// Add support for objects where type is not known at compilation time.
-		// However, to avoid the penalty introduced by handling objects of unknown type, as well as keep useful compiler errors,
-		// the handling of this special case is not merged with the rest of the serialization methods.
-		// Instead, the user must EXPLICITELY ask for those methods, and they do not allow recursive serialization
-		// (i.e.arrays or dictionaries of 'objects').
+		/// <summary>
+		/// Deserialize objects where type is not known at compilation time.
+		/// </summary>
+		/// <remarks>
+		/// However, to avoid the penalty introduced by handling objects of unknown type, as well as keep useful compiler errors,
+		/// the handling of this special case is not merged with the rest of the serialization methods. Instead, the user must
+		/// EXPLICITELY ask for those methods, and they do not allow recursive serialization (i.e.arrays or dictionaries of 'objects').
+		/// </remarks>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized object.</param>
+		/// <param name="value">The deserialized object.</param>
+		/// <param name="optional">If true, no error will be raised if the value is missing and null will be returned.</param>
+		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytesDynamic(Buffer buffer, uint start, out object value, bool optional = false)
 		{
 			uint read = 0;
@@ -1340,6 +1706,18 @@ namespace CLARTE.Serialization
 			return read;
 		}
 
+		/// <summary>
+		/// Serialize objects where type is not known at compilation time.
+		/// </summary>
+		/// <remarks>
+		/// However, to avoid the penalty introduced by handling objects of unknown type, as well as keep useful compiler errors,
+		/// the handling of this special case is not merged with the rest of the serialization methods. Instead, the user must
+		/// EXPLICITELY ask for those methods, and they do not allow recursive serialization (i.e.arrays or dictionaries of 'objects').
+		/// <param name="buffer">The buffer where to serialize the data.</param>
+		/// <param name="start">The start index in the buffer where to serialize the data.</param>
+		/// <param name="value">The serialized object.</param>
+		/// <param name="optional">If true, no error will be raised if the value is null.</param>
+		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytesDynamic(ref Buffer buffer, uint start, object value, bool optional = false)
 		{
 			uint written = 0;

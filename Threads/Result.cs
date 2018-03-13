@@ -2,6 +2,9 @@
 
 namespace CLARTE.Threads
 {
+	/// <summary>
+	/// Async future result. Results provide feeback of async task completion and access to eventualy raised exceptions.
+	/// </summary>
 	public class Result
 	{
 		#region Members
@@ -85,6 +88,10 @@ namespace CLARTE.Threads
 		#endregion
 	}
 
+	/// <summary>
+	/// Specialized async result to get the return value of an async task.
+	/// </summary>
+	/// <typeparam name="T">The type of the return value.</typeparam>
 	public class Result<T> : Result
 	{
 		#region Members
