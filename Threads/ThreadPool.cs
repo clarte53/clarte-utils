@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
 
-#if UNITY_WSA
+#if UNITY_WSA && !UNITY_EDITOR
 // On UWP platforms, threads are not available. Therefore, we need support for Tasks, i.e. .Net version >= 4
 using MyThread = System.Threading.Tasks.Task;
 #else
@@ -86,7 +86,7 @@ namespace CLARTE.Threads
 
 			for (int i = 0; i < nb_threads; i++)
 			{
-#if UNITY_WSA
+#if UNITY_WSA && !UNITY_EDITOR
 				MyThread thread = new MyThread(Worker, System.Threading.Tasks.TaskCreationOptions.LongRunning);
 #else
 				MyThread thread = new MyThread(Worker);
@@ -122,7 +122,7 @@ namespace CLARTE.Threads
 
 						foreach(MyThread thread in threads)
 						{
-#if UNITY_WSA
+#if UNITY_WSA && !UNITY_EDITOR
 							thread.Wait();
 #else
 							thread.Join();

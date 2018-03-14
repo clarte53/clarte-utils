@@ -1827,7 +1827,7 @@ namespace CLARTE.Serialization
 			{
 				result = SupportedTypes.ARRAY;
 			}
-#if UNITY_WSA
+#if UNITY_WSA && !UNITY_EDITOR
 			else if(type.GetTypeInfo().IsGenericType && type.GetTypeInfo().GetGenericTypeDefinition() == typeof(Dictionary<,>))
 #else
 			else if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<,>))
