@@ -2,6 +2,10 @@
 
 namespace CLARTE.Geometry.Collision
 {
+	/// <summary>
+	/// Utility class containing extension methods for collision detection between BoxColliders using
+	/// the Separating Axis Theorem (SAT) algorithm.
+	/// </summary>
 	public static class BoxSAT
 	{
 		/// <summary>
