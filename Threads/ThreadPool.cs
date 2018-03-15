@@ -216,8 +216,6 @@ namespace CLARTE.Threads
 					}
 					catch(Exception e)
 					{
-						Debug.LogErrorFormat("An exception '{0}' occured in parallel jobs: {1}\n{2}", e.GetType(), e.Message, e.StackTrace);
-
 						exception = e;
 					}
 
