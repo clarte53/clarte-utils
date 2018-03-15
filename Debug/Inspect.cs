@@ -12,7 +12,7 @@ namespace CLARTE.Debug
 		/// <summary>
 		/// The MonoBehaviour to inspect in the debugger.
 		/// </summary>
-		public MonoBehaviour inspected;
+		public Object inspected;
 
 		private void Update()
 		{
