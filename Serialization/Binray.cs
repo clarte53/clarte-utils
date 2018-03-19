@@ -79,6 +79,14 @@ namespace CLARTE.Serialization
 			}
 			#endregion
 
+			#region Destructor
+			// Make sure that internal data get released to the serializer
+			~Buffer()
+			{
+				Dispose();
+			}
+			#endregion
+
 			#region Getter / Setter
 			/// <summary>
 			/// Get the buffer bytes data.
@@ -125,12 +133,6 @@ namespace CLARTE.Serialization
 					disposed = true;
 				}
 			}
-
-			// TODO: replace finalizer only if the above Dispose(bool disposing) function as code to free unmanaged resources.
-			//~Buffer()
-			//{
-			//	Dispose(false);
-			//}
 
 			/// <summary>
 			/// Dispose of the buffer. Release the allocated memory to the serializer for futur use.
@@ -450,6 +452,8 @@ namespace CLARTE.Serialization
 			{
 				callback(buffer.Data, result.Value);
 			}
+
+			buffer.Dispose();
 		}
 
 		/// <summary>
@@ -487,6 +491,8 @@ namespace CLARTE.Serialization
 			{
 				yield return null;
 			}
+
+			buffer.Dispose();
 
 			if(result.Value != data.Length)
 			{
