@@ -38,6 +38,42 @@ namespace CLARTE.Serialization
 		}
 
 		/// <summary>
+		/// Exception raised when an error happens during serialization.
+		/// </summary>
+		public class SerializationException : Exception
+		{
+			#region Constructors
+			/// <summary>
+			/// Constructor of serialization exception.
+			/// </summary>
+			/// <param name="message">Description of the error.</param>
+			/// <param name="inner_exception">The exception that was raised during the serialization.</param>
+			public SerializationException(string message, Exception inner_exception) : base(message, inner_exception)
+			{
+
+			}
+			#endregion
+		}
+
+		/// <summary>
+		/// Exception raised when an error happens during deserialization.
+		/// </summary>
+		public class DeserializationException : Exception
+		{
+			#region Constructors
+			/// <summary>
+			/// Constructor of deserialization exception.
+			/// </summary>
+			/// <param name="message">Description of the error.</param>
+			/// /// <param name="inner_exception">The exception that was raised during the deserialization.</param>
+			public DeserializationException(string message, Exception inner_exception) : base(message, inner_exception)
+			{
+
+			}
+			#endregion
+		}
+
+		/// <summary>
 		/// A buffer of bytes.
 		/// </summary>
 		public class Buffer : IDisposable
@@ -242,6 +278,11 @@ namespace CLARTE.Serialization
 		}
 
 		#region Members
+		/// <summary>
+		/// Serialization buffer of 10 Mo by default.
+		/// </summary>
+		public const uint defaultSerializationBufferSize = 1024 * 1024 * 10;
+
 		protected const uint nbParameters = 3;
 		protected const uint mask = 0xFF;
 		protected const uint byteBits = 8;
@@ -398,7 +439,7 @@ namespace CLARTE.Serialization
 		/// <param name="filename">The name of the file where to save the serialized data.</param>
 		/// <param name="callback">A callback called once the data is serialized to know if the serialization was a success.</param>
 		/// <returns>An enumerator to wait for the serialization completion.</returns>
-		public IEnumerator Serialize<T>(T value, string filename, Action<bool> callback = null)
+		public IEnumerator Serialize<T>(T value, string filename, Action<bool> callback = null, uint default_buffer_size = defaultSerializationBufferSize)
 		{
 			return Serialize(value, (b, s) =>
 			{
@@ -406,26 +447,19 @@ namespace CLARTE.Serialization
 
 				if(b != null && b.Length > 0)
 				{
-					try
+					using(System.IO.FileStream fs = System.IO.File.Open(filename, System.IO.FileMode.Create, System.IO.FileAccess.Write, System.IO.FileShare.None))
 					{
-						using(System.IO.FileStream fs = System.IO.File.Open(filename, System.IO.FileMode.Create, System.IO.FileAccess.Write, System.IO.FileShare.None))
-						{
-							fs.Write(b, 0, (int) s);
-						}
+						fs.Write(b, 0, (int) s);
+					}
 
-						success = true;
-					}
-					catch
-					{
-						success = false;
-					}
+					success = true;
 				}
 
 				if(callback != null)
 				{
 					callback(success);
 				}
-			});
+			}, default_buffer_size);
 		}
 
 		/// <summary>
@@ -435,25 +469,40 @@ namespace CLARTE.Serialization
 		/// <param name="value">The value to serialize.</param>
 		/// <param name="callback">A callback called once the data is serialized to get the result byte array and serialized size.</param>
 		/// <returns>An enumerator to wait for the serialization completion.</returns>
-		public IEnumerator Serialize<T>(T value, Action<byte[], uint> callback)
+		public IEnumerator Serialize<T>(T value, Action<byte[], uint> callback, uint default_buffer_size = defaultSerializationBufferSize)
 		{
-			Buffer buffer = GetBuffer(1024 * 1024 * 10); // Start with 10 Mo buffer
+			Buffer buffer = null;
 
-			SupportedTypes type = GetSupportedType(typeof(T));
-
-			Threads.Result<uint> result = Threads.Tasks.Add(() => ToBytesWrapper(ref buffer, 0, value, type));
-
-			while(!result.Done)
+			try
 			{
-				yield return null;
-			}
+				buffer = GetBuffer(default_buffer_size);
 
-			if(callback != null)
+				SupportedTypes type = GetSupportedType(typeof(T));
+
+				Threads.Result<uint> result = Threads.Tasks.Add(() => ToBytesWrapper(ref buffer, 0, value, type));
+
+				while(!result.Done)
+				{
+					yield return null;
+				}
+
+				if(result.Exception != null)
+				{
+					throw new SerializationException("An error occured during serialization.", result.Exception);
+				}
+
+				if(callback != null)
+				{
+					callback(buffer.Data, result.Value);
+				}
+			}
+			finally
 			{
-				callback(buffer.Data, result.Value);
+				if(buffer != null)
+				{
+					buffer.Dispose();
+				}
 			}
-
-			buffer.Dispose();
 		}
 
 		/// <summary>
@@ -481,22 +530,25 @@ namespace CLARTE.Serialization
 		{
 			T value = default(T);
 
-			Buffer buffer = GetBufferFromExistingData(data);
-
-			SupportedTypes type = GetSupportedType(typeof(T));
-
-			Threads.Result<uint> result = Threads.Tasks.Add(() => FromBytesWrapper(buffer, 0, out value, type));
-
-			while(!result.Done)
+			using(Buffer buffer = GetBufferFromExistingData(data))
 			{
-				yield return null;
-			}
+				SupportedTypes type = GetSupportedType(typeof(T));
 
-			buffer.Dispose();
+				Threads.Result<uint> result = Threads.Tasks.Add(() => FromBytesWrapper(buffer, 0, out value, type));
 
-			if(result.Value != data.Length)
-			{
-				throw new TypeLoadException(string.Format("Invalid deserialization of type '{0}'. Not all available data was used.", typeof(T)));
+				while(!result.Done)
+				{
+					yield return null;
+				}
+
+				if(result.Exception != null)
+				{
+					throw new DeserializationException("An error occured during deserialization.", result.Exception);
+				}
+				else if(result.Value != data.Length)
+				{
+					throw new DeserializationException(string.Format("Invalid deserialization of type '{0}'. Not all available data was used.", typeof(T)), null);
+				}
 			}
 
 			if(callback != null)
