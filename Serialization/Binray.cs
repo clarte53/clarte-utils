@@ -1490,7 +1490,7 @@ namespace CLARTE.Serialization
 				array = new byte[array_size];
 
 				// Copy elements as fast as possible
-				Array.Copy(buffer.Data, (int) (start + read), array, 0, (int)  array_bytes_size);
+				Array.Copy(buffer.Data, (int) (start + read), array, 0, (int) array_bytes_size);
 
 				read += array_bytes_size;
 			}
