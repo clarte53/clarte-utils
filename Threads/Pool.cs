@@ -309,17 +309,37 @@ namespace CLARTE.Threads
 		}
 
 		/// <summary>
+		/// Wait for all tasks in a given group (planned or executing) to complete. This is a barrier instruction.
+		/// </summary>
+		/// <param name="tasks">A set of results corresponding to the tasks to wait for.</param>
+		/// <returns>An enumerator that will return null as long as some tasks are present.</returns>
+		public IEnumerator WaitForTasksCompletion(HashSet<Result> tasks)
+		{
+			if(disposed)
+			{
+				throw new ObjectDisposedException("ThreadPool", "The thread pool is already disposed.");
+			}
+
+			while(tasks.Count > 0)
+			{
+				yield return null;
+
+				tasks.RemoveWhere(r => r.Done);
+			}
+		}
+
+		/// <summary>
 		/// Utility method to execute a task and store the result in an array at a given index.
 		/// </summary>
 		/// <typeparam name="T">The type of the task return value.</typeparam>
 		/// <param name="array">The array where to store the result.</param>
 		/// <param name="index">The index at which store the result.</param>
 		/// <param name="callback">The task to execute.</param>
-		public void ExecAndSaveToArray<T>(T[] array, int index, Func<T> callback)
+		public Result ExecAndSaveToArray<T>(T[] array, int index, Func<T> callback)
 		{
 			if(index >= 0 && index < array.Length)
 			{
-				AddTask(() => array[index] = callback());
+				return AddTask(() => array[index] = callback());
 			}
 			else
 			{
