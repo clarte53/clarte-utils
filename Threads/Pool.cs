@@ -2,7 +2,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
-using UnityEngine;
 
 #if UNITY_WSA && !UNITY_EDITOR
 // On UWP platforms, threads are not available. Therefore, we need support for Tasks, i.e. .Net version >= 4
