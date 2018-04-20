@@ -9,7 +9,19 @@ namespace CLARTE.Threads
 	{
 		#region Members
 		protected bool done = false;
+		protected bool exceptionChecked = false;
 		protected Exception exception = null;
+		#endregion
+
+		#region Destructor
+		~Result()
+		{
+			// If we got an exception and the user did not checked it, we display an error message before the info is lost.
+			if(!exceptionChecked && exception != null)
+			{
+				UnityEngine.Debug.LogErrorFormat("{0}: {1}\n{2}", exception.GetType(), exception.Message, exception.StackTrace);
+			}
+		}
 		#endregion
 
 		#region Getter / Setter
@@ -56,6 +68,8 @@ namespace CLARTE.Threads
 
 				lock(this)
 				{
+					exceptionChecked = true;
+
 					return exception;
 				}
 			}

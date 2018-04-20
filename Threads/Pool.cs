@@ -321,6 +321,10 @@ namespace CLARTE.Threads
 			{
 				AddTask(() => array[index] = callback());
 			}
+			else
+			{
+				throw new IndexOutOfRangeException(string.Format("Index '{0}' is not a valid index. Accepted values are [0:{1}].", index, array.Length - 1));
+			}
 		}
 		#endregion
 	}
