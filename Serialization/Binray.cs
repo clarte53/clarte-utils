@@ -119,7 +119,7 @@ namespace CLARTE.Serialization
 			// Make sure that internal data get released to the serializer
 			~Buffer()
 			{
-				Dispose();
+				Dispose(true);
 			}
 			#endregion
 
@@ -148,7 +148,7 @@ namespace CLARTE.Serialization
 			#endregion
 
 			#region IDisposable implementation
-			protected virtual void Dispose(bool disposing)
+			public virtual void Dispose(bool disposing)
 			{
 				if(!disposed)
 				{
@@ -180,7 +180,7 @@ namespace CLARTE.Serialization
 
 				// If dispose is called already then say GC to skip finalize on this instance.
 				// TODO: uncomment next line if finalizer is replaced above.
-				// GC.SuppressFinalize(this);
+				GC.SuppressFinalize(this);
 			}
 			#endregion
 		}
@@ -614,7 +614,11 @@ namespace CLARTE.Serialization
 				Array.Copy(buffer.Data, new_buffer.Data, buffer.Data.Length);
 
 				// Release old buffer
-				buffer.Dispose();
+				// Actually, do not call dispose for this buffer! If we do, it will be added back to the pool
+				// of available buffers and the allocated memory could increase drastically over time.
+				// Instead, we purposefully ignore to release it. Therefore, the memory will be released when
+				// the buffer gets out of scope, i.e. at the end of this function.
+				buffer.Dispose(false);
 
 				// Switch buffers
 				buffer = new_buffer;
