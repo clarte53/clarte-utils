@@ -1,8 +1,9 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
-#if NET_2_0 || NET_2_0_SUBSET
+using System;
+using System.Collections;
 
-namespace System.Collections
+namespace CLARTE.Backport.Collections
 {
     public interface IStructuralEquatable
 	{
@@ -10,5 +11,3 @@ namespace System.Collections
         int GetHashCode(IEqualityComparer comparer);
     }
 }
-
-#endif
