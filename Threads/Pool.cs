@@ -99,11 +99,6 @@ namespace CLARTE.Threads
 				thread.Start();
 			}
 		}
-
-		~Pool()
-		{
-			Dispose();
-		}
 		#endregion
 
 		#region IDisposable implementation
@@ -140,10 +135,10 @@ namespace CLARTE.Threads
 		}
 
 		// TODO: replace finalizer only if the above Dispose(bool disposing) function as code to free unmanaged resources.
-		//~Pool()
-		//{
-		//	Dispose(false);
-		//}
+		~Pool()
+		{
+			Dispose(/*false*/);
+		}
 
 		/// <summary>
 		/// Dispose of the thread pool. Wait for curently executing async task to complete and release all the allocated threads.
@@ -156,7 +151,7 @@ namespace CLARTE.Threads
 
 			// If dispose is called already then say GC to skip finalize on this instance.
 			// TODO: uncomment next line if finalizer is replaced above.
-			// GC.SuppressFinalize(this);
+			GC.SuppressFinalize(this);
 		}
 		#endregion
 
