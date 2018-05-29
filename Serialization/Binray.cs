@@ -282,6 +282,7 @@ namespace CLARTE.Serialization
 		/// Serialization buffer of 10 Mo by default.
 		/// </summary>
 		public const uint defaultSerializationBufferSize = 1024 * 1024 * 10;
+		public const float minResizeOffset = 0.1f;
 
 		protected const uint nbParameters = 3;
 		protected const uint mask = 0xFF;
@@ -604,8 +605,8 @@ namespace CLARTE.Serialization
 				// when possible.
 				uint current_size = (uint) buffer.Data.Length;
 				uint delta = min_size - current_size;
-				float growth = ((float) (current_size + delta)) / (float) current_size;
-				uint new_size = min_size + (uint) (((float) delta * buffer.ResizeCount) / growth);
+				float growth = Math.Max(1f - ((float) min_size) / current_size, minResizeOffset);
+				uint new_size = min_size + (uint) (buffer.ResizeCount * growth * min_size);
 
 				// Get a new buffer of sufficient size
 				Buffer new_buffer = new Buffer(this, new_size, buffer.ResizeCount + 1);
