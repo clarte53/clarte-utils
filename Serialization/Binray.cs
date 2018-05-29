@@ -643,7 +643,6 @@ namespace CLARTE.Serialization
 				// ideal buffer size. However, keep in mind that resizes should be a last resort and should be avoided
 				// when possible.
 				uint current_size = (uint) buffer.Data.Length;
-				uint delta = min_size - current_size;
 				float growth = Math.Max(1f - ((float) min_size) / current_size, minResizeOffset);
 				uint new_size = min_size + (uint) (buffer.ResizeCount * growth * min_size);
 
