@@ -88,6 +88,18 @@ namespace CLARTE.Serialization
 
 			#region Constructors
 			/// <summary>
+			/// Create a new buffer.
+			/// </summary>
+			/// <remarks>This is the shared constructors code. This constructor should never be called by itself.</remarks>
+			/// <param name="manager">The associated serializer.</param>
+			/// <param name="progress_callback">A callback to notify progress of the current task.</param>
+			protected Buffer(Binary manager, Action<float> progress_callback)
+			{
+				serializer = manager;
+				progress = progress_callback;
+			}
+
+			/// <summary>
 			/// Create a new buffer of at least min_size bytes.
 			/// </summary>
 			/// <remarks>The buffer can potentially be bigger, depending on the available allocated resources.</remarks>
@@ -95,11 +107,9 @@ namespace CLARTE.Serialization
 			/// <param name="min_size">The minimal size of the buffer.</param>
 			/// <param name="progress_callback">A callback to notify progress of the current task.</param>
 			/// <param name="resize_count">The number of times this buffer as been resized.</param>
-			public Buffer(Binary manager, uint min_size, Action<float> progress_callback, uint resize_count = 0)
+			public Buffer(Binary manager, uint min_size, Action<float> progress_callback, uint resize_count = 0) : this(manager, progress_callback)
 			{
-				serializer = manager;
 				resizeCount = resize_count;
-				progress = progress_callback;
 
 				data = serializer.Grab(min_size);
 			}
@@ -110,11 +120,9 @@ namespace CLARTE.Serialization
 			/// <param name="manager">The associated serializer.</param>
 			/// <param name="existing_data">The existing data.</param>
 			/// <param name="progress_callback">A callback to notify progress of the current task.</param>
-			public Buffer(Binary manager, byte[] existing_data, Action<float> progress_callback)
+			public Buffer(Binary manager, byte[] existing_data, Action<float> progress_callback) : this(manager, progress_callback)
 			{
-				serializer = manager;
 				resizeCount = 0;
-				progress = progress_callback;
 
 				data = existing_data;
 			}
@@ -154,7 +162,7 @@ namespace CLARTE.Serialization
 			/// <summary>
 			/// Get the progress callback associated with this buffer.
 			/// </summary>
-			public Action<float> Progress
+			public Action<float> ProgressCallback
 			{
 				get
 				{
@@ -198,6 +206,20 @@ namespace CLARTE.Serialization
 				// If dispose is called already then say GC to skip finalize on this instance.
 				// TODO: uncomment next line if finalizer is replaced above.
 				GC.SuppressFinalize(this);
+			}
+			#endregion
+
+			#region Progress
+			/// <summary>
+			/// Update the progress notification.
+			/// </summary>
+			/// <param name="position">Position reached in the buffer.</param>
+			public void Progress(uint position)
+			{
+				if(progress != null)
+				{
+					progress(((float) position) / data.Length);
+				}
 			}
 			#endregion
 		}
@@ -300,6 +322,8 @@ namespace CLARTE.Serialization
 		/// </summary>
 		public const uint defaultSerializationBufferSize = 1024 * 1024 * 10;
 		public const float minResizeOffset = 0.1f;
+
+		protected static readonly TimeSpan progressRefresRate = new TimeSpan(0, 0, 0, 0, 40);
 
 		protected const uint nbParameters = 3;
 		protected const uint mask = 0xFF;
@@ -497,6 +521,7 @@ namespace CLARTE.Serialization
 
 			try
 			{
+				DateTime time = DateTime.Now + progressRefresRate;
 				float progress_percentage = 0f;
 
 				buffer = GetBuffer(default_buffer_size, p => progress_percentage = p);
@@ -507,9 +532,11 @@ namespace CLARTE.Serialization
 
 				while(!result.Done)
 				{
-					if(progress != null)
+					if(progress != null && DateTime.Now >= time)
 					{
 						progress(progress_percentage);
+
+						time = DateTime.Now + progressRefresRate;
 					}
 
 					yield return null;
@@ -561,6 +588,7 @@ namespace CLARTE.Serialization
 		{
 			T value = default(T);
 
+			DateTime time = DateTime.Now + progressRefresRate;
 			float progress_percentage = 0f;
 
 			using(Buffer buffer = GetBufferFromExistingData(data, p => progress_percentage = p))
@@ -571,9 +599,11 @@ namespace CLARTE.Serialization
 
 				while(!result.Done)
 				{
-					if(progress != null)
+					if(progress != null && DateTime.Now >= time)
 					{
 						progress(progress_percentage);
+
+						time = DateTime.Now + progressRefresRate;
 					}
 
 					yield return null;
@@ -647,7 +677,7 @@ namespace CLARTE.Serialization
 				uint new_size = min_size + (uint) (buffer.ResizeCount * growth * min_size);
 
 				// Get a new buffer of sufficient size
-				Buffer new_buffer = new Buffer(this, new_size, buffer.Progress, buffer.ResizeCount + 1);
+				Buffer new_buffer = new Buffer(this, new_size, buffer.ProgressCallback, buffer.ResizeCount + 1);
 
 				// Copy old buffer content into new one
 				Array.Copy(buffer.Data, new_buffer.Data, buffer.Data.Length);
@@ -808,10 +838,7 @@ namespace CLARTE.Serialization
 
 			value = data[start];
 
-			if(buffer.Progress != null)
-			{
-				buffer.Progress(((float) (start + byteSize)) / buffer.Data.Length);
-			}
+			buffer.Progress(start + byteSize);
 
 			return byteSize;
 		}
@@ -875,10 +902,7 @@ namespace CLARTE.Serialization
 				value |= data[i] << offset;
 			}
 
-			if(buffer.Progress != null)
-			{
-				buffer.Progress(((float) (start + intSize)) / buffer.Data.Length);
-			}
+			buffer.Progress(start + intSize);
 
 			return intSize;
 		}
@@ -1125,10 +1149,7 @@ namespace CLARTE.Serialization
 				read += size;
 			}
 
-			if(buffer.Progress != null)
-			{
-				buffer.Progress(((float) (start + read)) / buffer.Data.Length);
-			}
+			buffer.Progress(start + read);
 
 			return read;
 		}
@@ -1182,10 +1203,7 @@ namespace CLARTE.Serialization
 
 			buffer.Data[start] = value;
 
-			if(buffer.Progress != null)
-			{
-				buffer.Progress(((float) (start + byteSize)) / buffer.Data.Length);
-			}
+			buffer.Progress(start + byteSize);
 
 			return byteSize;
 		}
@@ -1239,10 +1257,7 @@ namespace CLARTE.Serialization
 				data[i] = (byte) ((value >> offset) & mask);
 			}
 
-			if(buffer.Progress != null)
-			{
-				buffer.Progress(((float) (start + intSize)) / buffer.Data.Length);
-			}
+			buffer.Progress(start + intSize);
 
 			return intSize;
 		}
@@ -1469,10 +1484,7 @@ namespace CLARTE.Serialization
 				}
 			}
 
-			if(buffer.Progress != null)
-			{
-				buffer.Progress(((float) (start + written)) / buffer.Data.Length);
-			}
+			buffer.Progress(start + written);
 
 			return written;
 		}
@@ -1568,10 +1580,7 @@ namespace CLARTE.Serialization
 				read += array_bytes_size;
 			}
 
-			if(buffer.Progress != null)
-			{
-				buffer.Progress(((float) (start + read)) / buffer.Data.Length);
-			}
+			buffer.Progress(start + read);
 
 			return read;
 		}
@@ -1680,10 +1689,7 @@ namespace CLARTE.Serialization
 				written += array_bytes_size;
 			}
 
-			if(buffer.Progress != null)
-			{
-				buffer.Progress(((float) (start + written)) / buffer.Data.Length);
-			}
+			buffer.Progress(start + written);
 
 			return written;
 		}
