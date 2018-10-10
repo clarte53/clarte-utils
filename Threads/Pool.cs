@@ -3,19 +3,12 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 
-#if UNITY_WSA && !UNITY_EDITOR
-// On UWP platforms, threads are not available. Therefore, we need support for Tasks, i.e. .Net version >= 4
-using MyThread = System.Threading.Tasks.Task;
-#else
-using MyThread = System.Threading.Thread;
-#endif
-
 namespace CLARTE.Threads
 {
 	/// <summary>
 	/// A thread pool to avoid creating a new thread for every async tasks.
 	/// </summary>
-	public class Pool : IDisposable
+	public class Pool : Workers, IDisposable
 	{
 		protected class Task
 		{
@@ -61,98 +54,27 @@ namespace CLARTE.Threads
 		}
 
 		#region Members
-		protected List<MyThread> threads;
 		protected Queue<Task> tasks;
 		protected ManualResetEvent addEvent;
-		protected ManualResetEvent stopEvent;
 		protected object taskCountMutex;
 		protected int taskCount; // We can not use the length of the tasks queue because when the lasts task is removed from the queue, it is still executed and WaitForTasksCompletion should continue to wait.
-		protected bool disposed;
-		#endregion
+        #endregion
 
-		#region Constructors / Destructors
-		public Pool()
+        #region Constructors / Destructors
+        /// <summary>
+        /// Create a new thread pool for oneshot tasks.
+        /// </summary>
+        /// <param name="nb_threads">The number of worker threads to span.</param>
+        public Pool(uint nb_threads = 0)
 		{
-			int nb_threads = Math.Max(Environment.ProcessorCount - 1, 1);
-
-			threads = new List<MyThread>(nb_threads);
 			tasks = new Queue<Task>();
 
 			addEvent = new ManualResetEvent(false);
-			stopEvent = new ManualResetEvent(false);
 
 			taskCountMutex = new object();
 
-			for (int i = 0; i < nb_threads; i++)
-			{
-#if UNITY_WSA && !UNITY_EDITOR
-				MyThread thread = new MyThread(Worker, System.Threading.Tasks.TaskCreationOptions.LongRunning);
-#else
-				MyThread thread = new MyThread(Worker);
-#endif
-
-				threads.Add(thread);
-			}
-
-			foreach(MyThread thread in threads)
-			{
-				thread.Start();
-			}
-		}
-		#endregion
-
-		#region IDisposable implementation
-		protected virtual void Dispose(bool disposing)
-		{
-			if(!disposed)
-			{
-				if(disposing)
-				{
-					// TODO: delete managed state (managed objects).
-
-					if(threads != null && threads.Count > 0)
-					{
-						stopEvent.Set();
-
-						foreach(MyThread thread in threads)
-						{
-#if UNITY_WSA && !UNITY_EDITOR
-							thread.Wait();
-#else
-							thread.Join();
-#endif
-						}
-
-						threads.Clear();
-					}
-				}
-
-				// TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
-				// TODO: set fields of large size with null value.
-
-				disposed = true;
-			}
-		}
-
-		// TODO: replace finalizer only if the above Dispose(bool disposing) function as code to free unmanaged resources.
-		~Pool()
-		{
-			Dispose(/*false*/);
-		}
-
-		/// <summary>
-		/// Dispose of the thread pool. Wait for curently executing async task to complete and release all the allocated threads.
-		/// </summary>
-		/// <remarks>Note that async tasks that are planned but not started yet will be discarded.</remarks>
-		public void Dispose()
-		{
-			// Pass true in dispose method to clean managed resources too and say GC to skip finalize in next line.
-			Dispose(true);
-
-			// If dispose is called already then say GC to skip finalize on this instance.
-			// TODO: uncomment next line if finalizer is replaced above.
-			GC.SuppressFinalize(this);
-		}
+            Init(Worker, new ManualResetEvent[] { addEvent }, nb_threads);
+        }
 		#endregion
 
 		#region Worker
@@ -160,7 +82,7 @@ namespace CLARTE.Threads
 		{
 			if(disposed)
 			{
-				throw new ObjectDisposedException("ThreadPool", "The thread pool is already disposed.");
+				throw new ObjectDisposedException("CLARTE.Threads.Pool", "The thread pool is already disposed.");
 			}
 
 			if(task != null)
@@ -179,11 +101,9 @@ namespace CLARTE.Threads
 			}
 		}
 
-		protected void Worker()
+		protected void Worker(WaitHandle ev)
 		{
-			WaitHandle[] wait = new[] { addEvent, stopEvent };
-
-			while(WaitHandle.WaitAny(wait) == 0)
+			if(ev == addEvent)
 			{
 				Task task = null;
 
@@ -272,7 +192,7 @@ namespace CLARTE.Threads
 		{
 			if(disposed)
 			{
-				throw new ObjectDisposedException("ThreadPool", "The thread pool is already disposed.");
+				throw new ObjectDisposedException("CLARTE.Threads.Pool", "The thread pool is already disposed.");
 			}
 
 			long count;
@@ -293,7 +213,7 @@ namespace CLARTE.Threads
 		{
 			if(disposed)
 			{
-				throw new ObjectDisposedException("ThreadPool", "The thread pool is already disposed.");
+				throw new ObjectDisposedException("CLARTE.Threads.Pool", "The thread pool is already disposed.");
 			}
 
 			while(TaskCount() > 0)
@@ -311,7 +231,7 @@ namespace CLARTE.Threads
 		{
 			if(disposed)
 			{
-				throw new ObjectDisposedException("ThreadPool", "The thread pool is already disposed.");
+				throw new ObjectDisposedException("CLARTE.Threads.Pool", "The thread pool is already disposed.");
 			}
 
 			while(tasks.Count > 0)
