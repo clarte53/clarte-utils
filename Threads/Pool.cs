@@ -64,7 +64,7 @@ namespace CLARTE.Threads
         /// <summary>
         /// Create a new thread pool for oneshot tasks.
         /// </summary>
-        /// <param name="nb_threads">The number of worker threads to span.</param>
+        /// <param name="nb_threads">The number of worker threads to span. If zero, the worker is started in (nb_cpu_cores - 1) threads.</param>
         public Pool(uint nb_threads = 0)
 		{
 			tasks = new Queue<Task>();
@@ -73,7 +73,7 @@ namespace CLARTE.Threads
 
 			taskCountMutex = new object();
 
-            Init(Worker, new ManualResetEvent[] { addEvent }, nb_threads);
+            Init(new Descriptor(Worker, new ManualResetEvent[] { addEvent }, nb_threads));
         }
 		#endregion
 

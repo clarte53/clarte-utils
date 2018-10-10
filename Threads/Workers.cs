@@ -14,6 +14,56 @@ namespace CLARTE.Threads
 {
     public class Workers : IDisposable
     {
+        public struct Descriptor
+        {
+            #region Members
+            public Action<WaitHandle> worker;
+            public ICollection<WaitHandle> events;
+            public uint nbEvents;
+            public uint nbThreads;
+            #endregion
+
+            #region Constructor
+            /// <summary>
+            /// Descriptor for a new group of worker threads.
+            /// </summary>
+            /// <param name="worker">A method executed by each worker thread in an infinite loop. This method get the event that started the new iteration as parameter.</param>
+            /// <param name="events">A set of events to wait for before doing the next iteration of the worker loop.</param>
+            /// <param name="nb_threads">The number of worker threads to span. If zero, the worker is started in (nb_cpu_cores - 1) threads.</param>
+            public Descriptor(Action<WaitHandle> worker, ICollection<WaitHandle> events, uint nb_threads = 0)
+            {
+                if(worker == null)
+                {
+                    throw new ArgumentNullException("worker", "Invalid null worker method in thread group description.");
+                }
+
+                if(events == null)
+                {
+                    throw new ArgumentNullException("events", "Invalid null event collection in thread group description.");
+                }
+
+                this.worker = worker;
+                this.events = events;
+
+                nbEvents = (uint) events.Count(x => x != null);
+
+                if(nbEvents == 0)
+                {
+                    throw new ArgumentNullException("events", "Invalid empty event collection in thread group description.");
+                }
+
+                if(nb_threads == 0)
+                {
+                    nbThreads = (uint) Math.Max(Environment.ProcessorCount - 1, 1);
+                }
+                else
+                {
+                    nbThreads = nb_threads;
+                }
+            }
+            #endregion
+        }
+
         #region Members
         protected List<MyThread> threads;
         protected ManualResetEvent stopEvent;
@@ -24,36 +74,44 @@ namespace CLARTE.Threads
         /// <summary>
 		/// Create a new group of worker threads.
 		/// </summary>
-		/// <param name="worker_body">A method executed by each worker thread in an infinite loop. This method get the event that started the new iteration as parameter.</param>
-        /// <param name="events">A set of events to wait for before doing the next iteration of the worker loop.</param>
-        /// <param name="nb_threads">The number of worker threads to span.</param>
-        public void Init(Action<WaitHandle> worker_body, ICollection<WaitHandle> events = null, uint nb_threads = 0)
+		/// <param name="descriptors">A collection of descriptors for the worker threads to start, each with the events they will wait for.</param>
+        public void Init(params Descriptor[] descriptors)
         {
             if(disposed)
             {
                 throw new ObjectDisposedException("CLARTE.Threads.Workers", "The thread group is already disposed.");
             }
 
+            if(descriptors == null || descriptors.Length == 0)
+            {
+                throw new ArgumentNullException("descriptors", "Invalid empty descriptors collection in thread group initialization.");
+            }
+
             if(threads == null)
             {
-                if(nb_threads == 0)
+                uint nb_threads = 0;
+
+                foreach(Descriptor desc in descriptors)
                 {
-                    nb_threads = (uint)Math.Max(Environment.ProcessorCount - 1, 1);
+                    nb_threads += desc.nbThreads;
                 }
 
-                threads = new List<MyThread>((int)nb_threads);
+                threads = new List<MyThread>((int) nb_threads);
 
                 stopEvent = new ManualResetEvent(false);
 
-                for(int i = 0; i < nb_threads; i++)
+                foreach(Descriptor desc in descriptors)
                 {
+                    for(int i = 0; i < desc.nbThreads; i++)
+                    {
 #if UNITY_WSA && !UNITY_EDITOR
-				    MyThread thread = new MyThread(() => Worker(worker_body, events), System.Threading.Tasks.TaskCreationOptions.LongRunning);
+				        MyThread thread = new MyThread(() => Worker(desc), System.Threading.Tasks.TaskCreationOptions.LongRunning);
 #else
-                    MyThread thread = new MyThread(() => Worker(worker_body, events));
+                        MyThread thread = new MyThread(() => Worker(desc));
 #endif
 
-                    threads.Add(thread);
+                        threads.Add(thread);
+                    }
                 }
 
                 foreach(MyThread thread in threads)
@@ -119,34 +177,26 @@ namespace CLARTE.Threads
         #endregion
 
         #region Worker
-        protected void Worker(Action<WaitHandle> worker_body, ICollection<WaitHandle> events = null)
+        protected void Worker(Descriptor descriptor)
         {
-            uint events_count = 1;
+            uint events_count = descriptor.nbEvents + 1;
             int event_idx = 0;
-
-            if(events != null)
-            {
-                events_count += (uint) events.Count(x => x != null);
-            }
 
             WaitHandle[] wait = new WaitHandle[events_count];
 
             wait[event_idx++] = stopEvent;
 
-            if(events != null)
+            foreach(WaitHandle ev in descriptor.events)
             {
-                foreach(WaitHandle ev in events)
+                if(ev != null)
                 {
-                    if(ev != null)
-                    {
-                        wait[event_idx++] = ev;
-                    }
+                    wait[event_idx++] = ev;
                 }
             }
 
             while((event_idx = WaitHandle.WaitAny(wait)) != 0)
             {
-                worker_body(wait[event_idx]);
+                descriptor.worker(wait[event_idx]);
             }
         }
         #endregion
