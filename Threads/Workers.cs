@@ -14,7 +14,7 @@ namespace CLARTE.Threads
 {
     public class Workers : IDisposable
     {
-        public struct Descriptor
+        public class Descriptor
         {
             #region Members
             public Action<WaitHandle> worker;
