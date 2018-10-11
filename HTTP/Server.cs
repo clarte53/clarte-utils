@@ -44,27 +44,52 @@ namespace CLARTE.HTTP
         }
         #endregion
 
-        #region Disposable implementation
-        public void Dispose()
+        #region IDisposable implementation
+        protected virtual void Dispose(bool disposing)
         {
-            if(disposed)
+            if(!disposed)
             {
-                return;
-            }
+                if(disposing)
+                {
+                    // TODO: delete managed state (managed objects).
 
-            stopEvent.Set();
+                    stopEvent.Set();
 
 #if UNITY_WSA && !UNITY_EDITOR
-            listenerWorker.Wait();
+                    listenerWorker.Wait();
 #else
-            listenerWorker.Join();
+                    listenerWorker.Join();
 #endif
 
-            listener.Stop();
+                    listener.Stop();
 
-            stopEvent.Close();
+                    stopEvent.Close();
+                }
 
-            disposed = true;
+                // TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
+                // TODO: set fields of large size with null value.
+
+                disposed = true;
+            }
+        }
+
+        // TODO: replace finalizer only if the above Dispose(bool disposing) function as code to free unmanaged resources.
+        ~Server()
+        {
+            Dispose(/*false*/);
+        }
+
+        /// <summary>
+        /// Dispose of the HTTP server.
+        /// </summary>
+        public void Dispose()
+        {
+            // Pass true in dispose method to clean managed resources too and say GC to skip finalize in next line.
+            Dispose(true);
+
+            // If dispose is called already then say GC to skip finalize on this instance.
+            // TODO: uncomment next line if finalizer is replaced above.
+            GC.SuppressFinalize(this);
         }
         #endregion
 
