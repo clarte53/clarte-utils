@@ -10,14 +10,19 @@ namespace CLARTE.Threads
 	{
 		#region Members
 		private static Pool threads;
-		#endregion
+        #endregion
 
-		#region Constructors
-		// Create a hidden gameobject in order to get notifications when the application is
-		// destroyed so we can dispose of the thread pool. Otherwise, on standalone build
-		// with .Net 4.6, the application can not be closed as the threads in the pool are
-		// never asked to shutdown because the finalizer of the pool is somewhat never called.
-		public static void Init()
+        #region Constructors
+        /// <summary>
+        /// Initialize the global tasks pool.
+        /// </summary>
+        /// <remarks>
+        /// Create a hidden gameobject in order to get notifications when the application is
+        /// destroyed so we can dispose of the thread pool. Otherwise, on standalone build
+        /// with .Net 4.6, the application can not be closed as the threads in the pool are
+        /// never asked to shutdown because the finalizer of the pool is somewhat never called.
+        /// </remarks>
+        public static void Init()
 		{
 			if(threads == null)
 			{
