@@ -11,9 +11,6 @@ namespace CLARTE.HTTP
     public class Server : IDisposable
     {
         #region Members
-        private const string username = "toto";
-        private const string password = "password";
-
         private readonly HttpListener listener;
         private readonly Thread listenerWorker;
         private readonly ManualResetEvent stopEvent;
@@ -33,6 +30,8 @@ namespace CLARTE.HTTP
             stopEvent = new ManualResetEvent(false);
 
             listenerWorker = new Thread(Listen);
+
+            Threads.Tasks.Init();
         }
         #endregion
 
@@ -62,9 +61,7 @@ namespace CLARTE.HTTP
                 throw new ObjectDisposedException("CLARTE.HTTP.Server", "HTTP server is already disposed.");
             }
 
-            listener.Prefixes.Add(string.Format("https://*:{0}/", port));
-
-            listener.AuthenticationSchemes = AuthenticationSchemes.Basic;
+            listener.Prefixes.Add(string.Format("http://*:{0}/", port));
 
             listener.Start();
 
@@ -126,41 +123,26 @@ namespace CLARTE.HTTP
         #region HTTP handling
         private Uri ReceiveRequest(HttpListenerContext context)
         {
-            Uri url = null;
+            HttpListenerRequest request = context.Request;
 
-            HttpListenerBasicIdentity identity = (HttpListenerBasicIdentity) context.User.Identity;
+            UnityEngine.Debug.LogFormat("{0} {1}", request.HttpMethod, request.Url);
+            Uri url = request.Url;
 
-            if(identity.Name == username && identity.Password == password)
+            UnityEngine.Debug.Log("Headers:");
+            System.Collections.Specialized.NameValueCollection headers = request.Headers;
+            for(int i = 0; i < headers.Count; i++)
             {
-                HttpListenerRequest request = context.Request;
-
-                UnityEngine.Debug.LogFormat("{0} {1}", request.HttpMethod, request.Url);
-                url = request.Url;
-
-                UnityEngine.Debug.Log("Headers:");
-                System.Collections.Specialized.NameValueCollection headers = request.Headers;
-                for(int i = 0; i < headers.Count; i++)
-                {
-                    UnityEngine.Debug.LogFormat("{0}: {1}", headers.GetKey(i), headers.Get(i));
-                }
-
-                int request_size = (int) request.ContentLength64;
-                byte[] buffer_input = new byte[request_size];
-
-                Stream input = request.InputStream;
-                input.Read(buffer_input, 0, request_size);
-                input.Close();
-
-                UnityEngine.Debug.LogFormat("Data:\n{0}", Encoding.UTF8.GetString(buffer_input));
+                UnityEngine.Debug.LogFormat("{0}: {1}", headers.GetKey(i), headers.Get(i));
             }
-            else
-            {
-                const string unauthorized = "<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\"><html><head><title>401 Unauthorized</title></head><body><h1>Unauthorized</h1><p>The requested URL requires authentication.</p></body></html>";
 
-                context.Response.StatusCode = (int) HttpStatusCode.Unauthorized;
+            int request_size = (int) request.ContentLength64;
+            byte[] buffer_input = new byte[request_size];
 
-                SendResponse(context.Response, unauthorized);
-            }
+            Stream input = request.InputStream;
+            input.Read(buffer_input, 0, request_size);
+            input.Close();
+
+            UnityEngine.Debug.LogFormat("Data:\n{0}", Encoding.UTF8.GetString(buffer_input));
 
             return url;
         }

@@ -13,7 +13,7 @@ namespace CLARTE.HTTP
 
         public Client(string certificate_filename)
         {
-            Uri url = new Uri("https://192.168.54.97:8443/index.html");
+            Uri url = new Uri("http://localhost:8080/index.html");
 
             LoadCertificate(certificate_filename);
 
