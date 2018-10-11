@@ -1,44 +1,78 @@
 ﻿using System;
+using System.Threading;
 
 namespace CLARTE.Threads
 {
 	/// <summary>
 	/// Async future result. Results provide feeback of async task completion and access to eventualy raised exceptions.
 	/// </summary>
-	public class Result
+	public class Result : IDisposable
 	{
-		#region Members
-		protected bool done = false;
-		protected bool exceptionChecked = false;
-		protected Exception exception = null;
-		#endregion
+        #region Members
+        protected ManualResetEvent waitHandle = new ManualResetEvent(false);
+        protected Exception exception;
+        protected bool exceptionChecked;
+        protected bool disposed;
+        #endregion
 
-		#region Destructor
-		~Result()
-		{
-			// If we got an exception and the user did not checked it, we display an error message before the info is lost.
-			if(!exceptionChecked && exception != null)
-			{
-				UnityEngine.Debug.LogErrorFormat("{0}: {1}\n{2}", exception.GetType(), exception.Message, exception.StackTrace);
-			}
-		}
-		#endregion
+        #region IDisposable implementation
+        protected virtual void Dispose(bool disposing)
+        {
+            if(!disposed)
+            {
+                if(disposing)
+                {
+                    // TODO: delete managed state (managed objects).
 
-		#region Getter / Setter
-		/// <summary>
-		/// Check whether the task is done or not.
-		/// </summary>
-		/// <remarks>The call to this property is NOT blocking. Therefore it can be used to check periodically for the task completion.</remarks>
-		/// <returns>True if the task is done, false otherwise.</returns>
-		public bool Done
+                    // If we got an exception and the user did not checked it, we display an error message before the info is lost.
+                    if(!exceptionChecked && exception != null)
+                    {
+                        UnityEngine.Debug.LogErrorFormat("{0}: {1}\n{2}", exception.GetType(), exception.Message, exception.StackTrace);
+                    }
+
+                    waitHandle.Close();
+                }
+
+                // TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
+                // TODO: set fields of large size with null value.
+
+                disposed = true;
+            }
+        }
+
+        // TODO: replace finalizer only if the above Dispose(bool disposing) function as code to free unmanaged resources.
+        ~Result()
+        {
+            Dispose(/*false*/);
+        }
+
+        /// <summary>
+        /// Dispose of the thread pool. Wait for curently executing async task to complete and release all the allocated threads.
+        /// </summary>
+        /// <remarks>Note that async tasks that are planned but not started yet will be discarded.</remarks>
+        public void Dispose()
+        {
+            // Pass true in dispose method to clean managed resources too and say GC to skip finalize in next line.
+            Dispose(true);
+
+            // If dispose is called already then say GC to skip finalize on this instance.
+            // TODO: uncomment next line if finalizer is replaced above.
+            GC.SuppressFinalize(this);
+        }
+        #endregion
+
+        #region Getter / Setter
+        /// <summary>
+        /// Check whether the task is done or not.
+        /// </summary>
+        /// <remarks>The call to this property is NOT blocking. Therefore it can be used to check periodically for the task completion.</remarks>
+        /// <returns>True if the task is done, false otherwise.</returns>
+        public bool Done
 		{
 			get
 			{
-				lock(this)
-				{
-					return done;
-				}
-			}
+                return waitHandle.WaitOne(0);
+            }
 		}
 
 		/// <summary>
@@ -66,26 +100,20 @@ namespace CLARTE.Threads
 				// Block until the task finished or failed
 				Wait();
 
-				lock(this)
-				{
-					exceptionChecked = true;
+				exceptionChecked = true;
 
-					return exception;
-				}
+				return exception;
 			}
 		}
 
 		/// <summary>
 		/// Mark the task as completed. Never call this method yourself!
 		/// </summary>
-		public void MarkAsFinished(Exception raised = null)
+		public void Complete(Exception raised = null)
 		{
-			lock(this)
-			{
-				done = true;
+			exception = raised;
 
-				exception = raised;
-			}
+            waitHandle.Set();
 		}
 		#endregion
 
@@ -96,8 +124,7 @@ namespace CLARTE.Threads
 		/// <remarks>The call to this property is blocking until the task is complete.</remarks>
 		public void Wait()
 		{
-			while(!Done)
-			{ }
+            waitHandle.WaitOne();
 		}
 		#endregion
 	}
@@ -125,18 +152,12 @@ namespace CLARTE.Threads
 				// Block until a value gets available
 				Wait();
 
-				lock(this)
-				{
-					return result;
-				}
+				return result;
 			}
 
 			set
 			{
-				lock(this)
-				{
-					result = value;
-				}
+				result = value;
 			}
 		}
 		#endregion

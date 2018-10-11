@@ -18,12 +18,6 @@ namespace CLARTE.Threads
 			#endregion
 
 			#region Constructors
-			protected Task(Action func)
-			{
-				callback = func;
-				result = new Result();
-			}
-
 			protected Task(Action func, Result res)
 			{
 				callback = func;
@@ -34,21 +28,54 @@ namespace CLARTE.Threads
 			#region Public methods
 			public static Task Create(Action callback)
 			{
-				return new Task(callback);
-			}
+                if(callback == null)
+                {
+                    throw new ArgumentNullException("callback", "Invalid null callback in task.");
+                }
+
+                Result result = new Result();
+
+                return new Task(() =>
+                {
+                    Exception exception = null;
+
+                    try
+                    {
+                        callback();
+                    }
+                    catch(Exception e)
+                    {
+                        exception = e;
+                    }
+
+                    result.Complete(exception);
+                }, result);
+            }
 
 			public static Task Create<T>(Func<T> callback)
 			{
-				Result<T> result = new Result<T>();
+                if(callback == null)
+                {
+                    throw new ArgumentNullException("callback", "Invalid null callback in task.");
+                }
 
-				Task task = new Task(() =>
+                Result<T> result = new Result<T>();
+
+				return new Task(() =>
 				{
-					T value = callback();
+                    Exception exception = null;
 
-					result.Value = value;
-				}, result);
+                    try
+                    {
+                        result.Value = callback();
+                    }
+                    catch(Exception e)
+                    {
+                        exception = e;
+                    }
 
-				return task;
+                    result.Complete(exception);
+                }, result);
 			}
 			#endregion
 		}
@@ -120,25 +147,14 @@ namespace CLARTE.Threads
 					}
 				}
 
-				if(task != null && task.callback != null)
+				if(task != null)
 				{
-					Exception exception = null;
-
-					try
-					{
-						task.callback();
-					}
-					catch(Exception e)
-					{
-						exception = e;
-					}
-
+					task.callback();
+					
 					lock(taskCountMutex)
 					{
 						taskCount--;
 					}
-
-					task.result.MarkAsFinished(exception);
 				}
 			}
 		}
