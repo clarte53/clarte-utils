@@ -131,7 +131,7 @@ namespace CLARTE.Threads
                 {
                     // TODO: delete managed state (managed objects).
 
-                    if(threads != null && threads.Count > 0)
+                    if(stopEvent != null && threads != null && threads.Count > 0)
                     {
                         stopEvent.Set();
 
@@ -145,6 +145,8 @@ namespace CLARTE.Threads
                         }
 
                         threads.Clear();
+
+                        stopEvent.Close();
                     }
                 }
 
@@ -181,7 +183,8 @@ namespace CLARTE.Threads
         {
             uint events_count = descriptor.nbEvents + 1;
             int event_idx = 0;
-
+            
+            // Generate the list of events the worker will be waiting for
             WaitHandle[] wait = new WaitHandle[events_count];
 
             wait[event_idx++] = stopEvent;
@@ -194,9 +197,16 @@ namespace CLARTE.Threads
                 }
             }
 
+            // Wait for events to call the worker callback
             while((event_idx = WaitHandle.WaitAny(wait)) != 0)
             {
                 descriptor.worker(wait[event_idx]);
+            }
+
+            // Cleanup of events
+            for(uint i = 1; i < wait.Length; i++)
+            {
+                wait[i].Close();
             }
         }
         #endregion
