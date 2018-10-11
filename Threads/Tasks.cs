@@ -17,7 +17,7 @@ namespace CLARTE.Threads
 		// destroyed so we can dispose of the thread pool. Otherwise, on standalone build
 		// with .Net 4.6, the application can not be closed as the threads in the pool are
 		// never asked to shutdown because the finalizer of the pool is somewhat never called.
-		private static void Init()
+		public static void Init()
 		{
 			if(threads == null)
 			{
