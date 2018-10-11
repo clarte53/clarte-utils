@@ -6,39 +6,14 @@ namespace CLARTE.Threads
 	/// <summary>
 	/// Helper class providing a global thread pool for the application.
 	/// </summary>
-	public class Tasks : MonoBehaviour
+	public class Tasks : Pattern.Singleton<Tasks>
 	{
 		#region Members
-		private static Pool threads;
+		private Pool threads = new Pool();
         #endregion
 
-        #region Constructors
-        /// <summary>
-        /// Initialize the global tasks pool.
-        /// </summary>
-        /// <remarks>
-        /// Create a hidden gameobject in order to get notifications when the application is
-        /// destroyed so we can dispose of the thread pool. Otherwise, on standalone build
-        /// with .Net 4.6, the application can not be closed as the threads in the pool are
-        /// never asked to shutdown because the finalizer of the pool is somewhat never called.
-        /// </remarks>
-        public static void Init()
-		{
-			if(threads == null)
-			{
-				GameObject go = new GameObject("Tasks");
-
-				go.hideFlags = HideFlags.HideAndDontSave;
-
-				go.AddComponent<Tasks>();
-
-				threads = new Pool();
-			}
-		}
-		#endregion
-
-		#region MonoBehaviour callbacks
-		private void OnDestroy()
+        #region MonoBehaviour callbacks
+        protected override void OnDestroy()
 		{
 			if(threads != null)
 			{
@@ -46,6 +21,8 @@ namespace CLARTE.Threads
 
 				threads = null;
 			}
+
+            base.OnDestroy();
 		}
 		#endregion
 
@@ -55,10 +32,8 @@ namespace CLARTE.Threads
 		/// </summary>
 		/// <param name="task">A method (task) that does not return any value.</param>
 		/// <returns>A helper class to be notified when the task is complete.</returns>
-		public static Result Add(Action task)
+		public Result Add(Action task)
 		{
-			Init();
-
 			return threads.AddTask(task);
 		}
 
@@ -68,10 +43,8 @@ namespace CLARTE.Threads
 		/// <typeparam name="T">The type of the returned value.</typeparam>
 		/// <param name="task">A method (task) that does return a value.</param>
 		/// <returns>A helper class to be notified when the task is complete and get the returned value.</returns>
-		public static Result<T> Add<T>(Func<T> task)
+		public Result<T> Add<T>(Func<T> task)
 		{
-			Init();
-
 			return threads.AddTask(task);
 		}
 		#endregion

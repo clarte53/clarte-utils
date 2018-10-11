@@ -31,7 +31,7 @@ namespace CLARTE.HTTP
 
             listenerWorker = new Thread(Listen);
 
-            Threads.Tasks.Init();
+            Threads.Tasks.Instance.GetType(); // To initialize unity objects in unity thread
         }
         #endregion
 
@@ -94,7 +94,7 @@ namespace CLARTE.HTTP
             {
                 HttpListenerContext context = listener.EndGetContext(async_result);
 
-                Threads.Tasks.Add(() => Send(context));
+                Threads.Tasks.Instance.Add(() => Send(context));
             }
             catch(Exception exception)
             {
