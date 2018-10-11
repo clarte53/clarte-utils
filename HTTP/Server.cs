@@ -23,24 +23,27 @@ namespace CLARTE.HTTP
         #endregion
 
         #region Constructors
-        public Server()
+        public Server(ushort port)
         {
             if(!HttpListener.IsSupported)
             {
                 throw new NotSupportedException("HTTP server is not support on this implementation.");
             }
 
-            listener = new HttpListener();
+            Threads.Tasks.Instance.GetType(); // To initialize unity objects in unity thread
 
             stopEvent = new ManualResetEvent(false);
+
+            listener = new HttpListener();
+            listener.Prefixes.Add(string.Format("http://*:{0}/", port));
+            listener.Start();
 
 #if UNITY_WSA && !UNITY_EDITOR
             listenerWorker = new MyThread(Listen, System.Threading.Tasks.TaskCreationOptions.LongRunning);
 #else
             listenerWorker = new MyThread(Listen);
 #endif
-
-            Threads.Tasks.Instance.GetType(); // To initialize unity objects in unity thread
+            listenerWorker.Start();
         }
         #endregion
 
@@ -94,20 +97,6 @@ namespace CLARTE.HTTP
         #endregion
 
         #region Control methods
-        public void Start(ushort port)
-        {
-            if(disposed)
-            {
-                throw new ObjectDisposedException("CLARTE.HTTP.Server", "HTTP server is already disposed.");
-            }
-
-            listener.Prefixes.Add(string.Format("http://*:{0}/", port));
-
-            listener.Start();
-
-            listenerWorker.Start();
-        }
-
         public void Stop()
         {
             Dispose();
