@@ -1,10 +1,15 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Text;
 using System.Threading;
-using UnityEngine;
+
+#if UNITY_WSA && !UNITY_EDITOR
+// On UWP platforms, threads are not available. Therefore, we need support for Tasks, i.e. .Net version >= 4
+using MyThread = System.Threading.Tasks.Task;
+#else
+using MyThread = System.Threading.Thread;
+#endif
 
 namespace CLARTE.HTTP
 {
@@ -12,7 +17,7 @@ namespace CLARTE.HTTP
     {
         #region Members
         private readonly HttpListener listener;
-        private readonly Thread listenerWorker;
+        private readonly MyThread listenerWorker;
         private readonly ManualResetEvent stopEvent;
         private bool disposed;
         #endregion
@@ -29,7 +34,11 @@ namespace CLARTE.HTTP
 
             stopEvent = new ManualResetEvent(false);
 
-            listenerWorker = new Thread(Listen);
+#if UNITY_WSA && !UNITY_EDITOR
+            listenerWorker = new MyThread(Listen, System.Threading.Tasks.TaskCreationOptions.LongRunning);
+#else
+            listenerWorker = new MyThread(Listen);
+#endif
 
             Threads.Tasks.Instance.GetType(); // To initialize unity objects in unity thread
         }
@@ -45,9 +54,15 @@ namespace CLARTE.HTTP
 
             stopEvent.Set();
 
+#if UNITY_WSA && !UNITY_EDITOR
+            listenerWorker.Wait();
+#else
             listenerWorker.Join();
+#endif
 
             listener.Stop();
+
+            stopEvent.Close();
 
             disposed = true;
         }
