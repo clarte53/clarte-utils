@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Text;
@@ -15,22 +16,39 @@ namespace CLARTE.HTTP
 {
     public class Server : IDisposable
     {
+        public struct Response
+        {
+            public string mimeType;
+            public byte[] data;
+
+            public Response(string mime_type, byte[] output_data)
+            {
+                mimeType = mime_type;
+                data = output_data;
+            }
+        }
+
         #region Members
         private readonly HttpListener listener;
         private readonly MyThread listenerWorker;
         private readonly ManualResetEvent stopEvent;
+        private readonly Dictionary<string, Func<Response>> endpoints;
         private bool disposed;
         #endregion
 
         #region Constructors
-        public Server(ushort port)
+        public Server(ushort port, Dictionary<string, Func<Response>> endpoints)
         {
             if(!HttpListener.IsSupported)
             {
                 throw new NotSupportedException("HTTP server is not support on this implementation.");
             }
 
-            Threads.Tasks.Instance.GetType(); // To initialize unity objects in unity thread
+            // Initialize unity objects in unity thread
+            Threads.Tasks.Instance.GetType();
+            Threads.APC.MonoBehaviourCall.Instance.GetType();
+
+            this.endpoints = endpoints;
 
             stopEvent = new ManualResetEvent(false);
 
@@ -178,19 +196,40 @@ namespace CLARTE.HTTP
 
         private void SendResponse(HttpListenerContext context, Uri url)
         {
-            const string hello_world = "<HTML><BODY> Hello world!</BODY></HTML>";
+            Func<Response> callback;
 
-            SendResponse(context.Response, hello_world);
+            if(endpoints != null && endpoints.TryGetValue(url.AbsolutePath, out callback))
+            {
+                Threads.APC.MonoBehaviourCall.Instance.Call(() =>
+                {
+                    Response response = callback();
+
+                    Threads.Tasks.Instance.Add(() =>
+                    {
+                        context.Response.StatusCode = (int) HttpStatusCode.OK;
+                        context.Response.ContentType = response.mimeType;
+
+                        SendResponse(context.Response, response.data);
+                    });
+                });
+            }
+            else
+            {
+                const string unauthorized = "<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\"><html><head><title>404 Not Found</title></head><body><h1>404 Not Found</h1></body></html>";
+
+                context.Response.StatusCode = (int) HttpStatusCode.NotFound;
+                context.Response.ContentType = "text/html";
+
+                SendResponse(context.Response, Encoding.UTF8.GetBytes(unauthorized));
+            }
         }
 
-        private void SendResponse(HttpListenerResponse response, string data)
+        private void SendResponse(HttpListenerResponse response, byte[] data)
         {
-            byte[] buffer_output = Encoding.UTF8.GetBytes(data);
-
-            response.ContentLength64 = buffer_output.Length;
+            response.ContentLength64 = data.Length;
 
             Stream output = response.OutputStream;
-            output.Write(buffer_output, 0, buffer_output.Length);
+            output.Write(data, 0, data.Length);
             output.Close();
         }
         #endregion
