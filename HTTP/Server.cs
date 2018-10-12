@@ -5,12 +5,6 @@ using System.Net;
 using System.Text;
 using System.Threading;
 
-#if UNITY_WSA && !UNITY_EDITOR
-// On UWP platforms, threads are not available. Therefore, we need support for Tasks, i.e. .Net version >= 4
-using MyThread = System.Threading.Tasks.Task;
-#else
-using MyThread = System.Threading.Thread;
-#endif
 
 namespace CLARTE.HTTP
 {
@@ -30,7 +24,7 @@ namespace CLARTE.HTTP
 
         #region Members
         private readonly HttpListener listener;
-        private readonly MyThread listenerWorker;
+        private readonly Threads.Thread listenerWorker;
         private readonly ManualResetEvent stopEvent;
         private readonly Dictionary<string, Func<Response>> endpoints;
         private bool disposed;
@@ -56,11 +50,7 @@ namespace CLARTE.HTTP
             listener.Prefixes.Add(string.Format("http://*:{0}/", port));
             listener.Start();
 
-#if UNITY_WSA && !UNITY_EDITOR
-            listenerWorker = new MyThread(Listen, System.Threading.Tasks.TaskCreationOptions.LongRunning);
-#else
-            listenerWorker = new MyThread(Listen);
-#endif
+            listenerWorker = new Threads.Thread(Listen);
             listenerWorker.Start();
         }
         #endregion
@@ -76,11 +66,7 @@ namespace CLARTE.HTTP
 
                     stopEvent.Set();
 
-#if UNITY_WSA && !UNITY_EDITOR
-                    listenerWorker.Wait();
-#else
                     listenerWorker.Join();
-#endif
 
                     listener.Stop();
 

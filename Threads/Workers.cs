@@ -3,13 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 
-#if UNITY_WSA && !UNITY_EDITOR
-// On UWP platforms, threads are not available. Therefore, we need support for Tasks, i.e. .Net version >= 4
-using MyThread = System.Threading.Tasks.Task;
-#else
-using MyThread = System.Threading.Thread;
-#endif
-
 namespace CLARTE.Threads
 {
     public class Workers : IDisposable
@@ -65,7 +58,7 @@ namespace CLARTE.Threads
         }
 
         #region Members
-        protected List<MyThread> threads;
+        protected List<Thread> threads;
         protected ManualResetEvent stopEvent;
         protected bool disposed;
         #endregion
@@ -96,7 +89,7 @@ namespace CLARTE.Threads
                     nb_threads += desc.nbThreads;
                 }
 
-                threads = new List<MyThread>((int) nb_threads);
+                threads = new List<Thread>((int) nb_threads);
 
                 stopEvent = new ManualResetEvent(false);
 
@@ -104,17 +97,13 @@ namespace CLARTE.Threads
                 {
                     for(int i = 0; i < desc.nbThreads; i++)
                     {
-#if UNITY_WSA && !UNITY_EDITOR
-				        MyThread thread = new MyThread(() => Worker(desc), System.Threading.Tasks.TaskCreationOptions.LongRunning);
-#else
-                        MyThread thread = new MyThread(() => Worker(desc));
-#endif
+                        Thread thread = new Thread(() => Worker(desc));
 
                         threads.Add(thread);
                     }
                 }
 
-                foreach(MyThread thread in threads)
+                foreach(Thread thread in threads)
                 {
                     thread.Start();
                 }
@@ -135,13 +124,9 @@ namespace CLARTE.Threads
                     {
                         stopEvent.Set();
 
-                        foreach(MyThread thread in threads)
+                        foreach(Thread thread in threads)
                         {
-#if UNITY_WSA && !UNITY_EDITOR
-							thread.Wait();
-#else
                             thread.Join();
-#endif
                         }
 
                         threads.Clear();

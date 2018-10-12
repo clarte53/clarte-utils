@@ -1,14 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Threading;
-using UnityEngine;
 
 namespace CLARTE.Threads.APC
 {
 	public class MonoBehaviourCall : Pattern.Singleton<MonoBehaviourCall>, ICall
 	{
 		#region Members
-		protected Thread unityThread;
+		protected System.Threading.Thread unityThread;
 		protected Queue<Task> pending = new Queue<Task>();
 		protected Queue<Task> inProgress = new Queue<Task>();
 		#endregion
@@ -16,7 +14,7 @@ namespace CLARTE.Threads.APC
 		#region MonoBehaviour callbacks
 		protected void Awake()
 		{
-			unityThread = Thread.CurrentThread;
+			unityThread = System.Threading.Thread.CurrentThread;
 		}
 		
 		protected override void OnDestroy()
@@ -69,7 +67,7 @@ namespace CLARTE.Threads.APC
         #region Internal methods
         protected void Call(Task task)
         {
-            if(Thread.CurrentThread != unityThread)
+            if(System.Threading.Thread.CurrentThread != unityThread)
             {
                 lock(pending)
                 {
