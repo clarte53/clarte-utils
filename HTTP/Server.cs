@@ -22,16 +22,20 @@ namespace CLARTE.HTTP
             }
         }
 
+        #region Delegates
+        public delegate Response Endpoint(Dictionary<string, string> parameters);
+        #endregion
+
         #region Members
         private readonly HttpListener listener;
         private readonly Threads.Thread listenerWorker;
         private readonly ManualResetEvent stopEvent;
-        private readonly Dictionary<string, Func<Response>> endpoints;
+        private readonly Dictionary<string, Endpoint> endpoints;
         private bool disposed;
         #endregion
 
         #region Constructors
-        public Server(ushort port, Dictionary<string, Func<Response>> endpoints)
+        public Server(ushort port, Dictionary<string, Endpoint> endpoints)
         {
             if(!HttpListener.IsSupported)
             {
@@ -182,14 +186,34 @@ namespace CLARTE.HTTP
 
         private void SendResponse(HttpListenerContext context, Uri url)
         {
-            Func<Response> callback;
-
-            if(endpoints != null && endpoints.TryGetValue(url.AbsolutePath, out callback))
+            Endpoint callback;
+            
+            if(endpoints != null && endpoints.TryGetValue(Uri.UnescapeDataString(url.AbsolutePath), out callback))
             {
+                Dictionary<string, string> parameters = new Dictionary<string, string>();
+
+                // Parse query parameters
+                if(url.Query != null && url.Query.Length > 0)
+                {
+                    string[] parameters_pair = Uri.UnescapeDataString(url.Query).TrimStart('?').Split('&');
+
+                    foreach(string param_pair in parameters_pair)
+                    {
+                        string[] parameter = param_pair.Split('=');
+
+                        if(parameter.Length > 1)
+                        {
+                            parameters.Add(parameter[0].ToLower(), string.Join("=", parameter, 1, parameter.Length - 1).ToLower());
+                        }
+                    }
+                }
+
                 Threads.APC.MonoBehaviourCall.Instance.Call(() =>
                 {
-                    Response response = callback();
+                    // Call unity callback in main unity thread
+                    Response response = callback(parameters);
 
+                    // Send response back to the client in another thread
                     Threads.Tasks.Instance.Add(() =>
                     {
                         context.Response.StatusCode = (int) HttpStatusCode.OK;
