@@ -20,6 +20,12 @@ namespace CLARTE.HTTP
                 mimeType = mime_type;
                 data = output_data;
             }
+
+            public Response(string mime_type, string output_str)
+            {
+                mimeType = mime_type;
+                data = Encoding.UTF8.GetBytes(output_str);
+            }
         }
 
         #region Delegates
@@ -218,6 +224,7 @@ namespace CLARTE.HTTP
                     {
                         context.Response.StatusCode = (int) HttpStatusCode.OK;
                         context.Response.ContentType = response.mimeType;
+                        context.Response.ContentEncoding = Encoding.UTF8;
 
                         SendResponse(context.Response, response.data);
                     });
@@ -229,6 +236,7 @@ namespace CLARTE.HTTP
 
                 context.Response.StatusCode = (int) HttpStatusCode.NotFound;
                 context.Response.ContentType = "text/html";
+                context.Response.ContentEncoding = Encoding.UTF8;
 
                 SendResponse(context.Response, Encoding.UTF8.GetBytes(unauthorized));
             }
