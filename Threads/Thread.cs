@@ -12,10 +12,20 @@ namespace CLARTE.Threads
     public class Thread
     {
         #region Members
+#if !UNITY_WSA || UNITY_EDITOR
+        protected static int? mainThreadID;
+#endif
         protected InternalThread thread;
         #endregion
 
         #region Constructors
+#if !UNITY_WSA || UNITY_EDITOR
+        static Thread()
+        {
+            mainThreadID = InternalThread.CurrentThread.ManagedThreadId;
+        }
+#endif
+
         public Thread(Action start)
         {
 #if UNITY_WSA && !UNITY_EDITOR
@@ -43,6 +53,18 @@ namespace CLARTE.Threads
                 thread.Wait();
 #else
                 thread.Join();
+#endif
+            }
+        }
+
+        public static bool IsMainThread
+        {
+            get
+            {
+#if UNITY_WSA && !UNITY_EDITOR
+                return !InternalThread.CurrentId.hasValue;
+#else
+                return (InternalThread.CurrentThread.ManagedThreadId == mainThreadID);
 #endif
             }
         }
