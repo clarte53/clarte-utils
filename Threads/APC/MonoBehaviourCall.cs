@@ -6,21 +6,13 @@ namespace CLARTE.Threads.APC
 	public class MonoBehaviourCall : Pattern.Singleton<MonoBehaviourCall>, ICall
 	{
 		#region Members
-		protected System.Threading.Thread unityThread;
 		protected Queue<Task> pending = new Queue<Task>();
 		protected Queue<Task> inProgress = new Queue<Task>();
 		#endregion
 		
 		#region MonoBehaviour callbacks
-		protected void Awake()
-		{
-			unityThread = System.Threading.Thread.CurrentThread;
-		}
-		
 		protected override void OnDestroy()
 		{
-			unityThread = null;
-			
 			pending.Clear();
 			inProgress.Clear();
 			
@@ -67,16 +59,16 @@ namespace CLARTE.Threads.APC
         #region Internal methods
         protected void Call(Task task)
         {
-            if(System.Threading.Thread.CurrentThread != unityThread)
+            if(Thread.IsMainThread)
+            {
+                task.callback();
+            }
+            else
             {
                 lock(pending)
                 {
                     pending.Enqueue(task);
                 }
-            }
-            else
-            {
-                task.callback();
             }
         }
         #endregion
