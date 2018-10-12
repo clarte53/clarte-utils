@@ -137,24 +137,7 @@ namespace CLARTE.HTTP
             {
                 HttpListenerContext context = listener.EndGetContext(async_result);
 
-                Threads.Tasks.Instance.Add(() => Send(context));
-            }
-            catch(Exception exception)
-            {
-                UnityEngine.Debug.LogError(exception);
-            }
-        }
-
-        private void Send(HttpListenerContext context)
-        {
-            try
-            {
-                Uri url = ReceiveRequest(context);
-
-                if(url != null)
-                {
-                    SendResponse(context, url);
-                }
+                Threads.Tasks.Instance.Add(() => Respond(context));
             }
             catch(Exception exception)
             {
@@ -164,81 +147,102 @@ namespace CLARTE.HTTP
         #endregion
 
         #region HTTP handling
-        private Uri ReceiveRequest(HttpListenerContext context)
+        private void Respond(HttpListenerContext context)
         {
-            HttpListenerRequest request = context.Request;
-
-            UnityEngine.Debug.LogFormat("{0} {1}", request.HttpMethod, request.Url);
-            Uri url = request.Url;
-
-            UnityEngine.Debug.Log("Headers:");
-            System.Collections.Specialized.NameValueCollection headers = request.Headers;
-            for(int i = 0; i < headers.Count; i++)
+            try
             {
-                UnityEngine.Debug.LogFormat("{0}: {1}", headers.GetKey(i), headers.Get(i));
-            }
+                Endpoint callback;
 
-            int request_size = (int) request.ContentLength64;
-            byte[] buffer_input = new byte[request_size];
+                HttpListenerRequest request = context.Request;
+                HttpListenerResponse response = context.Response;
 
-            Stream input = request.InputStream;
-            input.Read(buffer_input, 0, request_size);
-            input.Close();
+                UnityEngine.Debug.LogFormat("{0} {1}", request.HttpMethod, request.Url);
 
-            UnityEngine.Debug.LogFormat("Data:\n{0}", Encoding.UTF8.GetString(buffer_input));
-
-            return url;
-        }
-
-        private void SendResponse(HttpListenerContext context, Uri url)
-        {
-            Endpoint callback;
-            
-            if(endpoints != null && endpoints.TryGetValue(Uri.UnescapeDataString(url.AbsolutePath), out callback))
-            {
-                Dictionary<string, string> parameters = new Dictionary<string, string>();
-
-                // Parse query parameters
-                if(url.Query != null && url.Query.Length > 0)
+                // Display headers
+                UnityEngine.Debug.Log("Headers:");
+                for(int i = 0; i < request.Headers.Count; i++)
                 {
-                    string[] parameters_pair = Uri.UnescapeDataString(url.Query).TrimStart('?').Split('&');
-
-                    foreach(string param_pair in parameters_pair)
-                    {
-                        string[] parameter = param_pair.Split('=');
-
-                        if(parameter.Length > 1)
-                        {
-                            parameters.Add(parameter[0].ToLower(), string.Join("=", parameter, 1, parameter.Length - 1).ToLower());
-                        }
-                    }
+                    UnityEngine.Debug.LogFormat("{0}: {1}", request.Headers.GetKey(i), request.Headers.Get(i));
                 }
 
-                Threads.APC.MonoBehaviourCall.Instance.Call(() =>
+                // Get data
+                int request_size = (int)request.ContentLength64;
+                byte[] data = new byte[request_size];
+
+                Stream input = request.InputStream;
+                input.Read(data, 0, request_size);
+                input.Close();
+
+                if(endpoints != null && endpoints.TryGetValue(Uri.UnescapeDataString(request.Url.AbsolutePath), out callback))
                 {
-                    // Call unity callback in main unity thread
-                    Response response = callback(parameters);
+                    Dictionary<string, string> parameters = new Dictionary<string, string>();
 
-                    // Send response back to the client in another thread
-                    Threads.Tasks.Instance.Add(() =>
+                    // Parse query parameters
+                    AddParameters(parameters, request.Url.Query);
+
+                    if(request.ContentType == "application/x-www-form-urlencoded")
                     {
-                        context.Response.StatusCode = (int) HttpStatusCode.OK;
-                        context.Response.ContentType = response.mimeType;
-                        context.Response.ContentEncoding = Encoding.UTF8;
+                        AddParameters(parameters, Encoding.UTF8.GetString(data));
+                    }
 
-                        SendResponse(context.Response, response.data);
+                    Threads.APC.MonoBehaviourCall.Instance.Call(() =>
+                    {
+                        // Call unity callback in main unity thread
+                        Response res = callback(parameters);
+
+                        // Send response back to the client in another thread
+                        Threads.Tasks.Instance.Add(() =>
+                        {
+                            response.ContentType = res.mimeType;
+                            response.ContentEncoding = Encoding.UTF8;
+
+                            // Implement Post/Redirect/Get pattern by default
+                            if(parameters.Count > 0)
+                            {
+                                response.StatusCode = (int) HttpStatusCode.RedirectMethod;
+                                response.RedirectLocation = request.Url.AbsolutePath;
+                            }
+                            else
+                            {
+                                response.StatusCode = (int) HttpStatusCode.OK;
+                            }
+
+                            SendResponse(response, res.data);
+                        });
                     });
-                });
+                }
+                else
+                {
+                    const string unauthorized = "<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\"><html><head><title>404 Not Found</title></head><body><h1>404 Not Found</h1></body></html>";
+
+                    response.StatusCode = (int) HttpStatusCode.NotFound;
+                    response.ContentType = "text/html";
+                    response.ContentEncoding = Encoding.UTF8;
+
+                    SendResponse(response, Encoding.UTF8.GetBytes(unauthorized));
+                }
             }
-            else
+            catch(Exception exception)
             {
-                const string unauthorized = "<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\"><html><head><title>404 Not Found</title></head><body><h1>404 Not Found</h1></body></html>";
+                UnityEngine.Debug.LogError(exception);
+            }
+        }
 
-                context.Response.StatusCode = (int) HttpStatusCode.NotFound;
-                context.Response.ContentType = "text/html";
-                context.Response.ContentEncoding = Encoding.UTF8;
+        private void AddParameters(Dictionary<string, string> parameters, string query)
+        {
+            if(parameters != null && !string.IsNullOrEmpty(query))
+            {
+                string[] parameters_pair = Uri.UnescapeDataString(query).TrimStart('?').Split('&');
 
-                SendResponse(context.Response, Encoding.UTF8.GetBytes(unauthorized));
+                foreach(string param_pair in parameters_pair)
+                {
+                    string[] parameter = param_pair.Split('=');
+
+                    if(parameter.Length > 1)
+                    {
+                        parameters.Add(parameter[0].ToLower(), string.Join("=", parameter, 1, parameter.Length - 1).ToLower());
+                    }
+                }
             }
         }
 
