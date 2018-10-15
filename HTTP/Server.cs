@@ -173,6 +173,8 @@ namespace CLARTE.HTTP
                 input.Read(data, 0, request_size);
                 input.Close();
 
+                UnityEngine.Debug.LogFormat("Data: {0}", Encoding.UTF8.GetString(data));
+
                 if(endpoints != null && endpoints.TryGetValue(Uri.UnescapeDataString(request.Url.AbsolutePath), out callback))
                 {
                     Dictionary<string, string> parameters = new Dictionary<string, string>();
