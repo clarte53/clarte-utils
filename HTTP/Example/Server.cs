@@ -1,5 +1,6 @@
 ﻿#if UNITY_EDITOR
 
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -48,12 +49,15 @@ namespace CLARTE.HTTP.Example
                 <form method='post' action='/'>
                     <ul>
                         <li>
-                            <label for='colorWell'>Color: </label>
-                            <input id='colorWell' type='color' name='color' value='#{0}' onchange='this.form.submit()'></input>
+                            <label>Color: </label>
+                            <input type='color' name='color' value='#{0}' onchange='this.form.submit()'></input>
                         </li>
                         <li>
-                            <label for='show'>Show: </label>
-                            <input id='show' type='checkbox' name='show' value='True' {1} onchange='this.form.submit()'></input>
+                            <label>Show: </label>
+                            <input type='checkbox' name='show' value='True' {1} onchange='this.form.submit()'></input>
+                        </li>
+                        <li>
+                            <button type='submit' name='anim' value='True'>Play animation</button>
                         </li>
                     </ul>
                 </form>
@@ -88,9 +92,32 @@ namespace CLARTE.HTTP.Example
                 sphere.SetActive(parameters.ContainsKey("show"));
             }
 
+            if(parameters.ContainsKey("anim"))
+            {
+                StartCoroutine(Animation());
             }
 
             return MainPage(parameters);
+        }
+        #endregion
+
+        #region Internal methods
+        protected IEnumerator Animation()
+        {
+            const float length = 1.5f; // In seconds
+
+            float start = Time.realtimeSinceStartup;
+            float diff = 0f;
+
+            do
+            {
+                diff = Time.realtimeSinceStartup - start;
+
+                sphere.transform.localScale = (1f + Mathf.Sin(diff * Mathf.PI / length)) * Vector3.one;
+
+                yield return null;
+            }
+            while(diff < length);
         }
         #endregion
     }
