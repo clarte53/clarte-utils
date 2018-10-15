@@ -3,6 +3,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace CLARTE.HTTP.Example
 {
@@ -11,16 +12,48 @@ namespace CLARTE.HTTP.Example
         #region Members
         protected GameObject sphere;
         protected Material material;
+        protected Text text;
+        protected Text number;
         #endregion
 
         #region MonoBehaviour callbacks
         protected void Start()
         {
+            const float field_height = 50f;
+            const int font_size = 36;
+            
             sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
 
-            sphere.transform.position = Vector3.zero;
-
             material = sphere.GetComponent<MeshRenderer>().material;
+
+            Font font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+
+            Canvas canvas = new GameObject("Canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster)).GetComponent<Canvas>();
+            canvas.transform.localScale = 0.001f * Vector3.one;
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.pixelPerfect = true;
+
+            text = new GameObject("Text", typeof(RectTransform), typeof(Text)).GetComponent<Text>();
+            text.rectTransform.SetParent(canvas.transform, false);
+            text.rectTransform.anchorMin = new Vector2(0f, 1f);
+            text.rectTransform.anchorMax = new Vector2(1f, 1f);
+            text.rectTransform.pivot = new Vector2(0.5f, 1f);
+            text.rectTransform.anchoredPosition = new Vector2(0f, 0f);
+            text.rectTransform.sizeDelta = new Vector2(0f, field_height);
+            text.fontSize = font_size;
+            text.font = font;
+            text.text = "Text";
+
+            number = new GameObject("Number", typeof(RectTransform), typeof(Text)).GetComponent<Text>();
+            number.rectTransform.SetParent(canvas.transform, false);
+            number.rectTransform.anchorMin = new Vector2(0f, 1f);
+            number.rectTransform.anchorMax = new Vector2(1f, 1f);
+            number.rectTransform.pivot = new Vector2(0.5f, 1f);
+            number.rectTransform.anchoredPosition = new Vector2(0f, -field_height);
+            number.rectTransform.sizeDelta = new Vector2(0f, field_height);
+            number.fontSize = font_size;
+            number.font = font;
+            number.text = "0";
 
             new HTTP.Server(8080, new Dictionary<string, HTTP.Server.Endpoint>
             {
@@ -49,12 +82,20 @@ namespace CLARTE.HTTP.Example
                 <form method='post' action='/'>
                     <ul>
                         <li>
+                            <label>Text: </label>
+                            <input type='text' name='text' value='{0}' onchange='this.form.submit()'></input>
+                        </li>
+                        <li>
+                            <label>Number: </label>
+                            <input type='range' name='number' min='0' max='10' value='{1}' onchange='this.form.submit()'></input>
+                        </li>
+                        <li>
                             <label>Color: </label>
-                            <input type='color' name='color' value='#{0}' onchange='this.form.submit()'></input>
+                            <input type='color' name='color' value='#{2}' onchange='this.form.submit()'></input>
                         </li>
                         <li>
                             <label>Show: </label>
-                            <input type='checkbox' name='show' value='True' {1} onchange='this.form.submit()'></input>
+                            <input type='checkbox' name='show' value='True' {3} onchange='this.form.submit()'></input>
                         </li>
                         <li>
                             <button type='submit' name='anim' value='True'>Play animation</button>
@@ -65,13 +106,24 @@ namespace CLARTE.HTTP.Example
         </body>
     </html>";
 
-            return new HTTP.Server.Response("text/html", string.Format(page, ColorUtility.ToHtmlStringRGB(material.color), sphere.activeSelf ? "checked" : ""));
+            return new HTTP.Server.Response("text/html", string.Format(page, text.text, number.text, ColorUtility.ToHtmlStringRGB(material.color), sphere.activeSelf ? "checked" : ""));
         }
 
         protected HTTP.Server.Response UpdateHTML(Dictionary<string, string> parameters)
         {
-            string color_str;
+            string text_str, number_str, color_str;
+            int number_value;
             Color color;
+
+            if(parameters.TryGetValue("text", out text_str))
+            {
+                text.text = text_str;
+            }
+
+            if(parameters.TryGetValue("number", out number_str) && int.TryParse(number_str, out number_value))
+            {
+                number.text = number_value.ToString(); ;
+            }
 
             if(parameters.TryGetValue("color", out color_str))
             {
