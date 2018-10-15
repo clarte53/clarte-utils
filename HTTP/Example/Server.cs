@@ -66,9 +66,8 @@ namespace CLARTE.HTTP.Example
 
         protected HTTP.Server.Response UpdateHTML(Dictionary<string, string> parameters)
         {
-            string color_str, show_str;
+            string color_str;
             Color color;
-            bool show;
 
             if(parameters.TryGetValue("color", out color_str))
             {
@@ -86,17 +85,9 @@ namespace CLARTE.HTTP.Example
             // However, we must discriminate between refresh events (no parameters) and checkbox unchecked (some parameters but no parameter 'show')
             if(parameters.Count > 0)
             {
-                show = false;
+                sphere.SetActive(parameters.ContainsKey("show"));
+            }
 
-                if(parameters.TryGetValue("show", out show_str))
-                {
-                    if(!bool.TryParse(show_str, out show))
-                    {
-                        show = true;
-                    }
-                }
-
-                sphere.SetActive(show);
             }
 
             return MainPage(parameters);
