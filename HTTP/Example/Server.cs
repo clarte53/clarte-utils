@@ -79,8 +79,8 @@ namespace CLARTE.HTTP.Example
             <h1>Hello world!</h1>
             <br>
             <div id='parameters'>
-                <form method='post' action='/'>
-                    <ul>
+                <ul>
+                    <form method='post' action='/'>
                         <li>
                             <label>Text: </label>
                             <input type='text' name='text' value='{0}' onchange='this.form.submit()'></input>
@@ -97,11 +97,13 @@ namespace CLARTE.HTTP.Example
                             <label>Show: </label>
                             <input type='checkbox' name='show' value='True' {3} onchange='this.form.submit()'></input>
                         </li>
+                    </form>
+                    <form method='post' action='/'>
                         <li>
                             <button type='submit' name='anim' value='True'>Play animation</button>
                         </li>
-                    </ul>
-                </form>
+                    </form>
+                </ul>
             </div>
         </body>
     </html>";
@@ -139,7 +141,8 @@ namespace CLARTE.HTTP.Example
 
             // HTTP checkboxes are added to the parameters only if checked.
             // However, we must discriminate between refresh events (no parameters) and checkbox unchecked (some parameters but no parameter 'show')
-            if(parameters.Count > 0)
+            // As 'show' is in the same form as 'color', we can use it to check if the form has been submited (to discriminate with other forms as well)
+            if(parameters.ContainsKey("color"))
             {
                 sphere.SetActive(parameters.ContainsKey("show"));
             }
