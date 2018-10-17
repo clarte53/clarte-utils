@@ -72,13 +72,13 @@ namespace CLARTE.HTTP.Example
             <title>Demo Unity HTTP API</title>
             <style>
                 h1 {{ text-align: center; }}
-                #parameters {{ margin-left: 45%; }}
+                .parameters {{ margin-left: 45%; }}
             </style>
         </head>
         <body>
             <h1>Hello world!</h1>
             <br>
-            <div id='parameters'>
+            <div class='parameters'>
                 <ul>
                     <form method='post' action='/'>
                         <li>

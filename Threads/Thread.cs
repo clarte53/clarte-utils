@@ -62,7 +62,7 @@ namespace CLARTE.Threads
             get
             {
 #if UNITY_WSA && !UNITY_EDITOR
-                return !InternalThread.CurrentId.hasValue;
+                return !InternalThread.CurrentId.HasValue;
 #else
                 return (InternalThread.CurrentThread.ManagedThreadId == mainThreadID);
 #endif
