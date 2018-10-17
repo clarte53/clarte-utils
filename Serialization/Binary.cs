@@ -1974,10 +1974,10 @@ namespace CLARTE.Serialization
 			{
 				result = SupportedTypes.ARRAY;
 			}
-#if UNITY_WSA && !UNITY_EDITOR
+#if NETFX_CORE
 			else if(type.GetTypeInfo().IsGenericType && type.GetTypeInfo().GetGenericTypeDefinition() == typeof(Dictionary<,>))
 #else
-			else if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<,>))
+            else if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<,>))
 #endif
 			{
 				result = SupportedTypes.DICTIONARY;
