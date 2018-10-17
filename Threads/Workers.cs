@@ -131,7 +131,11 @@ namespace CLARTE.Threads
 
                         threads.Clear();
 
+#if NETFX_CORE
+                        stopEvent.Dispose();
+#else
                         stopEvent.Close();
+#endif
                     }
                 }
 
@@ -191,7 +195,11 @@ namespace CLARTE.Threads
             // Cleanup of events
             for(uint i = 1; i < wait.Length; i++)
             {
+#if NETFX_CORE
+                wait[i].Dispose();
+#else
                 wait[i].Close();
+#endif
             }
         }
         #endregion

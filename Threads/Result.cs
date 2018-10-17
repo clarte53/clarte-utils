@@ -29,8 +29,11 @@ namespace CLARTE.Threads
                     {
                         UnityEngine.Debug.LogErrorFormat("{0}: {1}\n{2}", exception.GetType(), exception.Message, exception.StackTrace);
                     }
-
+#if NETFX_CORE
+                    waitHandle.Dispose();
+#else
                     waitHandle.Close();
+#endif
                 }
 
                 // TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.

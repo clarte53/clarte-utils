@@ -1,4 +1,6 @@
-﻿using System;
+﻿#if !NETFX_CORE
+
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -259,3 +261,4 @@ namespace CLARTE.HTTP
         #endregion
     }
 }
+#endif

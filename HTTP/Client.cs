@@ -1,4 +1,6 @@
-﻿using System;
+﻿#if !NETFX_CORE
+
+using System;
 using System.IO;
 using System.Net;
 
@@ -84,3 +86,4 @@ namespace CLARTE.HTTP
         }
     }
 }
+#endif
