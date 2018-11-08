@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading;
 
 
-namespace CLARTE.HTTP
+namespace CLARTE.Net.HTTP
 {
     public class Server : IDisposable
     {

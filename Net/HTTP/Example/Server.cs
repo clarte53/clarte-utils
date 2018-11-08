@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace CLARTE.HTTP.Example
+namespace CLARTE.Net.HTTP.Example
 {
     public class Server : MonoBehaviour
     {

@@ -4,7 +4,7 @@ using System;
 using System.IO;
 using System.Net;
 
-namespace CLARTE.HTTP
+namespace CLARTE.Net.HTTP
 {
     public class Client
     {
