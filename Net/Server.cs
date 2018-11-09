@@ -5,33 +5,12 @@ using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading;
 
 namespace CLARTE.Net
 {
     public class Server : Base, IDisposable
     {
-        protected class Worker
-        {
-            #region Members
-            public Threads.Thread thread;
-            public TcpClient client;
-            public Stream stream;
-            public X509Certificate2 certificate;
-            #endregion
-
-            #region Constructors
-            public Worker(TcpClient c)
-            {
-                thread = null;
-                client = c;
-                stream = client.GetStream();
-                certificate = null;
-            }
-            #endregion
-        }
-
         #region Members
         public uint port;
         public string certificate;
@@ -41,7 +20,7 @@ namespace CLARTE.Net
 
         protected Serialization.Binary serializer;
         protected Threads.Thread mainThread;
-        protected HashSet<Worker> workers;
+        protected HashSet<ServerConnection> workers;
         protected TcpListener listener;
         protected ManualResetEvent stopEvent;
         protected bool disposed;
@@ -62,15 +41,15 @@ namespace CLARTE.Net
 
                     lock(workers)
                     {
-                        foreach(Worker worker in workers)
+                        foreach(ServerConnection connection in workers)
                         {
-                            SafeDispose(worker.stream);
-                            SafeDispose(worker.client);
-                            SafeDispose(worker.certificate);
+                            SafeDispose(connection.stream);
+                            SafeDispose(connection.client);
+                            SafeDispose(connection.certificate);
 
-                            if(worker.thread != null)
+                            if(connection.thread != null)
                             {
-                                worker.thread.Join();
+                                connection.thread.Join();
                             }
                         }
 
@@ -116,7 +95,7 @@ namespace CLARTE.Net
 
             stopEvent = new ManualResetEvent(false);
 
-            workers = new HashSet<Worker>();
+            workers = new HashSet<ServerConnection>();
 
             listener = new TcpListener(IPAddress.Any, (int) port);
             listener.Start();
@@ -167,14 +146,14 @@ namespace CLARTE.Net
                 TcpClient client = listener.EndAcceptTcpClient(async_result);
 
                 // Create a worker thread for this connection
-                Worker worker = new Worker(client);
+                ServerConnection connection = new ServerConnection(client);
 
-                worker.thread = new Threads.Thread(() => Connected(worker));
-                worker.thread.Start();
+                connection.thread = new Threads.Thread(() => Connected(connection));
+                connection.thread.Start();
 
                 lock(workers)
                 {
-                    workers.Add(worker);
+                    workers.Add(connection);
                 }
             }
             catch(Exception exception)
@@ -183,11 +162,14 @@ namespace CLARTE.Net
             }
         }
 
-        protected void Connected(Worker worker)
+        protected void Connected(ServerConnection connection)
         {
             // We should be connected
-            if(worker.client.Connected)
+            if(connection.client.Connected)
             {
+                // Get the stream associated with this connection
+                connection.stream = connection.client.GetStream();
+
                 // Should we use an encrypted channel?
                 bool encrypted = !string.IsNullOrEmpty(certificate) && File.Exists(certificate);
 
@@ -196,98 +178,114 @@ namespace CLARTE.Net
                     try
                     {
                         // Import the certificate
-                        worker.certificate = new X509Certificate2();
+                        connection.certificate = new X509Certificate2();
 
-                        worker.certificate.Import(certificate);
+                        connection.certificate.Import(certificate);
                     }
                     catch(Exception)
                     {
                         UnityEngine.Debug.LogWarningFormat("Invalid certificate file '{0}'. Encryption is disabled.", certificate);
 
-                        if(worker.certificate != null)
+                        if(connection.certificate != null)
                         {
-                            worker.certificate.Dispose();
+                            connection.certificate.Dispose();
                         }
 
-                        worker.certificate = null;
+                        connection.certificate = null;
 
                         encrypted = false;
                     }
                 }
 
                 // Notify the client if we will now switch on an encrypted channel
-                Send(worker.stream, encrypted);
+                Send(connection.stream, encrypted);
 
                 if(encrypted)
                 {
                     // Create the SSL wraping stream
-                    worker.stream = new SslStream(worker.stream);
+                    connection.stream = new SslStream(connection.stream);
 
-                    ((SslStream) worker.stream).BeginAuthenticateAsServer(worker.certificate, EncryptConnection, worker);
+                    // Authenticate with the client
+                    ((SslStream) connection.stream).BeginAuthenticateAsServer(connection.certificate, Authenticated, connection);
                 }
                 else
                 {
                     // No encryption, the channel stay as is
-                    Secured(worker);
+                    ValidateCredentials(connection);
                 }
+            }
+
+            else
+            {
+                UnityEngine.Debug.LogError("The connection from the client failed.");
             }
         }
 
-        protected void EncryptConnection(IAsyncResult async_result)
+        protected void Authenticated(IAsyncResult async_result)
         {
             // Finalize the authentication as server for the SSL stream
-            Worker worker = (Worker) async_result.AsyncState;
+            ServerConnection connection = (ServerConnection) async_result.AsyncState;
 
-            ((SslStream) worker.stream).EndAuthenticateAsServer(async_result);
+            ((SslStream) connection.stream).EndAuthenticateAsServer(async_result);
 
-            Secured(worker);
+            ValidateCredentials(connection);
         }
 
-        protected void Secured(Worker worker)
+        protected void ValidateCredentials(ServerConnection connection)
         {
-            byte[] raw_username;
-            byte[] raw_password;
+            string client_username;
+            string client_password;
 
             // Get the client credentials
-            if(Receive(worker.stream, out raw_username) && Receive(worker.stream, out raw_password))
+            if(Receive(connection.stream, out client_username) && Receive(connection.stream, out client_password))
             {
                 // Check if the credentials are valid
-                if(Encoding.UTF8.GetString(raw_username) == credentials.username && Encoding.UTF8.GetString(raw_password) == credentials.password)
+                if(client_username == credentials.username && client_password == credentials.password)
                 {
                     // Notify the client that the credentials are valid
-                    Send(worker.stream, true);
+                    Send(connection.stream, true);
 
-
+                    //TODO
+                    UnityEngine.Debug.Log("Success");
                 }
                 else
                 {
-                    UnityEngine.Debug.LogWarningFormat("Invalid connection credentials for user '{0}'. Dropping connection.", Encoding.UTF8.GetString(raw_username));
+                    UnityEngine.Debug.LogWarningFormat("Invalid connection credentials for user '{0}'. Dropping connection.", client_username);
 
                     // Notify the client that the credentials are wrong
-                    Send(worker.stream, false);
+                    Send(connection.stream, false);
 
                     // Drop the connection
-                    Close(worker);
+                    Close(connection);
 
                     return;
                 }
             }
+            else
+            {
+                UnityEngine.Debug.LogError("Expected to receive credentials. Dropping connection.");
+
+                // Drop the connection
+                Close(connection);
+
+                return;
+            }
         }
 
-        protected void Close(Worker worker)
+        protected void Close(ServerConnection connection)
         {
             lock(workers)
             {
                 // Remove this worker from the pool of current workers
-                workers.Remove(worker);
+                workers.Remove(connection);
             }
 
             try
             {
                 // Flush the stream to make sure that all sent data is effectively sent to the client
-                if(worker.stream != null)
+                if(connection.stream != null)
                 {
-                    worker.stream.Flush();
+                    connection.stream.Flush();
                 }
             }
             catch(ObjectDisposedException)
@@ -296,9 +294,9 @@ namespace CLARTE.Net
             }
 
             // Close the stream, the client and certificate (if any)
-            SafeDispose(worker.stream);
-            SafeDispose(worker.client);
-            SafeDispose(worker.certificate);
+            SafeDispose(connection.stream);
+            SafeDispose(connection.client);
+            SafeDispose(connection.certificate);
         }
         #endregion
     }

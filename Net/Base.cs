@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 using UnityEngine;
 
 namespace CLARTE.Net
@@ -97,6 +98,11 @@ namespace CLARTE.Net
             stream.Write(data, 0, data.Length);
         }
 
+        protected void Send(Stream stream, string data)
+        {
+            Send(stream, Encoding.UTF8.GetBytes(data));
+        }
+
         protected bool Receive(Stream stream, out bool value)
         {
             int val = stream.ReadByte();
@@ -164,6 +170,22 @@ namespace CLARTE.Net
                 {
                     data = null;
                 }
+            }
+
+            return false;
+        }
+
+        protected bool Receive(Stream stream, out string data)
+        {
+            byte[] raw_data;
+
+            data = null;
+
+            if(Receive(stream, out raw_data))
+            {
+                data = Encoding.UTF8.GetString(raw_data);
+
+                return true;
             }
 
             return false;
