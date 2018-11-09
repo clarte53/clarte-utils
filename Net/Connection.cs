@@ -1,6 +1,5 @@
 ﻿using System.IO;
 using System.Net.Sockets;
-using System.Security.Cryptography.X509Certificates;
 
 namespace CLARTE.Net
 {
@@ -24,14 +23,12 @@ namespace CLARTE.Net
     {
         #region Members
         public Threads.Thread thread;
-        public X509Certificate2 certificate;
         #endregion
 
         #region Constructors
         public ServerConnection(TcpClient c) : base(c)
         {
             thread = null;
-            certificate = null;
         }
         #endregion
     }

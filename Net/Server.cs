@@ -22,6 +22,7 @@ namespace CLARTE.Net
         protected Threads.Thread mainThread;
         protected HashSet<ServerConnection> workers;
         protected TcpListener listener;
+        protected X509Certificate2 serverCertificate;
         protected ManualResetEvent stopEvent;
         protected bool disposed;
         #endregion
@@ -45,7 +46,6 @@ namespace CLARTE.Net
                         {
                             SafeDispose(connection.stream);
                             SafeDispose(connection.client);
-                            SafeDispose(connection.certificate);
 
                             if(connection.thread != null)
                             {
@@ -55,6 +55,8 @@ namespace CLARTE.Net
 
                         workers.Clear();
                     }
+
+                    SafeDispose(serverCertificate);
 
                     mainThread.Join();
 
@@ -96,6 +98,31 @@ namespace CLARTE.Net
             stopEvent = new ManualResetEvent(false);
 
             workers = new HashSet<ServerConnection>();
+
+            serverCertificate = null;
+
+            // Should we use an encrypted channel?
+            if(!string.IsNullOrEmpty(certificate) && File.Exists(certificate))
+            {
+                try
+                {
+                    // Import the certificate
+                    serverCertificate = new X509Certificate2();
+
+                    serverCertificate.Import(certificate);
+                }
+                catch(Exception)
+                {
+                    UnityEngine.Debug.LogWarningFormat("Invalid certificate file '{0}'. Encryption is disabled.", certificate);
+
+                    if(serverCertificate != null)
+                    {
+                        serverCertificate.Dispose();
+                    }
+
+                    serverCertificate = null;
+                }
+            }
 
             listener = new TcpListener(IPAddress.Any, (int) port);
             listener.Start();
@@ -172,43 +199,16 @@ namespace CLARTE.Net
                 // Get the stream associated with this connection
                 connection.stream = connection.client.GetStream();
 
-                // Should we use an encrypted channel?
-                bool encrypted = !string.IsNullOrEmpty(certificate) && File.Exists(certificate);
-
-                if(encrypted)
-                {
-                    try
-                    {
-                        // Import the certificate
-                        connection.certificate = new X509Certificate2();
-
-                        connection.certificate.Import(certificate);
-                    }
-                    catch(Exception)
-                    {
-                        UnityEngine.Debug.LogWarningFormat("Invalid certificate file '{0}'. Encryption is disabled.", certificate);
-
-                        if(connection.certificate != null)
-                        {
-                            connection.certificate.Dispose();
-                        }
-
-                        connection.certificate = null;
-
-                        encrypted = false;
-                    }
-                }
-
                 // Notify the client if we will now switch on an encrypted channel
-                Send(connection.stream, encrypted);
+                Send(connection.stream, serverCertificate != null);
 
-                if(encrypted)
+                if(serverCertificate != null)
                 {
                     // Create the SSL wraping stream
                     connection.stream = new SslStream(connection.stream);
 
                     // Authenticate with the client
-                    ((SslStream) connection.stream).BeginAuthenticateAsServer(connection.certificate, Authenticated, connection);
+                    ((SslStream) connection.stream).BeginAuthenticateAsServer(serverCertificate, Authenticated, connection);
                 }
                 else
                 {
@@ -298,7 +298,6 @@ namespace CLARTE.Net
             // Close the stream, the client and certificate (if any)
             SafeDispose(connection.stream);
             SafeDispose(connection.client);
-            SafeDispose(connection.certificate);
         }
         #endregion
     }
