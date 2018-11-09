@@ -642,7 +642,7 @@ namespace CLARTE.Serialization
 		/// <summary>
 		/// Get a buffer from existing data.
 		/// </summary>
-		/// <param name="data">The existing data/</param>
+		/// <param name="data">The existing data.</param>
 		/// <param name="progress_callback">A callback to notify progress of the current task.</param>
 		/// <returns>A buffer.</returns>
 		public Buffer GetBufferFromExistingData(byte[] data, Action<float> progress = null)
