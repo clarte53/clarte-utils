@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
@@ -102,7 +101,7 @@ namespace CLARTE.Net
             serverCertificate = null;
 
             // Should we use an encrypted channel?
-            if(!string.IsNullOrEmpty(certificate) && File.Exists(certificate))
+            if(!string.IsNullOrEmpty(certificate))
             {
                 try
                 {
