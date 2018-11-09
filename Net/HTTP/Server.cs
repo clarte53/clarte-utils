@@ -7,7 +7,6 @@ using System.Net;
 using System.Text;
 using System.Threading;
 
-
 namespace CLARTE.Net.HTTP
 {
     public class Server : IDisposable
@@ -76,11 +75,11 @@ namespace CLARTE.Net.HTTP
                 {
                     // TODO: delete managed state (managed objects).
 
+                    listener.Stop();
+
                     stopEvent.Set();
 
                     listenerWorker.Join();
-
-                    listener.Stop();
 
                     stopEvent.Close();
                 }
