@@ -102,6 +102,8 @@ namespace CLARTE.Net
 
             mainThread = new Threads.Thread(Listen);
             mainThread.Start();
+
+            UnityEngine.Debug.LogFormat("Started server on port {0}", port);
         }
 
         protected void OnDestroy()

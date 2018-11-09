@@ -25,6 +25,8 @@ namespace CLARTE.Net
         #region Public methods
         public void Connect()
         {
+            UnityEngine.Debug.LogFormat("Start connection to {0}:{1}", hostname, port);
+
             // Create a new TCP client
             Connection connection = new Connection(new TcpClient());
 
@@ -44,6 +46,8 @@ namespace CLARTE.Net
             // We should be connected
             if(connection.client.Connected)
             {
+                UnityEngine.Debug.LogFormat("Connected to {0}:{1}", hostname, port);
+
                 // Get the stream associated with this connection
                 connection.stream = connection.client.GetStream();
 
