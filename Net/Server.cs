@@ -273,7 +273,9 @@ namespace CLARTE.Net
                 }
                 else
                 {
-                    UnityEngine.Debug.LogWarningFormat("Invalid connection credentials for user '{0}'. Dropping connection.", client_username);
+                    string error_message = string.Format("Invalid connection credentials for user '{0}'. Dropping connection.", client_username);
+
+                    UnityEngine.Debug.LogWarning(error_message);
 
                     // Notify the client that the credentials are wrong
                     Send(connection, false);
@@ -281,7 +283,7 @@ namespace CLARTE.Net
                     // Drop the connection
                     Close(connection);
 
-                    throw new DropException();
+                    throw new DropException(error_message);
                 }
             }
             else

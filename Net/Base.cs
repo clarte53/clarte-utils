@@ -71,7 +71,10 @@ namespace CLARTE.Net
 
         protected class DropException : Exception
         {
+            public DropException(string message) : base(message)
+            {
 
+            }
         }
 
         [Serializable]
@@ -157,11 +160,13 @@ namespace CLARTE.Net
 
         protected void Drop(TCPConnection connection, string message, params object[] values)
         {
-            UnityEngine.Debug.LogErrorFormat(message, values);
+            string error_message = string.Format(message, values);
+
+            UnityEngine.Debug.LogError(error_message);
 
             Close(connection);
 
-            throw new DropException();
+            throw new DropException(error_message);
         }
         #endregion
 
