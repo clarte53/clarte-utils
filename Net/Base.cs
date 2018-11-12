@@ -81,51 +81,51 @@ namespace CLARTE.Net
         #endregion
 
         #region Helper serialization functions
-        protected void Send(Stream stream, bool value)
+        protected void Send(Connection connection, bool value)
         {
-            stream.WriteByte(value ? (byte) 1 : (byte) 0);
+            connection.stream.WriteByte(value ? (byte) 1 : (byte) 0);
         }
 
-        protected void Send(Stream stream, int value)
+        protected void Send(Connection connection, int value)
         {
             Converter c = new Converter(value);
 
             if(isLittleEndian)
             {
-                stream.WriteByte(c.Byte4);
-                stream.WriteByte(c.Byte3);
-                stream.WriteByte(c.Byte2);
-                stream.WriteByte(c.Byte1);
+                connection.stream.WriteByte(c.Byte4);
+                connection.stream.WriteByte(c.Byte3);
+                connection.stream.WriteByte(c.Byte2);
+                connection.stream.WriteByte(c.Byte1);
             }
             else
             {
-                stream.WriteByte(c.Byte1);
-                stream.WriteByte(c.Byte2);
-                stream.WriteByte(c.Byte3);
-                stream.WriteByte(c.Byte4);
+                connection.stream.WriteByte(c.Byte1);
+                connection.stream.WriteByte(c.Byte2);
+                connection.stream.WriteByte(c.Byte3);
+                connection.stream.WriteByte(c.Byte4);
             }
         }
 
-        protected void Send(Stream stream, uint value)
+        protected void Send(Connection connection, uint value)
         {
-            Send(stream, new Converter(value).Int);
+            Send(connection, new Converter(value).Int);
         }
 
-        protected void Send(Stream stream, byte[] data)
+        protected void Send(Connection connection, byte[] data)
         {
-            Send(stream, data.Length);
+            Send(connection, data.Length);
 
-            stream.Write(data, 0, data.Length);
+            connection.stream.Write(data, 0, data.Length);
         }
 
-        protected void Send(Stream stream, string data)
+        protected void Send(Connection connection, string data)
         {
-            Send(stream, Encoding.UTF8.GetBytes(data));
+            Send(connection, Encoding.UTF8.GetBytes(data));
         }
 
-        protected bool Receive(Stream stream, out bool value)
+        protected bool Receive(Connection connection, out bool value)
         {
-            int val = stream.ReadByte();
+            int val = connection.stream.ReadByte();
 
             value = false;
 
@@ -139,7 +139,7 @@ namespace CLARTE.Net
             return false;
         }
 
-        protected bool Receive(Stream stream, out int value)
+        protected bool Receive(Connection connection, out int value)
         {
             int v1, v2, v3, v4;
 
@@ -147,17 +147,17 @@ namespace CLARTE.Net
 
             if(isLittleEndian)
             {
-                v4 = stream.ReadByte();
-                v3 = stream.ReadByte();
-                v2 = stream.ReadByte();
-                v1 = stream.ReadByte();
+                v4 = connection.stream.ReadByte();
+                v3 = connection.stream.ReadByte();
+                v2 = connection.stream.ReadByte();
+                v1 = connection.stream.ReadByte();
             }
             else
             {
-                v1 = stream.ReadByte();
-                v2 = stream.ReadByte();
-                v3 = stream.ReadByte();
-                v4 = stream.ReadByte();
+                v1 = connection.stream.ReadByte();
+                v2 = connection.stream.ReadByte();
+                v3 = connection.stream.ReadByte();
+                v4 = connection.stream.ReadByte();
             }
 
             if(v1 >= 0 && v2 >= 0 && v3 >= 0 && v4 >= 0)
@@ -172,28 +172,28 @@ namespace CLARTE.Net
             return false;
         }
 
-        protected bool Receive(Stream stream, out uint value)
+        protected bool Receive(Connection connection, out uint value)
         {
             int val;
 
-            bool result = Receive(stream, out val);
+            bool result = Receive(connection, out val);
 
             value = new Converter(val).UInt;
 
             return result;
         }
 
-        protected bool Receive(Stream stream, out byte[] data)
+        protected bool Receive(Connection connection, out byte[] data)
         {
             int size;
 
             data = null;
 
-            if(Receive(stream, out size))
+            if(Receive(connection, out size))
             {
                 data = new byte[size];
 
-                if(stream.Read(data, 0, size) == size)
+                if(connection.stream.Read(data, 0, size) == size)
                 {
                     return true;
                 }
@@ -206,13 +206,13 @@ namespace CLARTE.Net
             return false;
         }
 
-        protected bool Receive(Stream stream, out string data)
+        protected bool Receive(Connection connection, out string data)
         {
             byte[] raw_data;
 
             data = null;
 
-            if(Receive(stream, out raw_data))
+            if(Receive(connection, out raw_data))
             {
                 data = Encoding.UTF8.GetString(raw_data);
 

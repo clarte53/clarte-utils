@@ -203,9 +203,9 @@ namespace CLARTE.Net
                     connection.stream = connection.client.GetStream();
 
                     // Send the protocol version
-                    Send(connection.stream, maxSupportedVersion);
+                    Send(connection, maxSupportedVersion);
 
-                    if(Receive(connection.stream, out connection.version))
+                    if(Receive(connection, out connection.version))
                     {
                         if(connection.version < maxSupportedVersion)
                         {
@@ -213,7 +213,7 @@ namespace CLARTE.Net
                         }
 
                         // Notify the client if we will now switch on an encrypted channel
-                        Send(connection.stream, serverCertificate != null);
+                        Send(connection, serverCertificate != null);
 
                         if(serverCertificate != null)
                         {
@@ -273,13 +273,13 @@ namespace CLARTE.Net
             string client_password;
 
             // Get the client credentials
-            if(Receive(connection.stream, out client_username) && Receive(connection.stream, out client_password))
+            if(Receive(connection, out client_username) && Receive(connection, out client_password))
             {
                 // Check if the credentials are valid
                 if(client_username == credentials.username && client_password == credentials.password)
                 {
                     // Notify the client that the credentials are valid
-                    Send(connection.stream, true);
+                    Send(connection, true);
 
                     //TODO
                     UnityEngine.Debug.Log("Success");
@@ -289,7 +289,7 @@ namespace CLARTE.Net
                     UnityEngine.Debug.LogWarningFormat("Invalid connection credentials for user '{0}'. Dropping connection.", client_username);
 
                     // Notify the client that the credentials are wrong
-                    Send(connection.stream, false);
+                    Send(connection, false);
 
                     // Drop the connection
                     Close(connection);

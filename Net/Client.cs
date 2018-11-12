@@ -57,7 +57,7 @@ namespace CLARTE.Net
                     connection.stream = connection.client.GetStream();
 
                     // Get the protocol version
-                    if(Receive(connection.stream, out connection.version))
+                    if(Receive(connection, out connection.version))
                     {
                         if(connection.version > maxSupportedVersion)
                         {
@@ -67,12 +67,12 @@ namespace CLARTE.Net
                         }
 
                         // Send the agreed protocol version
-                        Send(connection.stream, connection.version);
+                        Send(connection, connection.version);
 
                         bool encrypted;
 
                         // Check if we must wrap the stream in an encrypted SSL channel
-                        if(Receive(connection.stream, out encrypted))
+                        if(Receive(connection, out encrypted))
                         {
                             if(encrypted)
                             {
@@ -140,12 +140,12 @@ namespace CLARTE.Net
 
         protected void ValidateCredentials(Connection connection)
         {
-            Send(connection.stream, credentials.username);
-            Send(connection.stream, credentials.password);
+            Send(connection, credentials.username);
+            Send(connection, credentials.password);
 
             bool credentials_ok;
 
-            if(Receive(connection.stream, out credentials_ok))
+            if(Receive(connection, out credentials_ok))
             {
                 if(credentials_ok)
                 {
