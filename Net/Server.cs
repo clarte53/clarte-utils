@@ -11,7 +11,7 @@ namespace CLARTE.Net
     public class Server : Base, IDisposable
     {
         #region Members
-        public const uint version = 1;
+        public const uint maxSupportedVersion = 1;
 
         public uint port;
         public string certificate;
@@ -203,24 +203,40 @@ namespace CLARTE.Net
                     connection.stream = connection.client.GetStream();
 
                     // Send the protocol version
-                    connection.version = version;
-                    Send(connection.stream, connection.version);
+                    Send(connection.stream, maxSupportedVersion);
 
-                    // Notify the client if we will now switch on an encrypted channel
-                    Send(connection.stream, serverCertificate != null);
-
-                    if(serverCertificate != null)
+                    if(Receive(connection.stream, out connection.version))
                     {
-                        // Create the SSL wraping stream
-                        connection.stream = new SslStream(connection.stream);
+                        if(connection.version < maxSupportedVersion)
+                        {
+                            UnityEngine.Debug.LogWarningFormat("Client does not support protocol version '{0}'. Using version '{1}' instead.", maxSupportedVersion, connection.version);
+                        }
 
-                        // Authenticate with the client
-                        ((SslStream) connection.stream).BeginAuthenticateAsServer(serverCertificate, Authenticated, connection);
+                        // Notify the client if we will now switch on an encrypted channel
+                        Send(connection.stream, serverCertificate != null);
+
+                        if(serverCertificate != null)
+                        {
+                            // Create the SSL wraping stream
+                            connection.stream = new SslStream(connection.stream);
+
+                            // Authenticate with the client
+                            ((SslStream) connection.stream).BeginAuthenticateAsServer(serverCertificate, Authenticated, connection);
+                        }
+                        else
+                        {
+                            // No encryption, the channel stay as is
+                            ValidateCredentials(connection);
+                        }
                     }
                     else
                     {
-                        // No encryption, the channel stay as is
-                        ValidateCredentials(connection);
+                        UnityEngine.Debug.LogError("Expected to receive negotiation protocol version. Dropping connection.");
+
+                        // Drop the connection
+                        Close(connection);
+
+                        return;
                     }
                 }
                 else
