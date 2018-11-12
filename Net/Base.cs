@@ -26,9 +26,13 @@ namespace CLARTE.Net
             [FieldOffset(0)]
             public int Int;
 
+            [FieldOffset(0)]
+            public uint UInt;
+
             public Converter(byte b1, byte b2, byte b3, byte b4)
             {
                 Int = 0;
+                UInt = 0;
                 Byte1 = b1;
                 Byte2 = b2;
                 Byte3 = b3;
@@ -41,7 +45,18 @@ namespace CLARTE.Net
                 Byte2 = 0;
                 Byte3 = 0;
                 Byte4 = 0;
+                UInt = 0;
                 Int = value;
+            }
+
+            public Converter(uint value)
+            {
+                Byte1 = 0;
+                Byte2 = 0;
+                Byte3 = 0;
+                Byte4 = 0;
+                Int = 0;
+                UInt = value;
             }
         }
 
@@ -89,6 +104,11 @@ namespace CLARTE.Net
                 stream.WriteByte(c.Byte3);
                 stream.WriteByte(c.Byte4);
             }
+        }
+
+        protected void Send(Stream stream, uint value)
+        {
+            Send(stream, new Converter(value).Int);
         }
 
         protected void Send(Stream stream, byte[] data)
@@ -150,6 +170,17 @@ namespace CLARTE.Net
             }
 
             return false;
+        }
+
+        protected bool Receive(Stream stream, out uint value)
+        {
+            int val;
+
+            bool result = Receive(stream, out val);
+
+            value = new Converter(val).UInt;
+
+            return result;
         }
 
         protected bool Receive(Stream stream, out byte[] data)

@@ -11,6 +11,8 @@ namespace CLARTE.Net
     public class Server : Base, IDisposable
     {
         #region Members
+        public const uint version = 1;
+
         public uint port;
         public string certificate;
         public Credentials credentials;
@@ -199,6 +201,10 @@ namespace CLARTE.Net
                 {
                     // Get the stream associated with this connection
                     connection.stream = connection.client.GetStream();
+
+                    // Send the protocol version
+                    connection.version = version;
+                    Send(connection.stream, connection.version);
 
                     // Notify the client if we will now switch on an encrypted channel
                     Send(connection.stream, serverCertificate != null);

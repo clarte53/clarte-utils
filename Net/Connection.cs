@@ -8,6 +8,7 @@ namespace CLARTE.Net
         #region Members
         public TcpClient client;
         public Stream stream;
+        public uint version;
         #endregion
 
         #region Constructors
