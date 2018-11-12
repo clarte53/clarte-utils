@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
 
 namespace CLARTE.Net
 {
@@ -59,7 +60,7 @@ namespace CLARTE.Net
                     if(encrypted)
                     {
                         // Create the SSL wraping stream
-                        connection.stream = new SslStream(connection.stream);
+                        connection.stream = new SslStream(connection.stream, false, new RemoteCertificateValidationCallback(ValidateServerCertificate));
 
                         // Authenticate with the server
                         ((SslStream) connection.stream).BeginAuthenticateAsClient(hostname, Authenticated, connection);
@@ -91,12 +92,19 @@ namespace CLARTE.Net
 
         protected void Authenticated(IAsyncResult async_result)
         {
-            // Finalize the authentication as client for the SSL stream
-            Connection connection = (Connection) async_result.AsyncState;
+            try
+            {
+                // Finalize the authentication as client for the SSL stream
+                Connection connection = (Connection) async_result.AsyncState;
 
-            ((SslStream) connection.stream).EndAuthenticateAsClient(async_result);
+                ((SslStream) connection.stream).EndAuthenticateAsClient(async_result);
 
-            ValidateCredentials(connection);
+                ValidateCredentials(connection);
+            }
+            catch(Exception)
+            {
+                UnityEngine.Debug.LogError("Authentication failed");
+            }
         }
 
         protected void ValidateCredentials(Connection connection)
@@ -136,6 +144,22 @@ namespace CLARTE.Net
         {
             SafeDispose(connection.stream);
             SafeDispose(connection.client);
+        }
+        #endregion
+
+        #region Internal methods
+        protected bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
+        {
+            switch(sslPolicyErrors)
+            {
+                case SslPolicyErrors.None:
+                    return true;
+                case SslPolicyErrors.RemoteCertificateNameMismatch:
+                    UnityEngine.Debug.LogWarningFormat("The name of the certificate does not match the hostname. Certificate = '{0}', hostname = '{1}'.", certificate.Subject, hostname);
+                    return true;
+                default:
+                    return false;
+            }
         }
         #endregion
     }

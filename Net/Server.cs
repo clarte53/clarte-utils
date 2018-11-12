@@ -192,44 +192,57 @@ namespace CLARTE.Net
 
         protected void Connected(ServerConnection connection)
         {
-            // We should be connected
-            if(connection.client.Connected)
+            try
             {
-                // Get the stream associated with this connection
-                connection.stream = connection.client.GetStream();
-
-                // Notify the client if we will now switch on an encrypted channel
-                Send(connection.stream, serverCertificate != null);
-
-                if(serverCertificate != null)
+                // We should be connected
+                if(connection.client.Connected)
                 {
-                    // Create the SSL wraping stream
-                    connection.stream = new SslStream(connection.stream);
+                    // Get the stream associated with this connection
+                    connection.stream = connection.client.GetStream();
 
-                    // Authenticate with the client
-                    ((SslStream) connection.stream).BeginAuthenticateAsServer(serverCertificate, Authenticated, connection);
+                    // Notify the client if we will now switch on an encrypted channel
+                    Send(connection.stream, serverCertificate != null);
+
+                    if(serverCertificate != null)
+                    {
+                        // Create the SSL wraping stream
+                        connection.stream = new SslStream(connection.stream);
+
+                        // Authenticate with the client
+                        ((SslStream) connection.stream).BeginAuthenticateAsServer(serverCertificate, Authenticated, connection);
+                    }
+                    else
+                    {
+                        // No encryption, the channel stay as is
+                        ValidateCredentials(connection);
+                    }
                 }
                 else
                 {
-                    // No encryption, the channel stay as is
-                    ValidateCredentials(connection);
+                    UnityEngine.Debug.LogError("The connection from the client failed.");
                 }
             }
-
-            else
+            catch(Exception e)
             {
-                UnityEngine.Debug.LogError("The connection from the client failed.");
+                UnityEngine.Debug.LogErrorFormat("{0}\n{1}", e.Message, e.StackTrace);
             }
         }
 
         protected void Authenticated(IAsyncResult async_result)
         {
-            // Finalize the authentication as server for the SSL stream
-            ServerConnection connection = (ServerConnection) async_result.AsyncState;
+            try
+            {
+                // Finalize the authentication as server for the SSL stream
+                ServerConnection connection = (ServerConnection) async_result.AsyncState;
 
-            ((SslStream) connection.stream).EndAuthenticateAsServer(async_result);
+                ((SslStream) connection.stream).EndAuthenticateAsServer(async_result);
 
-            ValidateCredentials(connection);
+                ValidateCredentials(connection);
+            }
+            catch(Exception)
+            {
+                UnityEngine.Debug.LogError("Authentication failed");
+            }
         }
 
         protected void ValidateCredentials(ServerConnection connection)
