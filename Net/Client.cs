@@ -14,7 +14,7 @@ namespace CLARTE.Net
         public string hostname = "localhost";
         public uint port;
         public Credentials credentials;
-        public List<uint> openPorts;
+        public List<ushort> openPorts;
         public List<Channel> channels;
         #endregion
 
@@ -214,15 +214,7 @@ namespace CLARTE.Net
             {
                 if(credentials_ok)
                 {
-                    // Check if we must negotiate other channel or just open the current one
-                    if(connection.channel == 0)
-                    {
-                        NegotiateChannels(connection);
-                    }
-                    else
-                    {
-                        SaveChannel(connection);
-                    }
+                    NegotiateChannels(connection);
                 }
                 else
                 {
@@ -237,8 +229,59 @@ namespace CLARTE.Net
 
         protected void NegotiateChannels(ClientTcpConnection connection)
         {
-            //TODO
-            UnityEngine.Debug.Log("Success");
+            // Send channel negotiation flag
+            Send(connection, connection.channel == 0);
+
+            // Check if we must negotiate other channel or just open the current one
+            if(connection.channel == 0)
+            {
+                // Send the open ports list
+                int nb_client_ports = (openPorts != null ? openPorts.Count : 0);
+
+                Send(connection, nb_client_ports);
+
+                for(int i = 0; i < nb_client_ports; i++)
+                {
+                    Send(connection, openPorts[i]);
+                }
+
+                // Receive the channels global info
+                ushort raw_error_code, nb_channels, required_ports;
+
+                if(Receive(connection, out raw_error_code) && Receive(connection, out nb_channels) && Receive(connection, out required_ports))
+                {
+                    ChannelDescriptionErrorCode error_code = (ChannelDescriptionErrorCode) raw_error_code;
+
+                    if(error_code == ChannelDescriptionErrorCode.NONE)
+                    {
+                        //TODO
+                    }
+                    else if((error_code & ChannelDescriptionErrorCode.NO_CHANNEL) != 0)
+                    {
+                        Drop(connection, "No channels configured. Dropping connection.");
+                    }
+                    else if((error_code & ChannelDescriptionErrorCode.NOT_ENOUGH_CLIENT_PORT) != 0)
+                    {
+                        Drop(connection, "No enough port available on client. Need {0} ports, only {1} availables. Dropping connection.", required_ports, nb_client_ports);
+                    }
+                    else if((error_code & ChannelDescriptionErrorCode.NOT_ENOUGH_SERVER_PORT) != 0)
+                    {
+                        Drop(connection, "No enough port available on server. Need {0} ports. Dropping connection.", required_ports);
+                    }
+                    else
+                    {
+                        Drop(connection, "Unknown error. Dropping connection.");
+                    }
+                }
+                else
+                {
+                    Drop(connection, "Expected to receive the channels global descriptors. Dropping connection.");
+                }
+            }
+            else
+            {
+                SaveChannel(connection);
+            }
         }
 
         protected void SaveChannel(ClientTcpConnection connection)

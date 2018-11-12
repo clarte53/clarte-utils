@@ -17,6 +17,15 @@ namespace CLARTE.Net
             DISPOSED
         }
 
+        [Flags]
+        protected enum ChannelDescriptionErrorCode : ushort
+        {
+            NONE = 0x0,
+            NO_CHANNEL = 0x1,
+            NOT_ENOUGH_CLIENT_PORT = 0x2,
+            NOT_ENOUGH_SERVER_PORT = 0x4
+        }
+
         [StructLayout(LayoutKind.Explicit)]
         protected struct Converter
         {
@@ -38,10 +47,14 @@ namespace CLARTE.Net
             [FieldOffset(0)]
             public uint UInt;
 
+            [FieldOffset(0)]
+            public ushort UShort;
+
             public Converter(byte b1, byte b2, byte b3, byte b4)
             {
                 Int = 0;
                 UInt = 0;
+                UShort = 0;
                 Byte1 = b1;
                 Byte2 = b2;
                 Byte3 = b3;
@@ -55,6 +68,7 @@ namespace CLARTE.Net
                 Byte3 = 0;
                 Byte4 = 0;
                 UInt = 0;
+                UShort = 0;
                 Int = value;
             }
 
@@ -65,7 +79,19 @@ namespace CLARTE.Net
                 Byte3 = 0;
                 Byte4 = 0;
                 Int = 0;
+                UShort = 0;
                 UInt = value;
+            }
+
+            public Converter(ushort value)
+            {
+                Byte1 = 0;
+                Byte2 = 0;
+                Byte3 = 0;
+                Byte4 = 0;
+                Int = 0;
+                UInt = 0;
+                UShort = value;
             }
         }
 
@@ -194,6 +220,22 @@ namespace CLARTE.Net
             connection.stream.WriteByte(value ? (byte) 1 : (byte) 0);
         }
 
+        protected void Send(TcpConnection connection, ushort value)
+        {
+            Converter c = new Converter(value);
+
+            if(isLittleEndian)
+            {
+                connection.stream.WriteByte(c.Byte2);
+                connection.stream.WriteByte(c.Byte1);
+            }
+            else
+            {
+                connection.stream.WriteByte(c.Byte1);
+                connection.stream.WriteByte(c.Byte2);
+            }
+        }
+
         protected void Send(TcpConnection connection, int value)
         {
             Converter c = new Converter(value);
@@ -240,6 +282,35 @@ namespace CLARTE.Net
             if(val >= 0)
             {
                 value = (val > 0);
+
+                return true;
+            }
+
+            return false;
+        }
+
+        protected bool Receive(TcpConnection connection, out ushort value)
+        {
+            int v1, v2;
+
+            value = 0;
+
+            if(isLittleEndian)
+            {
+                v2 = connection.stream.ReadByte();
+                v1 = connection.stream.ReadByte();
+            }
+            else
+            {
+                v1 = connection.stream.ReadByte();
+                v2 = connection.stream.ReadByte();
+            }
+
+            if(v1 >= 0 && v2 >= 0)
+            {
+                Converter c = new Converter((byte) v1, (byte) v2, 0, 0);
+
+                value = c.UShort;
 
                 return true;
             }

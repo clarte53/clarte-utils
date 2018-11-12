@@ -2,7 +2,7 @@
 
 namespace CLARTE.Net
 {
-    public enum StreamType
+    public enum StreamType : ushort
     {
         TCP,
         UDP,
