@@ -213,18 +213,17 @@ namespace CLARTE.Net
                     }
                     else
                     {
-                        UnityEngine.Debug.LogError("Expected to receive negotiation protocol version. Dropping connection.");
-
-                        // Drop the connection
-                        connection.Close();
-
-                        return;
+                        Drop(connection, "Expected to receive negotiation protocol version. Dropping connection.");
                     }
                 }
                 else
                 {
                     UnityEngine.Debug.LogError("The connection from the client failed.");
                 }
+            }
+            catch(DropException)
+            {
+                return;
             }
             catch(Exception exception)
             {
@@ -234,18 +233,24 @@ namespace CLARTE.Net
 
         protected void Authenticated(IAsyncResult async_result)
         {
+            TCPConnection connection = null;
+
             try
             {
                 // Finalize the authentication as server for the SSL stream
-                TCPConnection connection = (TCPConnection) async_result.AsyncState;
+                connection = (TCPConnection) async_result.AsyncState;
 
                 ((SslStream) connection.stream).EndAuthenticateAsServer(async_result);
 
                 ValidateCredentials(connection);
             }
+            catch(DropException)
+            {
+                throw;
+            }
             catch(Exception)
             {
-                UnityEngine.Debug.LogError("Authentication failed");
+                Drop(connection, "Authentication failed.");
             }
         }
 
@@ -274,19 +279,14 @@ namespace CLARTE.Net
                     Send(connection, false);
 
                     // Drop the connection
-                    connection.Close();
+                    Close(connection);
 
-                    return;
+                    throw new DropException();
                 }
             }
             else
             {
-                UnityEngine.Debug.LogError("Expected to receive credentials. Dropping connection.");
-
-                // Drop the connection
-                connection.Close();
-
-                return;
+                Drop(connection, "Expected to receive credentials. Dropping connection.");
             }
         }
         #endregion

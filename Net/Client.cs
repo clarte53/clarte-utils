@@ -158,30 +158,22 @@ namespace CLARTE.Net
                         }
                         else
                         {
-                            UnityEngine.Debug.LogError("Expected to receive encryption status. Dropping connection.");
-
-                            connection.Close();
-
-                            return;
+                            Drop(connection, "Expected to receive encryption status. Dropping connection.");
                         }
                     }
                     else
                     {
-                        UnityEngine.Debug.LogError("Expected to receive protocol version. Dropping connection.");
-
-                        connection.Close();
-
-                        return;
+                        Drop(connection, "Expected to receive protocol version. Dropping connection.");
                     }
                 }
                 else
                 {
-                    UnityEngine.Debug.LogErrorFormat("The connection to {0}:{1} failed.", hostname, port);
-
-                    connection.Close();
-
-                    return;
+                    Drop(connection, "The connection to {0}:{1} failed.", hostname, port);
                 }
+            }
+            catch(DropException)
+            {
+                return;
             }
             catch(Exception exception)
             {
@@ -200,6 +192,10 @@ namespace CLARTE.Net
 
                 ValidateCredentials(connection);
             }
+            catch(DropException)
+            {
+                throw;
+            }
             catch(Exception)
             {
                 UnityEngine.Debug.LogError("Authentication failed");
@@ -213,30 +209,41 @@ namespace CLARTE.Net
 
             bool credentials_ok;
 
+            // Check if the sent credentials are OK
             if(Receive(connection, out credentials_ok))
             {
                 if(credentials_ok)
                 {
-                    //TODO
-                    UnityEngine.Debug.Log("Success");
+                    // Check if we must negotiate other channel or just open the current one
+                    if(connection.channel == 0)
+                    {
+                        NegotiateChannels(connection);
+                    }
+                    else
+                    {
+                        SaveChannel(connection);
+                    }
                 }
                 else
                 {
-                    UnityEngine.Debug.LogError("Invalid credentials. Dropping connection.");
-
-                    connection.Close();
-
-                    return;
+                    Drop(connection, "Invalid credentials. Dropping connection.");
                 }
             }
             else
             {
-                UnityEngine.Debug.LogError("Expected to receive credentials validation. Dropping connection.");
-
-                connection.Close();
-
-                return;
+                Drop(connection, "Expected to receive credentials validation. Dropping connection.");
             }
+        }
+
+        protected void NegotiateChannels(ClientTCPConnection connection)
+        {
+            //TODO
+            UnityEngine.Debug.Log("Success");
+        }
+
+        protected void SaveChannel(ClientTCPConnection connection)
+        {
+            //TODO
         }
         #endregion
 

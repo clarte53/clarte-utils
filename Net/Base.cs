@@ -69,6 +69,11 @@ namespace CLARTE.Net
             }
         }
 
+        protected class DropException : Exception
+        {
+
+        }
+
         [Serializable]
         public class Credentials
         {
@@ -116,7 +121,9 @@ namespace CLARTE.Net
             // TODO: uncomment next line if finalizer is replaced above.
             GC.SuppressFinalize(this);
         }
+        #endregion
 
+        #region Clean-up helpers
         protected void CloseInitializedConnections()
         {
             lock(initializedConnections)
@@ -133,6 +140,28 @@ namespace CLARTE.Net
 
                 initializedConnections.Clear();
             }
+        }
+
+        protected void Close(TCPConnection connection)
+        {
+            if(connection != null)
+            {
+                lock(initializedConnections)
+                {
+                    initializedConnections.Remove(connection);
+                }
+
+                connection.Close();
+            }
+        }
+
+        protected void Drop(TCPConnection connection, string message, params object[] values)
+        {
+            UnityEngine.Debug.LogErrorFormat(message, values);
+
+            Close(connection);
+
+            throw new DropException();
         }
         #endregion
 
