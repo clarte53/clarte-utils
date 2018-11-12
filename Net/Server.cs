@@ -186,7 +186,7 @@ namespace CLARTE.Net
             }
             catch(Exception exception)
             {
-                UnityEngine.Debug.LogError(exception);
+                UnityEngine.Debug.LogErrorFormat("{0}: {1}\n{2}", exception.GetType(), exception.Message, exception.StackTrace);
             }
         }
 
@@ -222,9 +222,9 @@ namespace CLARTE.Net
                     UnityEngine.Debug.LogError("The connection from the client failed.");
                 }
             }
-            catch(Exception e)
+            catch(Exception exception)
             {
-                UnityEngine.Debug.LogErrorFormat("{0}\n{1}", e.Message, e.StackTrace);
+                UnityEngine.Debug.LogErrorFormat("{0}: {1}\n{2}", exception.GetType(), exception.Message, exception.StackTrace);
             }
         }
 

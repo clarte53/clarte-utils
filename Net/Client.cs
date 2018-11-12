@@ -39,54 +39,61 @@ namespace CLARTE.Net
         #region Connection methods
         protected void Connected(IAsyncResult async_result)
         {
-            // Finalize connection to server
-            Connection connection = (Connection) async_result.AsyncState;
-
-            connection.client.EndConnect(async_result);
-
-            // We should be connected
-            if(connection.client.Connected)
+            try
             {
-                UnityEngine.Debug.LogFormat("Connected to {0}:{1}", hostname, port);
+                // Finalize connection to server
+                Connection connection = (Connection) async_result.AsyncState;
 
-                // Get the stream associated with this connection
-                connection.stream = connection.client.GetStream();
+                connection.client.EndConnect(async_result);
 
-                bool encrypted;
-
-                // Check if we must wrap the stream in an encrypted SSL channel
-                if(Receive(connection.stream, out encrypted))
+                // We should be connected
+                if(connection.client.Connected)
                 {
-                    if(encrypted)
-                    {
-                        // Create the SSL wraping stream
-                        connection.stream = new SslStream(connection.stream, false, new RemoteCertificateValidationCallback(ValidateServerCertificate));
+                    UnityEngine.Debug.LogFormat("Connected to {0}:{1}", hostname, port);
 
-                        // Authenticate with the server
-                        ((SslStream) connection.stream).BeginAuthenticateAsClient(hostname, Authenticated, connection);
+                    // Get the stream associated with this connection
+                    connection.stream = connection.client.GetStream();
+
+                    bool encrypted;
+
+                    // Check if we must wrap the stream in an encrypted SSL channel
+                    if(Receive(connection.stream, out encrypted))
+                    {
+                        if(encrypted)
+                        {
+                            // Create the SSL wraping stream
+                            connection.stream = new SslStream(connection.stream, false, new RemoteCertificateValidationCallback(ValidateServerCertificate));
+
+                            // Authenticate with the server
+                            ((SslStream) connection.stream).BeginAuthenticateAsClient(hostname, Authenticated, connection);
+                        }
+                        else
+                        {
+                            // No encryption, the channel stay as is
+                            ValidateCredentials(connection);
+                        }
                     }
                     else
                     {
-                        // No encryption, the channel stay as is
-                        ValidateCredentials(connection);
+                        UnityEngine.Debug.LogError("Expected to receive encryption status. Dropping connection.");
+
+                        Close(connection);
+
+                        return;
                     }
                 }
                 else
                 {
-                    UnityEngine.Debug.LogError("Expected to receive encryption status. Dropping connection.");
+                    UnityEngine.Debug.LogErrorFormat("The connection to {0}:{1} failed.", hostname, port);
 
                     Close(connection);
 
                     return;
                 }
             }
-            else
+            catch(Exception exception)
             {
-                UnityEngine.Debug.LogErrorFormat("The connection to {0}:{1} failed.", hostname, port);
-
-                Close(connection);
-
-                return;
+                UnityEngine.Debug.LogErrorFormat("{0}: {1}\n{2}", exception.GetType(), exception.Message, exception.StackTrace);
             }
         }
 
