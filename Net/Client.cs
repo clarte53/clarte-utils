@@ -96,7 +96,7 @@ namespace CLARTE.Net
         protected void Connect(uint channel)
         {
             // Create a new TCP client
-            ClientTCPConnection connection = new ClientTCPConnection(new TcpClient(AddressFamily.InterNetworkV6), channel);
+            ClientTcpConnection connection = new ClientTcpConnection(new TcpClient(AddressFamily.InterNetworkV6), channel);
 
             lock(initializedConnections)
             {
@@ -112,7 +112,7 @@ namespace CLARTE.Net
             try
             {
                 // Finalize connection to server
-                ClientTCPConnection connection = (ClientTCPConnection) async_result.AsyncState;
+                ClientTcpConnection connection = (ClientTcpConnection) async_result.AsyncState;
 
                 connection.client.EndConnect(async_result);
 
@@ -186,7 +186,7 @@ namespace CLARTE.Net
             try
             {
                 // Finalize the authentication as client for the SSL stream
-                ClientTCPConnection connection = (ClientTCPConnection) async_result.AsyncState;
+                ClientTcpConnection connection = (ClientTcpConnection) async_result.AsyncState;
 
                 ((SslStream) connection.stream).EndAuthenticateAsClient(async_result);
 
@@ -202,7 +202,7 @@ namespace CLARTE.Net
             }
         }
 
-        protected void ValidateCredentials(ClientTCPConnection connection)
+        protected void ValidateCredentials(ClientTcpConnection connection)
         {
             Send(connection, credentials.username);
             Send(connection, credentials.password);
@@ -235,13 +235,13 @@ namespace CLARTE.Net
             }
         }
 
-        protected void NegotiateChannels(ClientTCPConnection connection)
+        protected void NegotiateChannels(ClientTcpConnection connection)
         {
             //TODO
             UnityEngine.Debug.Log("Success");
         }
 
-        protected void SaveChannel(ClientTCPConnection connection)
+        protected void SaveChannel(ClientTcpConnection connection)
         {
             //TODO
         }

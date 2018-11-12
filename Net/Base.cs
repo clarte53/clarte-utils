@@ -90,7 +90,7 @@ namespace CLARTE.Net
         protected static readonly bool isLittleEndian;
         protected static Threads.Tasks tasks;
 
-        protected HashSet<TCPConnection> initializedConnections;
+        protected HashSet<TcpConnection> initializedConnections;
         protected State state;
         #endregion
 
@@ -131,7 +131,7 @@ namespace CLARTE.Net
         {
             lock(initializedConnections)
             {
-                foreach(TCPConnection connection in initializedConnections)
+                foreach(TcpConnection connection in initializedConnections)
                 {
                     if(connection.initialization != null)
                     {
@@ -145,7 +145,7 @@ namespace CLARTE.Net
             }
         }
 
-        protected void Close(TCPConnection connection)
+        protected void Close(TcpConnection connection)
         {
             if(connection != null)
             {
@@ -158,7 +158,7 @@ namespace CLARTE.Net
             }
         }
 
-        protected void Drop(TCPConnection connection, string message, params object[] values)
+        protected void Drop(TcpConnection connection, string message, params object[] values)
         {
             string error_message = string.Format(message, values);
 
@@ -175,7 +175,7 @@ namespace CLARTE.Net
         {
             state = State.STARTED;
 
-            initializedConnections = new HashSet<TCPConnection>();
+            initializedConnections = new HashSet<TcpConnection>();
 
             tasks = Threads.Tasks.Instance;
         }
@@ -189,12 +189,12 @@ namespace CLARTE.Net
         #endregion
 
         #region Helper serialization functions
-        protected void Send(TCPConnection connection, bool value)
+        protected void Send(TcpConnection connection, bool value)
         {
             connection.stream.WriteByte(value ? (byte) 1 : (byte) 0);
         }
 
-        protected void Send(TCPConnection connection, int value)
+        protected void Send(TcpConnection connection, int value)
         {
             Converter c = new Converter(value);
 
@@ -214,24 +214,24 @@ namespace CLARTE.Net
             }
         }
 
-        protected void Send(TCPConnection connection, uint value)
+        protected void Send(TcpConnection connection, uint value)
         {
             Send(connection, new Converter(value).Int);
         }
 
-        protected void Send(TCPConnection connection, byte[] data)
+        protected void Send(TcpConnection connection, byte[] data)
         {
             Send(connection, data.Length);
 
             connection.stream.Write(data, 0, data.Length);
         }
 
-        protected void Send(TCPConnection connection, string data)
+        protected void Send(TcpConnection connection, string data)
         {
             Send(connection, Encoding.UTF8.GetBytes(data));
         }
 
-        protected bool Receive(TCPConnection connection, out bool value)
+        protected bool Receive(TcpConnection connection, out bool value)
         {
             int val = connection.stream.ReadByte();
 
@@ -247,7 +247,7 @@ namespace CLARTE.Net
             return false;
         }
 
-        protected bool Receive(TCPConnection connection, out int value)
+        protected bool Receive(TcpConnection connection, out int value)
         {
             int v1, v2, v3, v4;
 
@@ -280,7 +280,7 @@ namespace CLARTE.Net
             return false;
         }
 
-        protected bool Receive(TCPConnection connection, out uint value)
+        protected bool Receive(TcpConnection connection, out uint value)
         {
             int val;
 
@@ -291,7 +291,7 @@ namespace CLARTE.Net
             return result;
         }
 
-        protected bool Receive(TCPConnection connection, out byte[] data)
+        protected bool Receive(TcpConnection connection, out byte[] data)
         {
             int size;
 
@@ -314,7 +314,7 @@ namespace CLARTE.Net
             return false;
         }
 
-        protected bool Receive(TCPConnection connection, out string data)
+        protected bool Receive(TcpConnection connection, out string data)
         {
             byte[] raw_data;
 

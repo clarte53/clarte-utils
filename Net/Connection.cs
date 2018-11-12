@@ -60,7 +60,7 @@ namespace CLARTE.Net
         #endregion
     }
 
-    public class TCPConnection : Connection
+    public class TcpConnection : Connection
     {
         #region Members
         public Threads.Result initialization;
@@ -70,7 +70,7 @@ namespace CLARTE.Net
         #endregion
 
         #region Constructors
-        public TCPConnection(TcpClient c)
+        public TcpConnection(TcpClient c)
         {
             client = c;
             stream = null;
@@ -113,14 +113,14 @@ namespace CLARTE.Net
         #endregion
     }
 
-    public class ClientTCPConnection : TCPConnection
+    public class ClientTcpConnection : TcpConnection
     {
         #region Members
         public uint channel;
         #endregion
 
         #region Constructors
-        public ClientTCPConnection(TcpClient client, uint channel) : base(client)
+        public ClientTcpConnection(TcpClient client, uint channel) : base(client)
         {
             this.channel = channel;
         }

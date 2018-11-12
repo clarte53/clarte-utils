@@ -158,7 +158,7 @@ namespace CLARTE.Net
                 if(state == State.RUNNING)
                 {
                     // Get the new connection
-                    TCPConnection connection = new TCPConnection(listener.EndAcceptTcpClient(async_result));
+                    TcpConnection connection = new TcpConnection(listener.EndAcceptTcpClient(async_result));
 
                     lock(initializedConnections)
                     {
@@ -174,7 +174,7 @@ namespace CLARTE.Net
             }
         }
 
-        protected void Connected(TCPConnection connection)
+        protected void Connected(TcpConnection connection)
         {
             try
             {
@@ -233,12 +233,12 @@ namespace CLARTE.Net
 
         protected void Authenticated(IAsyncResult async_result)
         {
-            TCPConnection connection = null;
+            TcpConnection connection = null;
 
             try
             {
                 // Finalize the authentication as server for the SSL stream
-                connection = (TCPConnection) async_result.AsyncState;
+                connection = (TcpConnection) async_result.AsyncState;
 
                 ((SslStream) connection.stream).EndAuthenticateAsServer(async_result);
 
@@ -254,7 +254,7 @@ namespace CLARTE.Net
             }
         }
 
-        protected void ValidateCredentials(TCPConnection connection)
+        protected void ValidateCredentials(TcpConnection connection)
         {
             string client_username;
             string client_password;
