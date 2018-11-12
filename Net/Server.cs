@@ -123,7 +123,7 @@ namespace CLARTE.Net
                 }
             }
 
-            listener = new TcpListener(IPAddress.Any, (int) port);
+            listener = new TcpListener(IPAddress.IPv6Any, (int) port);
             listener.Start();
 
             mainThread = new Threads.Thread(Listen);

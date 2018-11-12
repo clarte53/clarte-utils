@@ -29,7 +29,7 @@ namespace CLARTE.Net
             UnityEngine.Debug.LogFormat("Start connection to {0}:{1}", hostname, port);
 
             // Create a new TCP client
-            Connection connection = new Connection(new TcpClient());
+            Connection connection = new Connection(new TcpClient(AddressFamily.InterNetworkV6));
 
             // Start asynchronous connection to server
             connection.client.BeginConnect(hostname, (int) port, Connected, connection);
