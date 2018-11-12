@@ -1,13 +1,22 @@
 ﻿using System;
-using System.IO;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 using UnityEngine;
 
 namespace CLARTE.Net
 {
-    public class Base : MonoBehaviour
+    public abstract class Base : MonoBehaviour, IDisposable
     {
+        protected enum State
+        {
+            STARTED,
+            INITIALIZING,
+            RUNNING,
+            CLOSING,
+            DISPOSED
+        }
+
         [StructLayout(LayoutKind.Explicit)]
         protected struct Converter
         {
@@ -71,6 +80,14 @@ namespace CLARTE.Net
 
         #region Members
         protected static readonly bool isLittleEndian;
+        protected static Threads.Tasks tasks;
+
+        protected HashSet<TCPConnection> initializedConnections;
+        protected State state;
+        #endregion
+
+        #region Abstract methods
+        protected abstract void Dispose(bool disposing);
         #endregion
 
         #region Constructors
@@ -80,13 +97,70 @@ namespace CLARTE.Net
         }
         #endregion
 
+        #region IDisposable implementation
+        // TODO: replace finalizer only if the above Dispose(bool disposing) function as code to free unmanaged resources.
+        ~Base()
+        {
+            Dispose(/*false*/);
+        }
+
+        /// <summary>
+        /// Dispose of the HTTP server.
+        /// </summary>
+        public void Dispose()
+        {
+            // Pass true in dispose method to clean managed resources too and say GC to skip finalize in next line.
+            Dispose(true);
+
+            // If dispose is called already then say GC to skip finalize on this instance.
+            // TODO: uncomment next line if finalizer is replaced above.
+            GC.SuppressFinalize(this);
+        }
+
+        protected void CloseInitializedConnections()
+        {
+            lock(initializedConnections)
+            {
+                foreach(TCPConnection connection in initializedConnections)
+                {
+                    if(connection.initialization != null)
+                    {
+                        connection.initialization.Wait();
+                    }
+
+                    connection.Close();
+                }
+
+                initializedConnections.Clear();
+            }
+        }
+        #endregion
+
+        #region MonoBehaviour callbacks
+        protected virtual void Awake()
+        {
+            state = State.STARTED;
+
+            initializedConnections = new HashSet<TCPConnection>();
+
+            tasks = Threads.Tasks.Instance;
+        }
+        #endregion
+
+        #region Public methods
+        public void Close()
+        {
+            Dispose();
+        }
+        #endregion
+
         #region Helper serialization functions
-        protected void Send(Connection connection, bool value)
+        protected void Send(TCPConnection connection, bool value)
         {
             connection.stream.WriteByte(value ? (byte) 1 : (byte) 0);
         }
 
-        protected void Send(Connection connection, int value)
+        protected void Send(TCPConnection connection, int value)
         {
             Converter c = new Converter(value);
 
@@ -106,24 +180,24 @@ namespace CLARTE.Net
             }
         }
 
-        protected void Send(Connection connection, uint value)
+        protected void Send(TCPConnection connection, uint value)
         {
             Send(connection, new Converter(value).Int);
         }
 
-        protected void Send(Connection connection, byte[] data)
+        protected void Send(TCPConnection connection, byte[] data)
         {
             Send(connection, data.Length);
 
             connection.stream.Write(data, 0, data.Length);
         }
 
-        protected void Send(Connection connection, string data)
+        protected void Send(TCPConnection connection, string data)
         {
             Send(connection, Encoding.UTF8.GetBytes(data));
         }
 
-        protected bool Receive(Connection connection, out bool value)
+        protected bool Receive(TCPConnection connection, out bool value)
         {
             int val = connection.stream.ReadByte();
 
@@ -139,7 +213,7 @@ namespace CLARTE.Net
             return false;
         }
 
-        protected bool Receive(Connection connection, out int value)
+        protected bool Receive(TCPConnection connection, out int value)
         {
             int v1, v2, v3, v4;
 
@@ -172,7 +246,7 @@ namespace CLARTE.Net
             return false;
         }
 
-        protected bool Receive(Connection connection, out uint value)
+        protected bool Receive(TCPConnection connection, out uint value)
         {
             int val;
 
@@ -183,7 +257,7 @@ namespace CLARTE.Net
             return result;
         }
 
-        protected bool Receive(Connection connection, out byte[] data)
+        protected bool Receive(TCPConnection connection, out byte[] data)
         {
             int size;
 
@@ -206,7 +280,7 @@ namespace CLARTE.Net
             return false;
         }
 
-        protected bool Receive(Connection connection, out string data)
+        protected bool Receive(TCPConnection connection, out string data)
         {
             byte[] raw_data;
 
@@ -220,23 +294,6 @@ namespace CLARTE.Net
             }
 
             return false;
-        }
-        #endregion
-
-        #region Helper functions
-        protected void SafeDispose<T>(T value) where T : IDisposable
-        {
-            try
-            {
-                if(value != null)
-                {
-                    value.Dispose();
-                }
-            }
-            catch(ObjectDisposedException)
-            {
-                // Already done
-            }
         }
         #endregion
     }

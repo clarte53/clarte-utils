@@ -13,12 +13,26 @@ namespace CLARTE.Net
     {
         #region Members
         public Events.ReceiveCallback onReceive;
+        protected Connection connection;
         #endregion
 
         #region Public methods
+        public void Close()
+        {
+            if(connection != null)
+            {
+                connection.Close();
+            }
+        }
+
         public void Send(byte[] data)
         {
 
+        }
+
+        public void SetConnection(Connection c)
+        {
+            connection = c;
         }
         #endregion
     }

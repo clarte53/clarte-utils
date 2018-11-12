@@ -8,7 +8,7 @@ using System.Threading;
 
 namespace CLARTE.Net
 {
-    public class Server : Base, IDisposable
+    public class Server : Base
     {
         #region Members
         public const uint maxSupportedVersion = 1;
@@ -19,20 +19,19 @@ namespace CLARTE.Net
         public List<uint> openPorts;
         public List<ServerChannel> channels;
 
-        protected Serialization.Binary serializer;
-        protected Threads.Thread mainThread;
-        protected HashSet<ServerConnection> workers;
+        protected Threads.Thread listenerThread;
         protected TcpListener listener;
         protected X509Certificate2 serverCertificate;
         protected ManualResetEvent stopEvent;
-        protected bool disposed;
         #endregion
 
         #region IDisposable implementation
-        protected virtual void Dispose(bool disposing)
+        protected override void Dispose(bool disposing)
         {
-            if(!disposed)
+            if(state != State.DISPOSED)
             {
+                state = State.CLOSING;
+
                 if(disposing)
                 {
                     // TODO: delete managed state (managed objects).
@@ -41,25 +40,19 @@ namespace CLARTE.Net
 
                     stopEvent.Set();
 
-                    lock(workers)
+                    CloseInitializedConnections();
+
+                    foreach(Channel channel in channels)
                     {
-                        foreach(ServerConnection connection in workers)
+                        if(channel != null)
                         {
-                            SafeDispose(connection.stream);
-                            SafeDispose(connection.client);
-
-                            if(connection.thread != null)
-                            {
-                                connection.thread.Join();
-                            }
+                            channel.Close();
                         }
-
-                        workers.Clear();
                     }
 
-                    SafeDispose(serverCertificate);
+                    Connection.SafeDispose(serverCertificate);
 
-                    mainThread.Join();
+                    listenerThread.Join();
 
                     stopEvent.Close();
                 }
@@ -67,38 +60,19 @@ namespace CLARTE.Net
                 // TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
                 // TODO: set fields of large size with null value.
 
-                disposed = true;
+                state = State.DISPOSED;
             }
-        }
-
-        // TODO: replace finalizer only if the above Dispose(bool disposing) function as code to free unmanaged resources.
-        ~Server()
-        {
-            Dispose(/*false*/);
-        }
-
-        /// <summary>
-        /// Dispose of the HTTP server.
-        /// </summary>
-        public void Dispose()
-        {
-            // Pass true in dispose method to clean managed resources too and say GC to skip finalize in next line.
-            Dispose(true);
-
-            // If dispose is called already then say GC to skip finalize on this instance.
-            // TODO: uncomment next line if finalizer is replaced above.
-            GC.SuppressFinalize(this);
         }
         #endregion
 
         #region MonoBehaviour callbacks
-        protected void Awake()
+        protected override void Awake()
         {
-            serializer = new Serialization.Binary();
+            base.Awake();
+
+            state = State.INITIALIZING;
 
             stopEvent = new ManualResetEvent(false);
-
-            workers = new HashSet<ServerConnection>();
 
             serverCertificate = null;
 
@@ -128,10 +102,12 @@ namespace CLARTE.Net
             listener = new TcpListener(IPAddress.IPv6Any, (int) port);
             listener.Start();
 
-            mainThread = new Threads.Thread(Listen);
-            mainThread.Start();
+            listenerThread = new Threads.Thread(Listen);
+            listenerThread.Start();
 
             UnityEngine.Debug.LogFormat("Started server on port {0}", port);
+
+            state = State.RUNNING;
         }
 
         protected void OnDestroy()
@@ -143,12 +119,19 @@ namespace CLARTE.Net
         #region Public methods
         public void Send(uint channel, byte[] data)
         {
-            if(channels == null || channel >= channels.Count || channels[(int) channel] == null)
+            if(state == State.RUNNING)
             {
-                throw new ArgumentException(string.Format("Invalid channel. No channel with index '{0}'", channel), "channel");
-            }
+                if(channels == null || channel >= channels.Count || channels[(int) channel] == null)
+                {
+                    throw new ArgumentException(string.Format("Invalid channel. No channel with index '{0}'", channel), "channel");
+                }
 
-            channels[(int) channel].Send(data);
+                channels[(int) channel].Send(data);
+            }
+            else
+            {
+                UnityEngine.Debug.LogWarningFormat("Can not send data when in state {0}. Nothing sent.", state);
+            }
         }
         #endregion
 
@@ -172,18 +155,17 @@ namespace CLARTE.Net
         {
             try
             {
-                // Get the new connection
-                TcpClient client = listener.EndAcceptTcpClient(async_result);
-
-                // Create a worker thread for this connection
-                ServerConnection connection = new ServerConnection(client);
-
-                connection.thread = new Threads.Thread(() => Connected(connection));
-                connection.thread.Start();
-
-                lock(workers)
+                if(state == State.RUNNING)
                 {
-                    workers.Add(connection);
+                    // Get the new connection
+                    TCPConnection connection = new TCPConnection(listener.EndAcceptTcpClient(async_result));
+
+                    lock(initializedConnections)
+                    {
+                        initializedConnections.Add(connection);
+                    }
+
+                    connection.initialization = tasks.Add(() => Connected(connection));
                 }
             }
             catch(Exception exception)
@@ -192,7 +174,7 @@ namespace CLARTE.Net
             }
         }
 
-        protected void Connected(ServerConnection connection)
+        protected void Connected(TCPConnection connection)
         {
             try
             {
@@ -234,7 +216,7 @@ namespace CLARTE.Net
                         UnityEngine.Debug.LogError("Expected to receive negotiation protocol version. Dropping connection.");
 
                         // Drop the connection
-                        Close(connection);
+                        connection.Close();
 
                         return;
                     }
@@ -255,7 +237,7 @@ namespace CLARTE.Net
             try
             {
                 // Finalize the authentication as server for the SSL stream
-                ServerConnection connection = (ServerConnection) async_result.AsyncState;
+                TCPConnection connection = (TCPConnection) async_result.AsyncState;
 
                 ((SslStream) connection.stream).EndAuthenticateAsServer(async_result);
 
@@ -267,7 +249,7 @@ namespace CLARTE.Net
             }
         }
 
-        protected void ValidateCredentials(ServerConnection connection)
+        protected void ValidateCredentials(TCPConnection connection)
         {
             string client_username;
             string client_password;
@@ -292,7 +274,7 @@ namespace CLARTE.Net
                     Send(connection, false);
 
                     // Drop the connection
-                    Close(connection);
+                    connection.Close();
 
                     return;
                 }
@@ -302,36 +284,10 @@ namespace CLARTE.Net
                 UnityEngine.Debug.LogError("Expected to receive credentials. Dropping connection.");
 
                 // Drop the connection
-                Close(connection);
+                connection.Close();
 
                 return;
             }
-        }
-
-        protected void Close(ServerConnection connection)
-        {
-            lock(workers)
-            {
-                // Remove this worker from the pool of current workers
-                workers.Remove(connection);
-            }
-
-            try
-            {
-                // Flush the stream to make sure that all sent data is effectively sent to the client
-                if(connection.stream != null)
-                {
-                    connection.stream.Flush();
-                }
-            }
-            catch(ObjectDisposedException)
-            {
-                // Already closed
-            }
-
-            // Close the stream, the client and certificate (if any)
-            SafeDispose(connection.stream);
-            SafeDispose(connection.client);
         }
         #endregion
     }

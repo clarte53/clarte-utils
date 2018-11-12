@@ -18,9 +18,41 @@ namespace CLARTE.Net
         public List<Channel> channels;
         #endregion
 
-        #region MonoBehaviour callbacks
-        protected void Awake()
+        #region IDisposable implementation
+        protected override void Dispose(bool disposing)
         {
+            if(state != State.DISPOSED)
+            {
+                state = State.CLOSING;
+
+                if(disposing)
+                {
+                    // TODO: delete managed state (managed objects).
+
+                    CloseInitializedConnections();
+
+                    foreach(Channel channel in channels)
+                    {
+                        if(channel != null)
+                        {
+                            channel.Close();
+                        }
+                    }
+                }
+
+                // TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
+                // TODO: set fields of large size with null value.
+
+                state = State.DISPOSED;
+            }
+        }
+        #endregion
+
+        #region MonoBehaviour callbacks
+        protected override void Awake()
+        {
+            base.Awake();
+
             Connect(); // For debug purposes
         }
         #endregion
@@ -28,23 +60,59 @@ namespace CLARTE.Net
         #region Public methods
         public void Connect()
         {
-            UnityEngine.Debug.LogFormat("Start connection to {0}:{1}", hostname, port);
+            if(state == State.STARTED)
+            {
+                UnityEngine.Debug.LogFormat("Start connection to {0}:{1}", hostname, port);
 
-            // Create a new TCP client
-            Connection connection = new Connection(new TcpClient(AddressFamily.InterNetworkV6));
+                state = State.INITIALIZING;
 
-            // Start asynchronous connection to server
-            connection.client.BeginConnect(hostname, (int) port, Connected, connection);
+                Connect(0);
+            }
+            else
+            {
+                UnityEngine.Debug.LogErrorFormat("Invalid connection attempt to server when in state {0}.", state);
+            }
+        }
+
+        public void Send(uint channel, byte[] data)
+        {
+            if(state == State.RUNNING)
+            {
+                if(channels == null || channel >= channels.Count || channels[(int) channel] == null)
+                {
+                    throw new ArgumentException(string.Format("Invalid channel. No channel with index '{0}'", channel), "channel");
+                }
+
+                channels[(int) channel].Send(data);
+            }
+            else
+            {
+                UnityEngine.Debug.LogWarningFormat("Can not send data when in state {0}. Nothing sent.", state);
+            }
         }
         #endregion
 
         #region Connection methods
+        protected void Connect(uint channel)
+        {
+            // Create a new TCP client
+            ClientTCPConnection connection = new ClientTCPConnection(new TcpClient(AddressFamily.InterNetworkV6), channel);
+
+            lock(initializedConnections)
+            {
+                initializedConnections.Add(connection);
+            }
+
+            // Start asynchronous connection to server
+            connection.initialization = tasks.Add(() => connection.client.BeginConnect(hostname, (int) port, Connected, connection));
+        }
+
         protected void Connected(IAsyncResult async_result)
         {
             try
             {
                 // Finalize connection to server
-                Connection connection = (Connection) async_result.AsyncState;
+                ClientTCPConnection connection = (ClientTCPConnection) async_result.AsyncState;
 
                 connection.client.EndConnect(async_result);
 
@@ -92,7 +160,7 @@ namespace CLARTE.Net
                         {
                             UnityEngine.Debug.LogError("Expected to receive encryption status. Dropping connection.");
 
-                            Close(connection);
+                            connection.Close();
 
                             return;
                         }
@@ -101,7 +169,7 @@ namespace CLARTE.Net
                     {
                         UnityEngine.Debug.LogError("Expected to receive protocol version. Dropping connection.");
 
-                        Close(connection);
+                        connection.Close();
 
                         return;
                     }
@@ -110,7 +178,7 @@ namespace CLARTE.Net
                 {
                     UnityEngine.Debug.LogErrorFormat("The connection to {0}:{1} failed.", hostname, port);
 
-                    Close(connection);
+                    connection.Close();
 
                     return;
                 }
@@ -126,7 +194,7 @@ namespace CLARTE.Net
             try
             {
                 // Finalize the authentication as client for the SSL stream
-                Connection connection = (Connection) async_result.AsyncState;
+                ClientTCPConnection connection = (ClientTCPConnection) async_result.AsyncState;
 
                 ((SslStream) connection.stream).EndAuthenticateAsClient(async_result);
 
@@ -138,7 +206,7 @@ namespace CLARTE.Net
             }
         }
 
-        protected void ValidateCredentials(Connection connection)
+        protected void ValidateCredentials(ClientTCPConnection connection)
         {
             Send(connection, credentials.username);
             Send(connection, credentials.password);
@@ -156,7 +224,7 @@ namespace CLARTE.Net
                 {
                     UnityEngine.Debug.LogError("Invalid credentials. Dropping connection.");
 
-                    Close(connection);
+                    connection.Close();
 
                     return;
                 }
@@ -165,16 +233,10 @@ namespace CLARTE.Net
             {
                 UnityEngine.Debug.LogError("Expected to receive credentials validation. Dropping connection.");
 
-                Close(connection);
+                connection.Close();
 
                 return;
             }
-        }
-
-        protected void Close(Connection connection)
-        {
-            SafeDispose(connection.stream);
-            SafeDispose(connection.client);
         }
         #endregion
 
