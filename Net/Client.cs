@@ -163,6 +163,19 @@ namespace CLARTE.Net
                     return true;
                 case SslPolicyErrors.RemoteCertificateNameMismatch:
                     UnityEngine.Debug.LogWarningFormat("The name of the certificate does not match the hostname. Certificate = '{0}', hostname = '{1}'.", certificate.Subject, hostname);
+
+                    return true;
+                case SslPolicyErrors.RemoteCertificateChainErrors:
+                    foreach(X509ChainStatus chainStatus in chain.ChainStatus)
+                    {
+                        if(chainStatus.Status != X509ChainStatusFlags.NoError && chainStatus.Status != X509ChainStatusFlags.UntrustedRoot)
+                        {
+                            return false;
+                        }
+                    }
+
+                    UnityEngine.Debug.LogWarning("The root certificate is untrusted.");
+
                     return true;
                 default:
                     return false;
