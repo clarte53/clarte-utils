@@ -362,6 +362,14 @@ namespace CLARTE.Net.Negotiation
 
         protected void SaveChannel(Connection.Base connection, ushort channel)
         {
+            if(connection is Connection.Tcp)
+            {
+                lock(initializedConnections)
+                {
+                    initializedConnections.Remove((Connection.Tcp) connection);
+                }
+            }
+
             //TODO
             UnityEngine.Debug.LogFormat("{0} channel {1} success.", connection.GetType(), channel);
         }
