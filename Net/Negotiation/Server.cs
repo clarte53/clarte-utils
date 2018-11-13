@@ -222,7 +222,7 @@ namespace CLARTE.Net.Negotiation
             }
             catch(DropException)
             {
-                return;
+                throw;
             }
             catch(Exception exception)
             {
