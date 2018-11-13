@@ -7,7 +7,7 @@ namespace CLARTE.Net.Negotiation
     public static class Events
     {
         [Serializable]
-        public class ReceiveCallback : UnityEvent<IPAddress, byte[]>
+        public class ReceiveCallback : UnityEvent<IPAddress, ushort, byte[]>
         {
 
         }
