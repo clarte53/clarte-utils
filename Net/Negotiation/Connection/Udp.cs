@@ -1,4 +1,5 @@
-﻿using System.Net.Sockets;
+﻿using System.Net;
+using System.Net.Sockets;
 
 namespace CLARTE.Net.Negotiation.Connection
 {
@@ -6,12 +7,15 @@ namespace CLARTE.Net.Negotiation.Connection
     {
         #region Members
         public UdpClient client;
+
+        protected Negotiation.Base parent;
         #endregion
 
         #region Constructors
-        public Udp(UdpClient c)
+        public Udp(Negotiation.Base parent, UdpClient client)
         {
-            client = c;
+            this.parent = parent;
+            this.client = client;
         }
         #endregion
 
@@ -24,8 +28,21 @@ namespace CLARTE.Net.Negotiation.Connection
                 {
                     // TODO: delete managed state (managed objects).
 
+                    ushort port = 0;
+
+                    if(client != null)
+                    {
+                        port = (ushort) ((IPEndPoint) client.Client.LocalEndPoint).Port;
+                    }
+
                     // Close the client
                     SafeDispose(client);
+
+                    // Release the used port
+                    if(parent != null && port != 0)
+                    {
+                        parent.ReleasePort(port);
+                    }
                 }
 
                 // TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.

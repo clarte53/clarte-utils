@@ -339,12 +339,6 @@ namespace CLARTE.Net.Negotiation
                 Drop(connection, "Expected to receive negotation flag.");
             }
         }
-
-        protected void SaveChannel(Connection.Base connection, ushort channel)
-        {
-            //TODO
-            UnityEngine.Debug.LogFormat("{0} channel {1} success.", connection.GetType(), channel);
-        }
         #endregion
     }
 }

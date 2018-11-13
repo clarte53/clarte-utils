@@ -273,9 +273,17 @@ namespace CLARTE.Net.Negotiation
         {
             Dispose();
         }
+
+        public void ReleasePort(ushort port)
+        {
+            lock(availablePorts)
+            {
+                availablePorts.Add(port);
+            }
+        }
         #endregion
 
-        #region UDP negotiation
+        #region Shared network methods
         protected void ConnectUdp(Connection.Tcp connection, Action<Connection.Udp> callback)
         {
             UdpClient udp = null;
@@ -350,6 +358,12 @@ namespace CLARTE.Net.Negotiation
             {
                 Drop(connection, "Expected to receive remote UDP port.");
             }
+        }
+
+        protected void SaveChannel(Connection.Base connection, ushort channel)
+        {
+            //TODO
+            UnityEngine.Debug.LogFormat("{0} channel {1} success.", connection.GetType(), channel);
         }
         #endregion
 

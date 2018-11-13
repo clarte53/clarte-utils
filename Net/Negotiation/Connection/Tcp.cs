@@ -14,9 +14,9 @@ namespace CLARTE.Net.Negotiation.Connection
         #endregion
 
         #region Constructors
-        public Tcp(TcpClient c)
+        public Tcp(TcpClient client)
         {
-            client = c;
+            this.client = client;
             stream = null;
         }
         #endregion

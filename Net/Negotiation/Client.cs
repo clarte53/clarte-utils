@@ -289,12 +289,6 @@ namespace CLARTE.Net.Negotiation
                 }
             }
         }
-
-        protected void SaveChannel(Connection.Base connection, ushort channel)
-        {
-            //TODO
-            UnityEngine.Debug.LogFormat("{0} channel {1} success.", connection.GetType(), channel);
-        }
         #endregion
 
         #region Internal methods
