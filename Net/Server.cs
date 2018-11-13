@@ -16,15 +16,12 @@ namespace CLARTE.Net
         public uint port;
         public string certificate;
         public Credentials credentials;
-        public List<ushort> openPorts;
         public List<ServerChannel> channels;
 
         protected Threads.Thread listenerThread;
         protected TcpListener listener;
         protected X509Certificate2 serverCertificate;
         protected ManualResetEvent stopEvent;
-        protected HashSet<ushort> availablePorts;
-        protected ushort requiredUdpPorts;
         #endregion
 
         #region IDisposable implementation
@@ -98,28 +95,6 @@ namespace CLARTE.Net
                     }
 
                     serverCertificate = null;
-                }
-            }
-
-            availablePorts = new HashSet<ushort>();
-
-            foreach(ushort port in openPorts)
-            {
-                availablePorts.Add(port);
-            }
-
-            requiredUdpPorts = 0;
-
-            foreach(ServerChannel channel in channels)
-            {
-                if(channel.type == StreamType.UDP)
-                {
-                    if(requiredUdpPorts == ushort.MaxValue)
-                    {
-                        throw new ArgumentException("To many channels defined.", "channels");
-                    }
-
-                    requiredUdpPorts++;
                 }
             }
 
@@ -237,7 +212,7 @@ namespace CLARTE.Net
                     }
                     else
                     {
-                        Drop(connection, "Expected to receive negotiation protocol version. Dropping connection.");
+                        Drop(connection, "Expected to receive negotiation protocol version.");
                     }
                 }
                 else
@@ -311,7 +286,7 @@ namespace CLARTE.Net
             }
             else
             {
-                Drop(connection, "Expected to receive credentials. Dropping connection.");
+                Drop(connection, "Expected to receive credentials.");
             }
         }
 
@@ -323,115 +298,58 @@ namespace CLARTE.Net
             {
                 if(negotiate)
                 {
-                    // Receive client open ports list
-                    int nb_client_ports;
+                    // Send channel description
+                    ushort nb_channels = (ushort) Math.Min(channels != null ? channels.Count : 0, ushort.MaxValue);
 
-                    bool success = Receive(connection, out nb_client_ports);
-
-                    List<ushort> client_ports = new List<ushort>(nb_client_ports);
-                    List<ushort> server_ports = new List<ushort>(requiredUdpPorts);
-
-                    for(int i = 0; success && i < nb_client_ports; i++)
-                    {
-                        ushort client_port;
-
-                        success = Receive(connection, out client_port);
-
-                        if(success)
-                        {
-                            client_ports.Add(client_port);
-                        }
-                    }
-
-                    if(!success)
-                    {
-                        Drop(connection, "Expected to receive clients open ports. Dropping connection.");
-                    }
-
-                    // Check that everything is configured properly
-                    ChannelDescriptionErrorCode error_code = ChannelDescriptionErrorCode.NONE;
-
-                    ushort nb_channels = (ushort) (channels != null ? channels.Count : 0);
+                    Send(connection, nb_channels);
 
                     if(nb_channels <= 0)
                     {
-                        error_code |= ChannelDescriptionErrorCode.NO_CHANNEL;
+                        Drop(connection, "No channels configured.");
                     }
 
-                    if(requiredUdpPorts > 0)
-                    {
-                        if(client_ports.Count < requiredUdpPorts)
-                        {
-                            error_code |= ChannelDescriptionErrorCode.NOT_ENOUGH_CLIENT_PORT;
-                        }
-
-                        lock(availablePorts)
-                        {
-                            if(availablePorts.Count < requiredUdpPorts)
-                            {
-                                error_code |= ChannelDescriptionErrorCode.NOT_ENOUGH_SERVER_PORT;
-                            }
-                            else
-                            {
-                                HashSet<ushort>.Enumerator it = availablePorts.GetEnumerator();
-
-                                for(int count = 0; count < requiredUdpPorts && it.MoveNext(); count++)
-                                {
-                                    server_ports.Add(it.Current);
-                                }
-
-                                availablePorts.ExceptWith(server_ports);
-                            }
-                        }
-                    }
-
-                    // Send channels global parameters
-                    Send(connection, (ushort) error_code);
-                    Send(connection, nb_channels);
-                    Send(connection, requiredUdpPorts);
-
-                    if((error_code & ChannelDescriptionErrorCode.NO_CHANNEL) != 0)
-                    {
-                        Drop(connection, "No channels configured. Dropping connection.");
-                    }
-
-                    if((error_code & ChannelDescriptionErrorCode.NOT_ENOUGH_CLIENT_PORT) != 0)
-                    {
-                        Drop(connection, "No enough port available on client. Need {0} ports, only {1} availables. Dropping connection.", requiredUdpPorts, client_ports.Count);
-                    }
-
-                    if((error_code & ChannelDescriptionErrorCode.NOT_ENOUGH_SERVER_PORT) != 0)
-                    {
-                        Drop(connection, "No enough port available on server. Need {0} ports, only {1} availables. Dropping connection.", requiredUdpPorts, server_ports.Count);
-                    }
-
-                    // Send channels descriptions
-                    List<ushort>.Enumerator it_client = client_ports.GetEnumerator();
-                    List<ushort>.Enumerator it_server = server_ports.GetEnumerator();
-
-                    for(int i = 0; i < nb_channels; i++)
+                    for(ushort i = 0; i < nb_channels; i++)
                     {
                         Send(connection, (ushort) channels[i].type);
 
-                        if(channels[i].type == StreamType.UDP)
+                        if(channels[i].type == Channel.Type.UDP)
                         {
-                            it_client.MoveNext();
-                            it_server.MoveNext();
+                            ushort channel = i; // To avoid weird behaviour of lambda catching base types as reference in loops
 
-                            Send(connection, it_client.Current);
-                            Send(connection, it_server.Current);
+                            ConnectUdp(connection, client => SaveUdpChannel(client, channel));
                         }
                     }
                 }
                 else
                 {
-                    //TODO
+                    SaveTcpChannel(connection);
                 }
             }
             else
             {
-                Drop(connection, "Expected to receive negotation flag. Dropping connection.");
+                Drop(connection, "Expected to receive negotation flag.");
             }
+        }
+
+        protected void SaveTcpChannel(TcpConnection connection)
+        {
+            ushort channel;
+
+            if(Receive(connection, out channel))
+            {
+                //TODO
+                UnityEngine.Debug.LogFormat("TCP channel {0} success.", channel);
+            }
+            else
+            {
+                Drop(connection, "Expected to receive channel index.");
+            }
+        }
+
+        protected void SaveUdpChannel(UdpClient client, ushort channel)
+        {
+            //TODO
+            UnityEngine.Debug.LogFormat("UDP channel {0} success.", channel);
         }
         #endregion
     }

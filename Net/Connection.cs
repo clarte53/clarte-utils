@@ -116,11 +116,11 @@ namespace CLARTE.Net
     public class ClientTcpConnection : TcpConnection
     {
         #region Members
-        public uint channel;
+        public int channel;
         #endregion
 
         #region Constructors
-        public ClientTcpConnection(TcpClient client, uint channel) : base(client)
+        public ClientTcpConnection(TcpClient client, int channel) : base(client)
         {
             this.channel = channel;
         }

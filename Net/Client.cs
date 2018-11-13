@@ -14,7 +14,6 @@ namespace CLARTE.Net
         public string hostname = "localhost";
         public uint port;
         public Credentials credentials;
-        public List<ushort> openPorts;
         public List<Channel> channels;
         #endregion
 
@@ -66,7 +65,7 @@ namespace CLARTE.Net
 
                 state = State.INITIALIZING;
 
-                Connect(0);
+                ConnectTcp(-1);
             }
             else
             {
@@ -93,7 +92,7 @@ namespace CLARTE.Net
         #endregion
 
         #region Connection methods
-        protected void Connect(uint channel)
+        protected void ConnectTcp(int channel)
         {
             // Create a new TCP client
             ClientTcpConnection connection = new ClientTcpConnection(new TcpClient(AddressFamily.InterNetworkV6), channel);
@@ -158,12 +157,12 @@ namespace CLARTE.Net
                         }
                         else
                         {
-                            Drop(connection, "Expected to receive encryption status. Dropping connection.");
+                            Drop(connection, "Expected to receive encryption status.");
                         }
                     }
                     else
                     {
-                        Drop(connection, "Expected to receive protocol version. Dropping connection.");
+                        Drop(connection, "Expected to receive protocol version.");
                     }
                 }
                 else
@@ -218,75 +217,89 @@ namespace CLARTE.Net
                 }
                 else
                 {
-                    Drop(connection, "Invalid credentials. Dropping connection.");
+                    Drop(connection, "Invalid credentials.");
                 }
             }
             else
             {
-                Drop(connection, "Expected to receive credentials validation. Dropping connection.");
+                Drop(connection, "Expected to receive credentials validation.");
             }
         }
 
         protected void NegotiateChannels(ClientTcpConnection connection)
         {
             // Send channel negotiation flag
-            Send(connection, connection.channel == 0);
+            Send(connection, connection.channel < 0);
 
             // Check if we must negotiate other channel or just open the current one
-            if(connection.channel == 0)
+            if(connection.channel < 0)
             {
-                // Send the open ports list
-                int nb_client_ports = (openPorts != null ? openPorts.Count : 0);
+                // Receive the channels descriptions
+                ushort nb_channels;
 
-                Send(connection, nb_client_ports);
-
-                for(int i = 0; i < nb_client_ports; i++)
+                if(Receive(connection, out nb_channels))
                 {
-                    Send(connection, openPorts[i]);
-                }
+                    if(nb_channels > 0)
+                    {
+                        for(ushort i = 0; i < nb_channels; i++)
+                        {
+                            ushort raw_channel_type;
 
-                // Receive the channels global info
-                ushort raw_error_code, nb_channels, required_ports;
+                            if(Receive(connection, out raw_channel_type))
+                            {
+                                switch((Channel.Type) raw_channel_type)
+                                {
+                                    case Channel.Type.TCP:
+                                        ConnectTcp(i);
+                                        break;
+                                    case Channel.Type.UDP:
+                                        ushort channel = i; // To avoid weird behaviour of lambda catching base types as reference in loops
 
-                if(Receive(connection, out raw_error_code) && Receive(connection, out nb_channels) && Receive(connection, out required_ports))
-                {
-                    ChannelDescriptionErrorCode error_code = (ChannelDescriptionErrorCode) raw_error_code;
-
-                    if(error_code == ChannelDescriptionErrorCode.NONE)
-                    {
-                        //TODO
-                    }
-                    else if((error_code & ChannelDescriptionErrorCode.NO_CHANNEL) != 0)
-                    {
-                        Drop(connection, "No channels configured. Dropping connection.");
-                    }
-                    else if((error_code & ChannelDescriptionErrorCode.NOT_ENOUGH_CLIENT_PORT) != 0)
-                    {
-                        Drop(connection, "No enough port available on client. Need {0} ports, only {1} availables. Dropping connection.", required_ports, nb_client_ports);
-                    }
-                    else if((error_code & ChannelDescriptionErrorCode.NOT_ENOUGH_SERVER_PORT) != 0)
-                    {
-                        Drop(connection, "No enough port available on server. Need {0} ports. Dropping connection.", required_ports);
+                                        ConnectUdp(connection, client => SaveUdpChannel(client, channel));
+                                        break;
+                                }
+                            }
+                            else
+                            {
+                                Drop(connection, "Expected to receive channel type.");
+                            }
+                        }
                     }
                     else
                     {
-                        Drop(connection, "Unknown error. Dropping connection.");
+                        Drop(connection, "No channels configured.");
                     }
                 }
                 else
                 {
-                    Drop(connection, "Expected to receive the channels global descriptors. Dropping connection.");
+                    Drop(connection, "Expected to receive the number of channels.");
                 }
             }
             else
             {
-                SaveChannel(connection);
+                SaveTcpChannel(connection);
             }
         }
 
-        protected void SaveChannel(ClientTcpConnection connection)
+        protected void SaveTcpChannel(ClientTcpConnection connection)
+        {
+            if(connection.channel >= 0)
+            {
+                Send(connection, (ushort) connection.channel);
+
+                //TODO
+                UnityEngine.Debug.LogFormat("TCP channel {0} success.", connection.channel);
+            }
+            else
+            {
+                Drop(connection, "Invalid channel index.");
+            }
+        }
+
+        protected void SaveUdpChannel(UdpClient client, ushort channel)
         {
             //TODO
+            UnityEngine.Debug.LogFormat("UDP channel {0} success.", channel);
         }
         #endregion
 
