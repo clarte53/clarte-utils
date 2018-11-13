@@ -316,13 +316,22 @@ namespace CLARTE.Net.Negotiation
                         {
                             ushort channel = i; // To avoid weird behaviour of lambda catching base types as reference in loops
 
-                            ConnectUdp(connection, client => SaveUdpChannel(client, channel));
+                            ConnectUdp(connection, client => SaveChannel(client, channel));
                         }
                     }
                 }
                 else
                 {
-                    SaveTcpChannel(connection);
+                    ushort channel;
+
+                    if(Receive(connection, out channel))
+                    {
+                        SaveChannel(connection, channel);
+                    }
+                    else
+                    {
+                        Drop(connection, "Expected to receive channel index.");
+                    }
                 }
             }
             else
@@ -331,25 +340,10 @@ namespace CLARTE.Net.Negotiation
             }
         }
 
-        protected void SaveTcpChannel(Connection.Tcp connection)
-        {
-            ushort channel;
-
-            if(Receive(connection, out channel))
-            {
-                //TODO
-                UnityEngine.Debug.LogFormat("TCP channel {0} success.", channel);
-            }
-            else
-            {
-                Drop(connection, "Expected to receive channel index.");
-            }
-        }
-
-        protected void SaveUdpChannel(Connection.Udp connection, ushort channel)
+        protected void SaveChannel(Connection.Base connection, ushort channel)
         {
             //TODO
-            UnityEngine.Debug.LogFormat("UDP channel {0} success.", channel);
+            UnityEngine.Debug.LogFormat("{0} channel {1} success.", connection.GetType(), channel);
         }
         #endregion
     }
