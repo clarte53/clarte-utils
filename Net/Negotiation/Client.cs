@@ -4,7 +4,7 @@ using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 
-namespace CLARTE.Net
+namespace CLARTE.Net.Negotiation
 {
     public class Client : Base
     {
@@ -95,7 +95,7 @@ namespace CLARTE.Net
         protected void ConnectTcp(int channel)
         {
             // Create a new TCP client
-            ClientTcpConnection connection = new ClientTcpConnection(new TcpClient(AddressFamily.InterNetworkV6), channel);
+            Connection.TcpWithChannel connection = new Connection.TcpWithChannel(new TcpClient(AddressFamily.InterNetworkV6), channel);
 
             lock(initializedConnections)
             {
@@ -111,7 +111,7 @@ namespace CLARTE.Net
             try
             {
                 // Finalize connection to server
-                ClientTcpConnection connection = (ClientTcpConnection) async_result.AsyncState;
+                Connection.TcpWithChannel connection = (Connection.TcpWithChannel) async_result.AsyncState;
 
                 connection.client.EndConnect(async_result);
 
@@ -185,7 +185,7 @@ namespace CLARTE.Net
             try
             {
                 // Finalize the authentication as client for the SSL stream
-                ClientTcpConnection connection = (ClientTcpConnection) async_result.AsyncState;
+                Connection.TcpWithChannel connection = (Connection.TcpWithChannel) async_result.AsyncState;
 
                 ((SslStream) connection.stream).EndAuthenticateAsClient(async_result);
 
@@ -201,7 +201,7 @@ namespace CLARTE.Net
             }
         }
 
-        protected void ValidateCredentials(ClientTcpConnection connection)
+        protected void ValidateCredentials(Connection.TcpWithChannel connection)
         {
             Send(connection, credentials.username);
             Send(connection, credentials.password);
@@ -226,7 +226,7 @@ namespace CLARTE.Net
             }
         }
 
-        protected void NegotiateChannels(ClientTcpConnection connection)
+        protected void NegotiateChannels(Connection.TcpWithChannel connection)
         {
             // Send channel negotiation flag
             Send(connection, connection.channel < 0);
@@ -281,7 +281,7 @@ namespace CLARTE.Net
             }
         }
 
-        protected void SaveTcpChannel(ClientTcpConnection connection)
+        protected void SaveTcpChannel(Connection.TcpWithChannel connection)
         {
             if(connection.channel >= 0)
             {
@@ -296,7 +296,7 @@ namespace CLARTE.Net
             }
         }
 
-        protected void SaveUdpChannel(UdpClient client, ushort channel)
+        protected void SaveUdpChannel(Connection.Udp connection, ushort channel)
         {
             //TODO
             UnityEngine.Debug.LogFormat("UDP channel {0} success.", channel);

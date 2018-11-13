@@ -1,7 +1,7 @@
 ﻿using System;
 using UnityEngine.Events;
 
-namespace CLARTE.Net
+namespace CLARTE.Net.Negotiation
 {
     public static class Events
     {

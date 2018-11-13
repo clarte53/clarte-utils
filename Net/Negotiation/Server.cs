@@ -6,7 +6,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 
-namespace CLARTE.Net
+namespace CLARTE.Net.Negotiation
 {
     public class Server : Base
     {
@@ -49,7 +49,7 @@ namespace CLARTE.Net
                         }
                     }
 
-                    Connection.SafeDispose(serverCertificate);
+                    Connection.Base.SafeDispose(serverCertificate);
 
                     listenerThread.Join();
 
@@ -157,7 +157,7 @@ namespace CLARTE.Net
                 if(state == State.RUNNING)
                 {
                     // Get the new connection
-                    TcpConnection connection = new TcpConnection(listener.EndAcceptTcpClient(async_result));
+                    Connection.Tcp connection = new Connection.Tcp(listener.EndAcceptTcpClient(async_result));
 
                     lock(initializedConnections)
                     {
@@ -173,7 +173,7 @@ namespace CLARTE.Net
             }
         }
 
-        protected void Connected(TcpConnection connection)
+        protected void Connected(Connection.Tcp connection)
         {
             try
             {
@@ -232,12 +232,12 @@ namespace CLARTE.Net
 
         protected void Authenticated(IAsyncResult async_result)
         {
-            TcpConnection connection = null;
+            Connection.Tcp connection = null;
 
             try
             {
                 // Finalize the authentication as server for the SSL stream
-                connection = (TcpConnection) async_result.AsyncState;
+                connection = (Connection.Tcp) async_result.AsyncState;
 
                 ((SslStream) connection.stream).EndAuthenticateAsServer(async_result);
 
@@ -253,7 +253,7 @@ namespace CLARTE.Net
             }
         }
 
-        protected void ValidateCredentials(TcpConnection connection)
+        protected void ValidateCredentials(Connection.Tcp connection)
         {
             string client_username;
             string client_password;
@@ -290,7 +290,7 @@ namespace CLARTE.Net
             }
         }
 
-        protected void NegotiateChannels(TcpConnection connection)
+        protected void NegotiateChannels(Connection.Tcp connection)
         {
             bool negotiate;
 
@@ -331,7 +331,7 @@ namespace CLARTE.Net
             }
         }
 
-        protected void SaveTcpChannel(TcpConnection connection)
+        protected void SaveTcpChannel(Connection.Tcp connection)
         {
             ushort channel;
 
@@ -346,7 +346,7 @@ namespace CLARTE.Net
             }
         }
 
-        protected void SaveUdpChannel(UdpClient client, ushort channel)
+        protected void SaveUdpChannel(Connection.Udp connection, ushort channel)
         {
             //TODO
             UnityEngine.Debug.LogFormat("UDP channel {0} success.", channel);

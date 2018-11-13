@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace CLARTE.Net
+namespace CLARTE.Net.Negotiation
 {
     [Serializable]
     public class Channel
@@ -13,7 +13,7 @@ namespace CLARTE.Net
 
         #region Members
         public Events.ReceiveCallback onReceive;
-        protected Connection connection;
+        protected Connection.Base connection;
         #endregion
 
         #region Public methods
@@ -30,7 +30,7 @@ namespace CLARTE.Net
 
         }
 
-        public void SetConnection(Connection c)
+        public void SetConnection(Connection.Base c)
         {
             connection = c;
         }

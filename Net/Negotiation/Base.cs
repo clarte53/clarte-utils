@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using UnityEngine;
 
-namespace CLARTE.Net
+namespace CLARTE.Net.Negotiation
 {
     public abstract class Base : MonoBehaviour, IDisposable
     {
@@ -125,7 +125,7 @@ namespace CLARTE.Net
 
         public List<PortRange> openPorts;
 
-        protected HashSet<TcpConnection> initializedConnections;
+        protected HashSet<Connection.Tcp> initializedConnections;
         protected HashSet<ushort> availablePorts;
         protected State state;
         #endregion
@@ -167,7 +167,7 @@ namespace CLARTE.Net
         {
             lock(initializedConnections)
             {
-                foreach(TcpConnection connection in initializedConnections)
+                foreach(Connection.Tcp connection in initializedConnections)
                 {
                     if(connection.initialization != null)
                     {
@@ -181,7 +181,7 @@ namespace CLARTE.Net
             }
         }
 
-        protected void Close(TcpConnection connection)
+        protected void Close(Connection.Tcp connection)
         {
             if(connection != null)
             {
@@ -194,7 +194,7 @@ namespace CLARTE.Net
             }
         }
 
-        protected void Drop(TcpConnection connection, string message, params object[] values)
+        protected void Drop(Connection.Tcp connection, string message, params object[] values)
         {
             string error_message = string.Format(message, values);
 
@@ -220,7 +220,7 @@ namespace CLARTE.Net
 
             tasks = Threads.Tasks.Instance;
 
-            initializedConnections = new HashSet<TcpConnection>();
+            initializedConnections = new HashSet<Connection.Tcp>();
 
             availablePorts = new HashSet<ushort>();
             
@@ -276,7 +276,7 @@ namespace CLARTE.Net
         #endregion
 
         #region UDP negotiation
-        protected void ConnectUdp(TcpConnection connection, Action<UdpClient> callback)
+        protected void ConnectUdp(Connection.Tcp connection, Action<Connection.Udp> callback)
         {
             UdpClient udp = null;
 
@@ -334,7 +334,7 @@ namespace CLARTE.Net
                     {
                         udp.Connect(((IPEndPoint) connection.client.Client.RemoteEndPoint).Address, remote_port);
 
-                        callback(udp);
+                        callback(new Connection.Udp(udp));
                     }
                     else
                     {
@@ -354,12 +354,12 @@ namespace CLARTE.Net
         #endregion
 
         #region Helper serialization functions
-        protected void Send(TcpConnection connection, bool value)
+        protected void Send(Connection.Tcp connection, bool value)
         {
             connection.stream.WriteByte(value ? (byte) 1 : (byte) 0);
         }
 
-        protected void Send(TcpConnection connection, ushort value)
+        protected void Send(Connection.Tcp connection, ushort value)
         {
             Converter c = new Converter(value);
 
@@ -375,7 +375,7 @@ namespace CLARTE.Net
             }
         }
 
-        protected void Send(TcpConnection connection, int value)
+        protected void Send(Connection.Tcp connection, int value)
         {
             Converter c = new Converter(value);
 
@@ -395,24 +395,24 @@ namespace CLARTE.Net
             }
         }
 
-        protected void Send(TcpConnection connection, uint value)
+        protected void Send(Connection.Tcp connection, uint value)
         {
             Send(connection, new Converter(value).Int);
         }
 
-        protected void Send(TcpConnection connection, byte[] data)
+        protected void Send(Connection.Tcp connection, byte[] data)
         {
             Send(connection, data.Length);
 
             connection.stream.Write(data, 0, data.Length);
         }
 
-        protected void Send(TcpConnection connection, string data)
+        protected void Send(Connection.Tcp connection, string data)
         {
             Send(connection, Encoding.UTF8.GetBytes(data));
         }
 
-        protected bool Receive(TcpConnection connection, out bool value)
+        protected bool Receive(Connection.Tcp connection, out bool value)
         {
             int val = connection.stream.ReadByte();
 
@@ -428,7 +428,7 @@ namespace CLARTE.Net
             return false;
         }
 
-        protected bool Receive(TcpConnection connection, out ushort value)
+        protected bool Receive(Connection.Tcp connection, out ushort value)
         {
             int v1, v2;
 
@@ -457,7 +457,7 @@ namespace CLARTE.Net
             return false;
         }
 
-        protected bool Receive(TcpConnection connection, out int value)
+        protected bool Receive(Connection.Tcp connection, out int value)
         {
             int v1, v2, v3, v4;
 
@@ -490,7 +490,7 @@ namespace CLARTE.Net
             return false;
         }
 
-        protected bool Receive(TcpConnection connection, out uint value)
+        protected bool Receive(Connection.Tcp connection, out uint value)
         {
             int val;
 
@@ -501,7 +501,7 @@ namespace CLARTE.Net
             return result;
         }
 
-        protected bool Receive(TcpConnection connection, out byte[] data)
+        protected bool Receive(Connection.Tcp connection, out byte[] data)
         {
             int size;
 
@@ -524,7 +524,7 @@ namespace CLARTE.Net
             return false;
         }
 
-        protected bool Receive(TcpConnection connection, out string data)
+        protected bool Receive(Connection.Tcp connection, out string data)
         {
             byte[] raw_data;
 
