@@ -65,6 +65,11 @@ namespace CLARTE.Net.Negotiation.Connection
 
             return address;
         }
+
+        public override void Send(byte[] data)
+        {
+            //TODO
+        }
         #endregion
     }
 }

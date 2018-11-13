@@ -21,8 +21,6 @@ namespace CLARTE.Net.Negotiation
     {
         #region Members
         public Type type;
-        public bool encrypted;
-        public bool signed;
         #endregion
     }
 }

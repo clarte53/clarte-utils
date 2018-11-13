@@ -13,6 +13,7 @@ namespace CLARTE.Net.Negotiation.Connection
         #region Abstract methods
         protected abstract void Dispose(bool disposing);
         public abstract IPAddress GetRemoteAddress();
+        public abstract void Send(byte[] data);
         #endregion
 
         #region IDisposable implementation

@@ -499,21 +499,56 @@ namespace CLARTE.Net.Negotiation
         #endregion
 
         #region Public methods
-        public void Send(uint channel, byte[] data)
-        {/*
+        public void Send(IPAddress remote, ushort channel, byte[] data)
+        {
             if(state == State.RUNNING)
             {
-                if(channels == null || channel >= channels.Count || channels[(int) channel] == null)
+                Connection.Base[] client_channels;
+
+                if(!openedChannels.TryGetValue(remote, out client_channels))
+                {
+                    throw new ArgumentException(string.Format("No connection with remote at {0}. Nothing sent.", remote), "remote");
+                }
+
+                if(channel >= client_channels.Length || client_channels[channel] == null)
                 {
                     throw new ArgumentException(string.Format("Invalid channel. No channel with index '{0}'", channel), "channel");
                 }
 
-                channels[(int) channel].Send(data);
+                client_channels[channel].Send(data);
             }
             else
             {
                 UnityEngine.Debug.LogWarningFormat("Can not send data when in state {0}. Nothing sent.", state);
-            }*/
+            }
+        }
+
+        public void SendOthers(IPAddress remote, ushort channel, byte[] data)
+        {
+            if(state == State.RUNNING)
+            {
+                foreach(KeyValuePair<IPAddress, Connection.Base[]> pair in openedChannels)
+                {
+                    if(remote == null || pair.Key != remote)
+                    {
+                        if(channel >= pair.Value.Length || pair.Value[channel] == null)
+                        {
+                            throw new ArgumentException(string.Format("Invalid channel. No channel with index '{0}'", channel), "channel");
+                        }
+
+                        pair.Value[channel].Send(data);
+                    }
+                }
+            }
+            else
+            {
+                UnityEngine.Debug.LogWarningFormat("Can not send data when in state {0}. Nothing sent.", state);
+            }
+        }
+
+        public void SendAll(ushort channel, byte[] data)
+        {
+            SendOthers(null, channel, data);
         }
         #endregion
 
