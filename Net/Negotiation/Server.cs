@@ -8,15 +8,13 @@ using System.Threading;
 
 namespace CLARTE.Net.Negotiation
 {
-    public class Server : Base
+    public class Server : Base<ServerChannel>
     {
         #region Members
         public const uint maxSupportedVersion = 1;
 
-        public uint port;
         public string certificate;
-        public Credentials credentials;
-        public List<ServerChannel> channels;
+        public uint port;
 
         protected Threads.Thread listenerThread;
         protected TcpListener listener;
@@ -41,13 +39,7 @@ namespace CLARTE.Net.Negotiation
 
                     CloseInitializedConnections();
 
-                    foreach(Channel channel in channels)
-                    {
-                        if(channel != null)
-                        {
-                            channel.Close();
-                        }
-                    }
+                    CloseOpenedChannels();
 
                     Connection.Base.SafeDispose(serverCertificate);
 
@@ -112,25 +104,6 @@ namespace CLARTE.Net.Negotiation
         protected void OnDestroy()
         {
             Dispose();
-        }
-        #endregion
-
-        #region Public methods
-        public void Send(uint channel, byte[] data)
-        {
-            if(state == State.RUNNING)
-            {
-                if(channels == null || channel >= channels.Count || channels[(int) channel] == null)
-                {
-                    throw new ArgumentException(string.Format("Invalid channel. No channel with index '{0}'", channel), "channel");
-                }
-
-                channels[(int) channel].Send(data);
-            }
-            else
-            {
-                UnityEngine.Debug.LogWarningFormat("Can not send data when in state {0}. Nothing sent.", state);
-            }
         }
         #endregion
 
@@ -316,7 +289,7 @@ namespace CLARTE.Net.Negotiation
                         {
                             ushort channel = i; // To avoid weird behaviour of lambda catching base types as reference in loops
 
-                            ConnectUdp(connection, client => SaveChannel(client, channel));
+                            ConnectUdp(connection, channel);
                         }
                     }
                 }

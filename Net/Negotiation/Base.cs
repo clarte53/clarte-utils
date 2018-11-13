@@ -113,7 +113,7 @@ namespace CLARTE.Net.Negotiation
             // Avoid IANA system or well-known ports that requires admin privileges
             public const ushort minAvailablePort = 1024;
             public const ushort maxavailablePort = 65535;
-            
+
             public ushort minPort = minAvailablePort;
             public ushort maxPort = maxavailablePort;
             #endregion
@@ -125,6 +125,7 @@ namespace CLARTE.Net.Negotiation
 
         public List<PortRange> openPorts;
 
+        protected Dictionary<IPAddress, Connection.Base[]> openedChannels;
         protected HashSet<Connection.Tcp> initializedConnections;
         protected HashSet<ushort> availablePorts;
         protected State state;
@@ -181,6 +182,22 @@ namespace CLARTE.Net.Negotiation
             }
         }
 
+        protected void CloseOpenedChannels()
+        {
+            lock(openedChannels)
+            {
+                foreach(KeyValuePair<IPAddress, Connection.Base[]> pair in openedChannels)
+                {
+                    foreach(Connection.Base connection in pair.Value)
+                    {
+                        connection.Close();
+                    }
+                }
+
+                openedChannels.Clear();
+            }
+        }
+
         protected void Close(Connection.Tcp connection)
         {
             if(connection != null)
@@ -220,10 +237,12 @@ namespace CLARTE.Net.Negotiation
 
             tasks = Threads.Tasks.Instance;
 
+            openedChannels = new Dictionary<IPAddress, Connection.Base[]>();
+
             initializedConnections = new HashSet<Connection.Tcp>();
 
             availablePorts = new HashSet<ushort>();
-            
+
             foreach(PortRange range in openPorts)
             {
                 if(availablePorts.Count < PortRange.maxPoolSize)
@@ -280,98 +299,6 @@ namespace CLARTE.Net.Negotiation
             {
                 availablePorts.Add(port);
             }
-        }
-        #endregion
-
-        #region Shared network methods
-        protected void ConnectUdp(Connection.Tcp connection, Action<Connection.Udp> callback)
-        {
-            UdpClient udp = null;
-
-            ushort local_port = 0;
-            ushort remote_port;
-
-            bool success = false;
-
-            while(!success)
-            {
-                lock(availablePorts)
-                {
-                    HashSet<ushort>.Enumerator it = availablePorts.GetEnumerator();
-
-                    if(it.MoveNext())
-                    {
-                        local_port = it.Current;
-
-                        availablePorts.Remove(local_port);
-                    }
-                    else
-                    {
-                        local_port = 0;
-
-                        success = true;
-                    }
-                }
-
-                if(local_port > 0)
-                {
-                    try
-                    {
-                        udp = new UdpClient(local_port, AddressFamily.InterNetworkV6);
-
-                        success = true;
-                    }
-                    catch(SocketException)
-                    {
-                        // Port unavailable. Remove it definitively from the list and try another port.
-                        udp = null;
-
-                        success = false;
-                    }
-                }
-            }
-
-            // Send the selected port. A value of 0 means that no port are available.
-            Send(connection, local_port);
-
-            if(Receive(connection, out remote_port))
-            {
-                if(udp != null && local_port > 0)
-                {
-                    if(remote_port > 0)
-                    {
-                        udp.Connect(((IPEndPoint) connection.client.Client.RemoteEndPoint).Address, remote_port);
-
-                        callback(new Connection.Udp(this, udp));
-                    }
-                    else
-                    {
-                        UnityEngine.Debug.LogError("No available remote port for UDP connection.");
-                    }
-                }
-                else
-                {
-                    UnityEngine.Debug.LogError("No available local port for UDP connection.");
-                }
-            }
-            else
-            {
-                Drop(connection, "Expected to receive remote UDP port.");
-            }
-        }
-
-        protected void SaveChannel(Connection.Base connection, ushort channel)
-        {
-            if(connection is Connection.Tcp)
-            {
-                lock(initializedConnections)
-                {
-                    initializedConnections.Remove((Connection.Tcp) connection);
-                }
-            }
-
-            //TODO
-            UnityEngine.Debug.LogFormat("{0} channel {1} success.", connection.GetType(), channel);
         }
         #endregion
 
@@ -560,6 +487,158 @@ namespace CLARTE.Net.Negotiation
             }
 
             return false;
+        }
+        #endregion
+    }
+
+    public abstract class Base<T> : Base where T : Channel
+    {
+        #region Members
+        public List<T> channels;
+        public Credentials credentials;
+        #endregion
+
+        #region Public methods
+        public void Send(uint channel, byte[] data)
+        {/*
+            if(state == State.RUNNING)
+            {
+                if(channels == null || channel >= channels.Count || channels[(int) channel] == null)
+                {
+                    throw new ArgumentException(string.Format("Invalid channel. No channel with index '{0}'", channel), "channel");
+                }
+
+                channels[(int) channel].Send(data);
+            }
+            else
+            {
+                UnityEngine.Debug.LogWarningFormat("Can not send data when in state {0}. Nothing sent.", state);
+            }*/
+        }
+        #endregion
+
+        #region Shared network methods
+        protected void ConnectUdp(Connection.Tcp connection, ushort channel)
+        {
+            UdpClient udp = null;
+
+            ushort local_port = 0;
+            ushort remote_port;
+
+            bool success = false;
+
+            if(channels != null && channel < channels.Count)
+            {
+                while(!success)
+                {
+                    lock(availablePorts)
+                    {
+                        HashSet<ushort>.Enumerator it = availablePorts.GetEnumerator();
+
+                        if(it.MoveNext())
+                        {
+                            local_port = it.Current;
+
+                            availablePorts.Remove(local_port);
+                        }
+                        else
+                        {
+                            local_port = 0;
+
+                            success = true;
+                        }
+                    }
+
+                    if(local_port > 0)
+                    {
+                        try
+                        {
+                            udp = new UdpClient(local_port, AddressFamily.InterNetworkV6);
+
+                            success = true;
+                        }
+                        catch(SocketException)
+                        {
+                            // Port unavailable. Remove it definitively from the list and try another port.
+                            udp = null;
+
+                            success = false;
+                        }
+                    }
+                }
+            }
+
+            // Send the selected port. A value of 0 means that no port are available.
+            Send(connection, local_port);
+
+            if(Receive(connection, out remote_port))
+            {
+                if(udp != null && local_port > 0)
+                {
+                    if(remote_port > 0)
+                    {
+                        udp.Connect(((IPEndPoint) connection.client.Client.RemoteEndPoint).Address, remote_port);
+
+                        SaveChannel(new Connection.Udp(this, udp), channel);
+                    }
+                    else
+                    {
+                        UnityEngine.Debug.LogError("No available remote port for UDP connection.");
+                    }
+                }
+                else
+                {
+                    UnityEngine.Debug.LogError("No available local port for UDP connection.");
+                }
+            }
+            else
+            {
+                Drop(connection, "Expected to receive remote UDP port.");
+            }
+        }
+
+        protected void SaveChannel(Connection.Base connection, ushort channel)
+        {
+            // Remove initialized TCP connection from the pool of connections in initialization
+            if(connection is Connection.Tcp)
+            {
+                lock(initializedConnections)
+                {
+                    initializedConnections.Remove((Connection.Tcp) connection);
+                }
+            }
+
+            IPAddress remote = connection.GetRemoteAddress();
+
+            if(channel < channels.Count)
+            {
+                // Save receive callback to the connection
+                connection.onReceive = channels[channel].onReceive;
+
+                // Save the connection
+                lock(openedChannels)
+                {
+                    Connection.Base[] client_channels;
+
+                    if(!openedChannels.TryGetValue(remote, out client_channels))
+                    {
+                        client_channels = new Connection.Base[channels.Count];
+
+                        openedChannels.Add(remote, client_channels);
+                    }
+
+                    client_channels[channel] = connection;
+                }
+
+                UnityEngine.Debug.LogFormat("{0} channel {1} success.", connection.GetType(), channel);
+            }
+            else
+            {
+                // No channel defined for this index. This should never happen as index are checked during port negotiation
+                UnityEngine.Debug.LogErrorFormat("No channel defined with index '{0}'.", channel);
+
+                connection.Close();
+            }
         }
         #endregion
     }

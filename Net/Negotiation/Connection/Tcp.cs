@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Net;
 using System.Net.Sockets;
 
 namespace CLARTE.Net.Negotiation.Connection
@@ -53,6 +54,20 @@ namespace CLARTE.Net.Negotiation.Connection
 
                 disposed = true;
             }
+        }
+        #endregion
+
+        #region Base class implementation
+        public override IPAddress GetRemoteAddress()
+        {
+            IPAddress address = null;
+
+            if(client != null)
+            {
+                address = ((IPEndPoint) client.Client.RemoteEndPoint).Address;
+            }
+
+            return address;
         }
         #endregion
     }

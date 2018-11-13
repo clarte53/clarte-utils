@@ -1,15 +1,18 @@
 ﻿using System;
+using System.Net;
 
 namespace CLARTE.Net.Negotiation.Connection
 {
     public abstract class Base : IDisposable
     {
         #region Members
+        public Events.ReceiveCallback onReceive;
         protected bool disposed;
         #endregion
 
         #region Abstract methods
         protected abstract void Dispose(bool disposing);
+        public abstract IPAddress GetRemoteAddress();
         #endregion
 
         #region IDisposable implementation

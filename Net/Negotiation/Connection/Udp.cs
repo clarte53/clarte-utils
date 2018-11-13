@@ -52,5 +52,19 @@ namespace CLARTE.Net.Negotiation.Connection
             }
         }
         #endregion
+
+        #region Base class implementation
+        public override IPAddress GetRemoteAddress()
+        {
+            IPAddress address = null;
+
+            if(client != null)
+            {
+                address = ((IPEndPoint) client.Client.RemoteEndPoint).Address;
+            }
+
+            return address;
+        }
+        #endregion
     }
 }

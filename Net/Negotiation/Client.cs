@@ -6,15 +6,13 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace CLARTE.Net.Negotiation
 {
-    public class Client : Base
+    public class Client : Base<Channel>
     {
         #region Members
         public const uint maxSupportedVersion = 1;
 
         public string hostname = "localhost";
         public uint port;
-        public Credentials credentials;
-        public List<Channel> channels;
         #endregion
 
         #region IDisposable implementation
@@ -30,13 +28,7 @@ namespace CLARTE.Net.Negotiation
 
                     CloseInitializedConnections();
 
-                    foreach(Channel channel in channels)
-                    {
-                        if(channel != null)
-                        {
-                            channel.Close();
-                        }
-                    }
+                    CloseOpenedChannels();
                 }
 
                 // TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
@@ -70,23 +62,6 @@ namespace CLARTE.Net.Negotiation
             else
             {
                 UnityEngine.Debug.LogErrorFormat("Invalid connection attempt to server when in state {0}.", state);
-            }
-        }
-
-        public void Send(uint channel, byte[] data)
-        {
-            if(state == State.RUNNING)
-            {
-                if(channels == null || channel >= channels.Count || channels[(int) channel] == null)
-                {
-                    throw new ArgumentException(string.Format("Invalid channel. No channel with index '{0}'", channel), "channel");
-                }
-
-                channels[(int) channel].Send(data);
-            }
-            else
-            {
-                UnityEngine.Debug.LogWarningFormat("Can not send data when in state {0}. Nothing sent.", state);
             }
         }
         #endregion
@@ -255,7 +230,7 @@ namespace CLARTE.Net.Negotiation
                                     case Channel.Type.UDP:
                                         ushort channel = i; // To avoid weird behaviour of lambda catching base types as reference in loops
 
-                                        ConnectUdp(connection, client => SaveChannel(client, channel));
+                                        ConnectUdp(connection, channel);
                                         break;
                                 }
                             }

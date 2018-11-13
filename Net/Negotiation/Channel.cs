@@ -13,27 +13,6 @@ namespace CLARTE.Net.Negotiation
 
         #region Members
         public Events.ReceiveCallback onReceive;
-        protected Connection.Base connection;
-        #endregion
-
-        #region Public methods
-        public void Close()
-        {
-            if(connection != null)
-            {
-                connection.Close();
-            }
-        }
-
-        public void Send(byte[] data)
-        {
-
-        }
-
-        public void SetConnection(Connection.Base c)
-        {
-            connection = c;
-        }
         #endregion
     }
 
