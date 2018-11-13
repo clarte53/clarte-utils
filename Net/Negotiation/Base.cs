@@ -342,7 +342,7 @@ namespace CLARTE.Net.Negotiation
                     {
                         udp.Connect(((IPEndPoint) connection.client.Client.RemoteEndPoint).Address, remote_port);
 
-                        callback(new Connection.Udp(udp));
+                        callback(new Connection.Udp(this, udp));
                     }
                     else
                     {
