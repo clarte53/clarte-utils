@@ -68,7 +68,7 @@ namespace CLARTE.Net.Negotiation.Connection
             return address;
         }
 
-        public override void Send(byte[] data)
+        public override void SendAsync(byte[] data)
         {
             if(client != null)
             {

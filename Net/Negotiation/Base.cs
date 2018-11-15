@@ -248,7 +248,7 @@ namespace CLARTE.Net.Negotiation
                     throw new ArgumentException(string.Format("Invalid channel. No channel with index '{0}'", channel), "channel");
                 }
 
-                client_channels[channel].Send(data);
+                client_channels[channel].SendAsync(data);
             }
             else
             {
@@ -269,7 +269,7 @@ namespace CLARTE.Net.Negotiation
                             throw new ArgumentException(string.Format("Invalid channel. No channel with index '{0}'", channel), "channel");
                         }
 
-                        pair.Value[channel].Send(data);
+                        pair.Value[channel].SendAsync(data);
                     }
                 }
             }

@@ -12,6 +12,8 @@ namespace CLARTE.Net.Negotiation.Connection
         [StructLayout(LayoutKind.Explicit)]
         protected struct Converter
         {
+            public const byte bytesSize = 4;
+
             [FieldOffset(0)]
             public byte Byte1;
 
@@ -85,6 +87,8 @@ namespace CLARTE.Net.Negotiation.Connection
         public TcpClient client;
         public Stream stream;
         public uint version;
+
+        protected byte[] buffer;
         #endregion
 
         #region Constructors
@@ -97,6 +101,8 @@ namespace CLARTE.Net.Negotiation.Connection
         {
             this.client = client;
             stream = null;
+
+            buffer = new byte[Converter.bytesSize];
         }
         #endregion
 
@@ -148,14 +154,26 @@ namespace CLARTE.Net.Negotiation.Connection
             return address;
         }
 
-        public override void Send(byte[] data)
+        public override void SendAsync(byte[] data)
         {
-            if(stream != null)
-            {
-                Send(data.Length);
+            Converter c = new Converter(data.Length);
 
-                stream.Write(data, 0, data.Length);
+            if(isLittleEndian)
+            {
+                buffer[0] = c.Byte4;
+                buffer[1] = c.Byte3;
+                buffer[2] = c.Byte2;
+                buffer[3] = c.Byte1;
             }
+            else
+            {
+                buffer[0] = c.Byte1;
+                buffer[1] = c.Byte2;
+                buffer[2] = c.Byte3;
+                buffer[3] = c.Byte4;
+            }
+
+            stream.BeginWrite(buffer, 0, buffer.Length, FinalizeSendLength, data);
         }
         #endregion
 
@@ -213,6 +231,16 @@ namespace CLARTE.Net.Negotiation.Connection
         public void Send(uint value)
         {
             Send(new Converter(value).Int);
+        }
+
+        public void Send(byte[] data)
+        {
+            if(stream != null)
+            {
+                Send(data.Length);
+
+                stream.Write(data, 0, data.Length);
+            }
         }
 
         public void Send(string data)
@@ -358,6 +386,22 @@ namespace CLARTE.Net.Negotiation.Connection
             }
 
             return false;
+        }
+        #endregion
+
+        #region Internal methods
+        protected void FinalizeSendLength(IAsyncResult async_result)
+        {
+            byte[] data = (byte[]) async_result.AsyncState;
+
+            stream.EndWrite(async_result);
+
+            stream.BeginWrite(data, 0, data.Length, FinalizeSendData, null);
+        }
+
+        protected void FinalizeSendData(IAsyncResult async_result)
+        {
+            stream.EndWrite(async_result);
         }
         #endregion
     }
