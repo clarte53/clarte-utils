@@ -22,7 +22,7 @@ namespace CLARTE.Geometry.Extensions
 			}
 			else
 			{
-				UnityEngine.Debug.LogWarning("One the rotations was identity. Computation may be wrong.");
+				Debug.LogWarning("One the rotations was identity. Computation may be wrong.");
 			}
 
 			return new Vector3(quaternion.x * sin, quaternion.y * sin, quaternion.z * sin);
