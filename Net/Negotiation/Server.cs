@@ -157,9 +157,9 @@ namespace CLARTE.Net.Negotiation
                     connection.stream = connection.client.GetStream();
 
                     // Send the protocol version
-                    Send(connection, maxSupportedVersion);
+                    connection.Send(maxSupportedVersion);
 
-                    if(Receive(connection, out connection.version))
+                    if(connection.Receive(out connection.version))
                     {
                         if(connection.version < maxSupportedVersion)
                         {
@@ -167,7 +167,7 @@ namespace CLARTE.Net.Negotiation
                         }
 
                         // Notify the client if we will now switch on an encrypted channel
-                        Send(connection, serverCertificate != null);
+                        connection.Send(serverCertificate != null);
 
                         if(serverCertificate != null)
                         {
@@ -232,13 +232,13 @@ namespace CLARTE.Net.Negotiation
             string client_password;
 
             // Get the client credentials
-            if(Receive(connection, out client_username) && Receive(connection, out client_password))
+            if(connection.Receive(out client_username) && connection.Receive(out client_password))
             {
                 // Check if the credentials are valid
                 if(client_username == credentials.username && client_password == credentials.password)
                 {
                     // Notify the client that the credentials are valid
-                    Send(connection, true);
+                    connection.Send(true);
 
                     NegotiateChannels(connection);
                 }
@@ -249,7 +249,7 @@ namespace CLARTE.Net.Negotiation
                     Debug.LogWarning(error_message);
 
                     // Notify the client that the credentials are wrong
-                    Send(connection, false);
+                    connection.Send(false);
 
                     // Drop the connection
                     Close(connection);
@@ -267,14 +267,14 @@ namespace CLARTE.Net.Negotiation
         {
             bool negotiate;
 
-            if(Receive(connection, out negotiate))
+            if(connection.Receive(out negotiate))
             {
                 if(negotiate)
                 {
                     // Send channel description
                     ushort nb_channels = (ushort) Math.Min(channels != null ? channels.Count : 0, ushort.MaxValue);
 
-                    Send(connection, nb_channels);
+                    connection.Send(nb_channels);
 
                     if(nb_channels <= 0)
                     {
@@ -283,7 +283,7 @@ namespace CLARTE.Net.Negotiation
 
                     for(ushort i = 0; i < nb_channels; i++)
                     {
-                        Send(connection, (ushort) channels[i].type);
+                        connection.Send((ushort) channels[i].type);
 
                         if(channels[i].type == Channel.Type.UDP)
                         {
@@ -297,7 +297,7 @@ namespace CLARTE.Net.Negotiation
                 {
                     ushort channel;
 
-                    if(Receive(connection, out channel))
+                    if(connection.Receive(out channel))
                     {
                         SaveChannel(connection, channel);
                     }

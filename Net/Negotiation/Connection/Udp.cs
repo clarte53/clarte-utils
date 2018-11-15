@@ -1,5 +1,7 @@
-﻿using System.Net;
+﻿using System;
+using System.Net;
 using System.Net.Sockets;
+using UnityEngine;
 
 namespace CLARTE.Net.Negotiation.Connection
 {
@@ -68,7 +70,24 @@ namespace CLARTE.Net.Negotiation.Connection
 
         public override void Send(byte[] data)
         {
-            //TODO
+            if(client != null)
+            {
+                client.BeginSend(data, data.Length, FinalizeSend, data.Length);
+            }
+        }
+        #endregion
+
+        #region Internal methods
+        protected void FinalizeSend(IAsyncResult async_result)
+        {
+            int length = (int) async_result.AsyncState;
+
+            int sent_length = client.EndSend(async_result);
+
+            if(sent_length != length)
+            {
+                Debug.LogErrorFormat("Can not send all data. Sent {0} bytes instead of {1}.", sent_length, length);
+            }
         }
         #endregion
     }

@@ -99,7 +99,7 @@ namespace CLARTE.Net.Negotiation
                     connection.stream = connection.client.GetStream();
 
                     // Get the protocol version
-                    if(Receive(connection, out connection.version))
+                    if(connection.Receive(out connection.version))
                     {
                         if(connection.version > maxSupportedVersion)
                         {
@@ -109,12 +109,12 @@ namespace CLARTE.Net.Negotiation
                         }
 
                         // Send the agreed protocol version
-                        Send(connection, connection.version);
+                        connection.Send(connection.version);
 
                         bool encrypted;
 
                         // Check if we must wrap the stream in an encrypted SSL channel
-                        if(Receive(connection, out encrypted))
+                        if(connection.Receive(out encrypted))
                         {
                             if(encrypted)
                             {
@@ -178,13 +178,13 @@ namespace CLARTE.Net.Negotiation
 
         protected void ValidateCredentials(Connection.TcpWithChannel connection)
         {
-            Send(connection, credentials.username);
-            Send(connection, credentials.password);
+            connection.Send(credentials.username);
+            connection.Send(credentials.password);
 
             bool credentials_ok;
 
             // Check if the sent credentials are OK
-            if(Receive(connection, out credentials_ok))
+            if(connection.Receive(out credentials_ok))
             {
                 if(credentials_ok)
                 {
@@ -204,7 +204,7 @@ namespace CLARTE.Net.Negotiation
         protected void NegotiateChannels(Connection.TcpWithChannel connection)
         {
             // Send channel negotiation flag
-            Send(connection, connection.channel < 0);
+            connection.Send(connection.channel < 0);
 
             // Check if we must negotiate other channel or just open the current one
             if(connection.channel < 0)
@@ -212,7 +212,7 @@ namespace CLARTE.Net.Negotiation
                 // Receive the channels descriptions
                 ushort nb_channels;
 
-                if(Receive(connection, out nb_channels))
+                if(connection.Receive(out nb_channels))
                 {
                     if(nb_channels > 0)
                     {
@@ -220,7 +220,7 @@ namespace CLARTE.Net.Negotiation
                         {
                             ushort raw_channel_type;
 
-                            if(Receive(connection, out raw_channel_type))
+                            if(connection.Receive(out raw_channel_type))
                             {
                                 switch((Channel.Type) raw_channel_type)
                                 {
@@ -254,7 +254,7 @@ namespace CLARTE.Net.Negotiation
             {
                 if(connection.channel >= 0)
                 {
-                    Send(connection, (ushort) connection.channel);
+                    connection.Send((ushort) connection.channel);
 
                     SaveChannel(connection, (ushort) connection.channel);
                 }
