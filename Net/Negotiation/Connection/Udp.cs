@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Net;
 using System.Net.Sockets;
-using UnityEngine;
 
 namespace CLARTE.Net.Negotiation.Connection
 {
@@ -68,25 +67,37 @@ namespace CLARTE.Net.Negotiation.Connection
             return address;
         }
 
-        public override void SendAsync(byte[] data)
+        public override Threads.Result SendAsync(byte[] data)
         {
+            Threads.Result result = new Threads.Result();
+
             if(client != null)
             {
-                client.BeginSend(data, data.Length, FinalizeSend, data.Length);
+                client.BeginSend(data, data.Length, FinalizeSend, new SendData { result = result, data = data });
             }
+            else
+            {
+                result.Complete(new ArgumentNullException("client", "The connection UdpClient is not defined."));
+            }
+
+            return result;
         }
         #endregion
 
         #region Internal methods
         protected void FinalizeSend(IAsyncResult async_result)
         {
-            int length = (int) async_result.AsyncState;
+            SendData send = (SendData) async_result.AsyncState;
 
             int sent_length = client.EndSend(async_result);
 
-            if(sent_length != length)
+            if(sent_length == send.data.Length)
             {
-                Debug.LogErrorFormat("Can not send all data. Sent {0} bytes instead of {1}.", sent_length, length);
+                send.result.Complete();
+            }
+            else
+            {
+                send.result.Complete(new ProtocolViolationException(string.Format("Can not send all data. Sent {0} bytes instead of {1}.", sent_length, send.data.Length)));
             }
         }
         #endregion

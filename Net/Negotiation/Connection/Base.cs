@@ -5,6 +5,12 @@ namespace CLARTE.Net.Negotiation.Connection
 {
     public abstract class Base : IDisposable
     {
+        protected struct SendData
+        {
+            public Threads.Result result;
+            public byte[] data;
+        }
+
         #region Members
         public Events.ReceiveCallback onReceive;
         protected bool disposed;
@@ -13,7 +19,7 @@ namespace CLARTE.Net.Negotiation.Connection
         #region Abstract methods
         protected abstract void Dispose(bool disposing);
         public abstract IPAddress GetRemoteAddress();
-        public abstract void SendAsync(byte[] data);
+        public abstract Threads.Result SendAsync(byte[] data);
         #endregion
 
         #region IDisposable implementation
