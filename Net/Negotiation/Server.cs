@@ -1,10 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
+using UnityEngine;
 
 namespace CLARTE.Net.Negotiation
 {
@@ -79,7 +79,7 @@ namespace CLARTE.Net.Negotiation
                 }
                 catch(Exception)
                 {
-                    UnityEngine.Debug.LogWarningFormat("Invalid certificate file '{0}'. Encryption is disabled.", certificate);
+                    Debug.LogWarningFormat("Invalid certificate file '{0}'. Encryption is disabled.", certificate);
 
                     if(serverCertificate != null)
                     {
@@ -96,7 +96,7 @@ namespace CLARTE.Net.Negotiation
             listenerThread = new Threads.Thread(Listen);
             listenerThread.Start();
 
-            UnityEngine.Debug.LogFormat("Started server on port {0}", port);
+            Debug.LogFormat("Started server on port {0}", port);
 
             state = State.RUNNING;
         }
@@ -142,7 +142,7 @@ namespace CLARTE.Net.Negotiation
             }
             catch(Exception exception)
             {
-                UnityEngine.Debug.LogErrorFormat("{0}: {1}\n{2}", exception.GetType(), exception.Message, exception.StackTrace);
+                Debug.LogErrorFormat("{0}: {1}\n{2}", exception.GetType(), exception.Message, exception.StackTrace);
             }
         }
 
@@ -163,7 +163,7 @@ namespace CLARTE.Net.Negotiation
                     {
                         if(connection.version < maxSupportedVersion)
                         {
-                            UnityEngine.Debug.LogWarningFormat("Client does not support protocol version '{0}'. Using version '{1}' instead.", maxSupportedVersion, connection.version);
+                            Debug.LogWarningFormat("Client does not support protocol version '{0}'. Using version '{1}' instead.", maxSupportedVersion, connection.version);
                         }
 
                         // Notify the client if we will now switch on an encrypted channel
@@ -190,7 +190,7 @@ namespace CLARTE.Net.Negotiation
                 }
                 else
                 {
-                    UnityEngine.Debug.LogError("The connection from the client failed.");
+                    Debug.LogError("The connection from the client failed.");
                 }
             }
             catch(DropException)
@@ -199,7 +199,7 @@ namespace CLARTE.Net.Negotiation
             }
             catch(Exception exception)
             {
-                UnityEngine.Debug.LogErrorFormat("{0}: {1}\n{2}", exception.GetType(), exception.Message, exception.StackTrace);
+                Debug.LogErrorFormat("{0}: {1}\n{2}", exception.GetType(), exception.Message, exception.StackTrace);
             }
         }
 
@@ -246,7 +246,7 @@ namespace CLARTE.Net.Negotiation
                 {
                     string error_message = string.Format("Invalid connection credentials for user '{0}'. Dropping connection.", client_username);
 
-                    UnityEngine.Debug.LogWarning(error_message);
+                    Debug.LogWarning(error_message);
 
                     // Notify the client that the credentials are wrong
                     Send(connection, false);

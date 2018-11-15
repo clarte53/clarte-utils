@@ -222,7 +222,7 @@ namespace CLARTE.Net.Negotiation
 
             error_message += " Dropping connection.";
 
-            UnityEngine.Debug.LogError(error_message);
+            Debug.LogError(error_message);
 
             Close(connection);
 
@@ -519,7 +519,7 @@ namespace CLARTE.Net.Negotiation
             }
             else
             {
-                UnityEngine.Debug.LogWarningFormat("Can not send data when in state {0}. Nothing sent.", state);
+                Debug.LogWarningFormat("Can not send data when in state {0}. Nothing sent.", state);
             }
         }
 
@@ -542,7 +542,7 @@ namespace CLARTE.Net.Negotiation
             }
             else
             {
-                UnityEngine.Debug.LogWarningFormat("Can not send data when in state {0}. Nothing sent.", state);
+                Debug.LogWarningFormat("Can not send data when in state {0}. Nothing sent.", state);
             }
         }
 
@@ -618,12 +618,12 @@ namespace CLARTE.Net.Negotiation
                     }
                     else
                     {
-                        UnityEngine.Debug.LogError("No available remote port for UDP connection.");
+                        Debug.LogError("No available remote port for UDP connection.");
                     }
                 }
                 else
                 {
-                    UnityEngine.Debug.LogError("No available local port for UDP connection.");
+                    Debug.LogError("No available local port for UDP connection.");
                 }
             }
             else
@@ -665,12 +665,12 @@ namespace CLARTE.Net.Negotiation
                     client_channels[channel] = connection;
                 }
 
-                UnityEngine.Debug.LogFormat("{0} channel {1} success.", connection.GetType(), channel);
+                Debug.LogFormat("{0} channel {1} success.", connection.GetType(), channel);
             }
             else
             {
                 // No channel defined for this index. This should never happen as index are checked during port negotiation
-                UnityEngine.Debug.LogErrorFormat("No channel defined with index '{0}'.", channel);
+                Debug.LogErrorFormat("No channel defined with index '{0}'.", channel);
 
                 connection.Close();
             }

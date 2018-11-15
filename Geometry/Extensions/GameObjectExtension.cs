@@ -109,12 +109,12 @@ namespace CLARTE.Geometry.Extensions
 				}
 				else
 				{
-					UnityEngine.Debug.LogErrorFormat("ChangeReferential failed: no mesh assigned to '{0}' MeshFilter", go.name);
+					Debug.LogErrorFormat("ChangeReferential failed: no mesh assigned to '{0}' MeshFilter", go.name);
 				}
 			}
 			else
 			{
-				UnityEngine.Debug.LogErrorFormat("ChangeReferential failed: MeshFilter component not found on '{0}'", go.name);
+				Debug.LogErrorFormat("ChangeReferential failed: MeshFilter component not found on '{0}'", go.name);
 			}
 		}
 	}

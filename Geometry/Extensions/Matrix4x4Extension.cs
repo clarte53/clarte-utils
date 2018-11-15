@@ -8,7 +8,7 @@ namespace CLARTE.Geometry.Extensions
 		{
 			if(!IsOrthogonal(matrix))
 			{
-				UnityEngine.Debug.LogWarning("Matrix is not orthogonal: conversion to quaternion doesn't make sense");
+				Debug.LogWarning("Matrix is not orthogonal: conversion to quaternion doesn't make sense");
 			}
 
 			return Quaternion.LookRotation(matrix.GetColumn(2), matrix.GetColumn(1));

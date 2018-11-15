@@ -6,6 +6,7 @@ using System.IO;
 using System.Net;
 using System.Text;
 using System.Threading;
+using UnityEngine;
 
 namespace CLARTE.Net.HTTP
 {
@@ -142,7 +143,7 @@ namespace CLARTE.Net.HTTP
             }
             catch(Exception exception)
             {
-                UnityEngine.Debug.LogError(exception);
+                Debug.LogError(exception);
             }
         }
         #endregion
@@ -157,13 +158,13 @@ namespace CLARTE.Net.HTTP
                 HttpListenerRequest request = context.Request;
                 HttpListenerResponse response = context.Response;
 
-                UnityEngine.Debug.LogFormat("{0} {1}", request.HttpMethod, request.Url);
+                Debug.LogFormat("{0} {1}", request.HttpMethod, request.Url);
 
                 // Display headers
-                UnityEngine.Debug.Log("Headers:");
+                Debug.Log("Headers:");
                 for(int i = 0; i < request.Headers.Count; i++)
                 {
-                    UnityEngine.Debug.LogFormat("{0}: {1}", request.Headers.GetKey(i), request.Headers.Get(i));
+                    Debug.LogFormat("{0}: {1}", request.Headers.GetKey(i), request.Headers.Get(i));
                 }
 
                 // Get data
@@ -174,7 +175,7 @@ namespace CLARTE.Net.HTTP
                 input.Read(data, 0, request_size);
                 input.Close();
 
-                UnityEngine.Debug.LogFormat("Data: {0}", Encoding.UTF8.GetString(data));
+                Debug.LogFormat("Data: {0}", Encoding.UTF8.GetString(data));
 
                 if(endpoints != null && endpoints.TryGetValue(Uri.UnescapeDataString(request.Url.AbsolutePath), out callback))
                 {
@@ -227,7 +228,7 @@ namespace CLARTE.Net.HTTP
             }
             catch(Exception exception)
             {
-                UnityEngine.Debug.LogError(exception);
+                Debug.LogError(exception);
             }
         }
 

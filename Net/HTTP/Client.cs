@@ -3,6 +3,7 @@
 using System;
 using System.IO;
 using System.Net;
+using UnityEngine;
 
 namespace CLARTE.Net.HTTP
 {
@@ -26,18 +27,18 @@ namespace CLARTE.Net.HTTP
             client.Credentials = new NetworkCredential(username, password);
 
             client.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e) => {
-                UnityEngine.Debug.LogError("Downloaded " + (100.0 * (double) e.BytesReceived / (double) e.TotalBytesToReceive) + "% (" + e.BytesReceived + " / " + e.TotalBytesToReceive + " bytes).");
+                Debug.LogError("Downloaded " + (100.0 * (double) e.BytesReceived / (double) e.TotalBytesToReceive) + "% (" + e.BytesReceived + " / " + e.TotalBytesToReceive + " bytes).");
             };
 
             client.DownloadFileCompleted += (sender, e) =>
             {
                 if(e.Cancelled)
                 {
-                    UnityEngine.Debug.LogErrorFormat("Download of '{0}' canceled", url);
+                    Debug.LogErrorFormat("Download of '{0}' canceled", url);
                 }
                 else if(e.Error != null)
                 {
-                    UnityEngine.Debug.LogErrorFormat("Error during download of '{0}': {1}", url, e.Error.Message);
+                    Debug.LogErrorFormat("Error during download of '{0}': {1}", url, e.Error.Message);
                 }
             };
 
@@ -54,12 +55,12 @@ namespace CLARTE.Net.HTTP
                 }
                 else
                 {
-                    UnityEngine.Debug.LogErrorFormat("Impossible to find certificate '{0}'", filename);
+                    Debug.LogErrorFormat("Impossible to find certificate '{0}'", filename);
                 }
             }
             catch(Exception exception)
             {
-                UnityEngine.Debug.LogError(exception);
+                Debug.LogError(exception);
             }
         }
 

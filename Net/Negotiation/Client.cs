@@ -1,8 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
+using UnityEngine;
 
 namespace CLARTE.Net.Negotiation
 {
@@ -53,7 +53,7 @@ namespace CLARTE.Net.Negotiation
         {
             if(state == State.STARTED)
             {
-                UnityEngine.Debug.LogFormat("Start connection to {0}:{1}", hostname, port);
+                Debug.LogFormat("Start connection to {0}:{1}", hostname, port);
 
                 state = State.INITIALIZING;
 
@@ -61,7 +61,7 @@ namespace CLARTE.Net.Negotiation
             }
             else
             {
-                UnityEngine.Debug.LogErrorFormat("Invalid connection attempt to server when in state {0}.", state);
+                Debug.LogErrorFormat("Invalid connection attempt to server when in state {0}.", state);
             }
         }
         #endregion
@@ -93,7 +93,7 @@ namespace CLARTE.Net.Negotiation
                 // We should be connected
                 if(connection.client.Connected)
                 {
-                    UnityEngine.Debug.LogFormat("Connected to {0}:{1}", hostname, port);
+                    Debug.LogFormat("Connected to {0}:{1}", hostname, port);
 
                     // Get the stream associated with this connection
                     connection.stream = connection.client.GetStream();
@@ -103,7 +103,7 @@ namespace CLARTE.Net.Negotiation
                     {
                         if(connection.version > maxSupportedVersion)
                         {
-                            UnityEngine.Debug.LogWarningFormat("Usupported protocol version '{0}'. Using version '{1}' instead.", connection.version, maxSupportedVersion);
+                            Debug.LogWarningFormat("Usupported protocol version '{0}'. Using version '{1}' instead.", connection.version, maxSupportedVersion);
 
                             connection.version = maxSupportedVersion;
                         }
@@ -151,7 +151,7 @@ namespace CLARTE.Net.Negotiation
             }
             catch(Exception exception)
             {
-                UnityEngine.Debug.LogErrorFormat("{0}: {1}\n{2}", exception.GetType(), exception.Message, exception.StackTrace);
+                Debug.LogErrorFormat("{0}: {1}\n{2}", exception.GetType(), exception.Message, exception.StackTrace);
             }
         }
 
@@ -172,7 +172,7 @@ namespace CLARTE.Net.Negotiation
             }
             catch(Exception)
             {
-                UnityEngine.Debug.LogError("Authentication failed");
+                Debug.LogError("Authentication failed");
             }
         }
 
@@ -274,7 +274,7 @@ namespace CLARTE.Net.Negotiation
                 case SslPolicyErrors.None:
                     return true;
                 case SslPolicyErrors.RemoteCertificateNameMismatch:
-                    UnityEngine.Debug.LogWarningFormat("The name of the certificate does not match the hostname. Certificate = '{0}', hostname = '{1}'.", certificate.Subject, hostname);
+                    Debug.LogWarningFormat("The name of the certificate does not match the hostname. Certificate = '{0}', hostname = '{1}'.", certificate.Subject, hostname);
 
                     return true;
                 case SslPolicyErrors.RemoteCertificateChainErrors:
@@ -286,7 +286,7 @@ namespace CLARTE.Net.Negotiation
                         }
                     }
 
-                    UnityEngine.Debug.LogWarning("The root certificate is untrusted.");
+                    Debug.LogWarning("The root certificate is untrusted.");
 
                     return true;
                 default:

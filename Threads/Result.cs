@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading;
+using UnityEngine;
 
 namespace CLARTE.Threads
 {
@@ -27,7 +28,7 @@ namespace CLARTE.Threads
                     // If we got an exception and the user did not checked it, we display an error message before the info is lost.
                     if(!exceptionChecked && exception != null)
                     {
-                        UnityEngine.Debug.LogErrorFormat("{0}: {1}\n{2}", exception.GetType(), exception.Message, exception.StackTrace);
+                        Debug.LogErrorFormat("{0}: {1}\n{2}", exception.GetType(), exception.Message, exception.StackTrace);
                     }
 #if NETFX_CORE
                     waitHandle.Dispose();
