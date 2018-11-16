@@ -2001,12 +2001,25 @@ namespace CLARTE.Serialization
 				case SupportedTypes.BINARY_SERIALIZABLE: // We cannot call the correct overload directly because the type constraints are not matched
 					IBinarySerializable ret;
 
-					// Optional parameter useless here: arrays and dictionnaries does call this wrapper only when strictly necessary,
-					// i.e. when the value is defined. Moreover, the call of this wrapper from the Deserialize method also imply
-					// that the value is mandatory. By forcing the optional parameter to false, we avoid allocating 1 more byte for
-					// each value.
-					read = FromBytes(buffer, start, out ret, typeof(T), false);
+                    string raw_complete_type;
 
+                    Type complete_type = typeof(T);
+
+                    // Get the precise type of this object
+                    read = FromBytes(buffer, start, out raw_complete_type);
+
+                    // If an explicit type is defined, use it.
+                    if(!string.IsNullOrEmpty(raw_complete_type))
+                    {
+                        complete_type = Type.GetType(raw_complete_type);
+                    }
+
+                    // Optional parameter useless here: arrays and dictionnaries does call this wrapper only when strictly necessary,
+                    // i.e. when the value is defined. Moreover, the call of this wrapper from the Deserialize method also imply
+                    // that the value is mandatory. By forcing the optional parameter to false, we avoid allocating 1 more byte for
+                    // each value.
+                    read += FromBytes(buffer, start + read, out ret, complete_type, false);
+                    
 					value = (T) ret;
 
 					break;
@@ -2162,11 +2175,24 @@ namespace CLARTE.Serialization
 			switch(type)
 			{
 				case SupportedTypes.BINARY_SERIALIZABLE:
-					// Optional parameter useless here: arrays and dictionnaries does call this wrapper only when strictly necessary,
-					// i.e. when the value is defined. Moreover, the call of this wrapper from the Serialize method also imply
-					// that the value is mandatory. By forcing the optional parameter to false, we avoid allocating 1 more byte for
-					// each value.
-					written = ToBytes(ref buffer, start, (IBinarySerializable) ((object) value), false);
+                    string complete_type = null;
+
+                    if(!typeof(IBinarySerializable).IsAssignableFrom(typeof(T)))
+                    {
+                        // We do not have enough static type info to recreate automatically the object.
+                        // It can happen when serializing something only typed as "object" which contains some IBinarySerializable data.
+                        // Threfore, i this case the "type" parameter does not hold enough info for deserialization and we must be more explicit.
+                        complete_type = value.GetType().ToString();
+                    }
+
+                    // Usually only 4 bytes used for null types when we have enough static info.
+                    written = ToBytes(ref buffer, start, complete_type);
+
+                    // Optional parameter useless here: arrays and dictionnaries does call this wrapper only when strictly necessary,
+                    // i.e. when the value is defined. Moreover, the call of this wrapper from the Serialize method also imply
+                    // that the value is mandatory. By forcing the optional parameter to false, we avoid allocating 1 more byte for
+                    // each value.
+                    written += ToBytes(ref buffer, start + written, (IBinarySerializable) ((object) value), false);
 					break;
 				case SupportedTypes.ARRAY:
 					parameters = new object[nbParameters];
