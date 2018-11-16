@@ -382,6 +382,7 @@ namespace CLARTE.Net.Negotiation
             {
                 // Save receive callback to the connection
                 connection.onReceive = channels[channel].onReceive;
+                connection.channel = channel;
 
                 // Save the connection
                 lock(openedChannels)
@@ -397,6 +398,8 @@ namespace CLARTE.Net.Negotiation
 
                     client_channels[channel] = connection;
                 }
+
+                connection.StartReceive();
 
                 Debug.LogFormat("{0} channel {1} success.", connection.GetType(), channel);
             }

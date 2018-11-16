@@ -5,14 +5,22 @@ namespace CLARTE.Net.Negotiation.Connection
 {
     public abstract class Base : IDisposable
     {
-        protected struct SendData
+        protected struct SendState
         {
             public Threads.Result result;
             public byte[] data;
         }
 
+        protected struct ReceiveState
+        {
+            public IPEndPoint ip;
+            public byte[] data;
+        }
+
         #region Members
         public Events.ReceiveCallback onReceive;
+        public ushort? channel;
+        protected bool receiving;
         protected bool disposed;
         #endregion
 
@@ -20,6 +28,7 @@ namespace CLARTE.Net.Negotiation.Connection
         protected abstract void Dispose(bool disposing);
         public abstract IPAddress GetRemoteAddress();
         public abstract Threads.Result SendAsync(byte[] data);
+        protected abstract void ReceiveAsync();
         #endregion
 
         #region IDisposable implementation
@@ -47,6 +56,16 @@ namespace CLARTE.Net.Negotiation.Connection
         public void Close()
         {
             Dispose();
+        }
+
+        public void StartReceive()
+        {
+            if(!receiving)
+            {
+                receiving = true;
+
+                ReceiveAsync();
+            }
         }
         #endregion
 

@@ -57,7 +57,7 @@ namespace CLARTE.Net.Negotiation
 
                 state = State.INITIALIZING;
 
-                ConnectTcp(-1);
+                ConnectTcp(null);
             }
             else
             {
@@ -67,10 +67,12 @@ namespace CLARTE.Net.Negotiation
         #endregion
 
         #region Connection methods
-        protected void ConnectTcp(int channel)
+        protected void ConnectTcp(ushort? channel)
         {
             // Create a new TCP client
-            Connection.TcpWithChannel connection = new Connection.TcpWithChannel(new TcpClient(AddressFamily.InterNetworkV6), channel);
+            Connection.Tcp connection = new Connection.Tcp(new TcpClient(AddressFamily.InterNetworkV6));
+
+            connection.channel = channel;
 
             lock(initializedConnections)
             {
@@ -86,7 +88,7 @@ namespace CLARTE.Net.Negotiation
             try
             {
                 // Finalize connection to server
-                Connection.TcpWithChannel connection = (Connection.TcpWithChannel) async_result.AsyncState;
+                Connection.Tcp connection = (Connection.Tcp) async_result.AsyncState;
 
                 connection.client.EndConnect(async_result);
 
@@ -160,7 +162,7 @@ namespace CLARTE.Net.Negotiation
             try
             {
                 // Finalize the authentication as client for the SSL stream
-                Connection.TcpWithChannel connection = (Connection.TcpWithChannel) async_result.AsyncState;
+                Connection.Tcp connection = (Connection.Tcp) async_result.AsyncState;
 
                 ((SslStream) connection.stream).EndAuthenticateAsClient(async_result);
 
@@ -176,7 +178,7 @@ namespace CLARTE.Net.Negotiation
             }
         }
 
-        protected void ValidateCredentials(Connection.TcpWithChannel connection)
+        protected void ValidateCredentials(Connection.Tcp connection)
         {
             connection.Send(credentials.username);
             connection.Send(credentials.password);
@@ -201,13 +203,13 @@ namespace CLARTE.Net.Negotiation
             }
         }
 
-        protected void NegotiateChannels(Connection.TcpWithChannel connection)
+        protected void NegotiateChannels(Connection.Tcp connection)
         {
             // Send channel negotiation flag
-            connection.Send(connection.channel < 0);
+            connection.Send(!connection.channel.HasValue);
 
             // Check if we must negotiate other channel or just open the current one
-            if(connection.channel < 0)
+            if(!connection.channel.HasValue)
             {
                 // Receive the channels descriptions
                 ushort nb_channels;
@@ -252,16 +254,9 @@ namespace CLARTE.Net.Negotiation
             }
             else
             {
-                if(connection.channel >= 0)
-                {
-                    connection.Send((ushort) connection.channel);
+                connection.Send(connection.channel.Value);
 
-                    SaveChannel(connection, (ushort) connection.channel);
-                }
-                else
-                {
-                    Drop(connection, "Invalid channel index.");
-                }
+                SaveChannel(connection, connection.channel.Value);
             }
         }
         #endregion

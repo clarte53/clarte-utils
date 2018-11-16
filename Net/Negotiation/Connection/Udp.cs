@@ -73,7 +73,7 @@ namespace CLARTE.Net.Negotiation.Connection
 
             if(client != null)
             {
-                client.BeginSend(data, data.Length, FinalizeSend, new SendData { result = result, data = data });
+                client.BeginSend(data, data.Length, FinalizeSend, new SendState { result = result, data = data });
             }
             else
             {
@@ -82,23 +82,56 @@ namespace CLARTE.Net.Negotiation.Connection
 
             return result;
         }
+
+        protected override void ReceiveAsync()
+        {
+            if(client != null)
+            {
+                if(channel.HasValue)
+                {
+                    IPEndPoint ip = (IPEndPoint) client.Client.RemoteEndPoint;
+
+                    client.BeginReceive(FinalizeReceive, new ReceiveState { ip = ip, data = null });
+                }
+                else
+                {
+                    throw new ArgumentNullException("channel", "The connection channel is not defined.");
+                }
+            }
+            else
+            {
+                throw new ArgumentNullException("client", "The connection UdpClient is not defined.");
+            }
+        }
         #endregion
 
         #region Internal methods
         protected void FinalizeSend(IAsyncResult async_result)
         {
-            SendData send = (SendData) async_result.AsyncState;
+            SendState state = (SendState) async_result.AsyncState;
 
             int sent_length = client.EndSend(async_result);
 
-            if(sent_length == send.data.Length)
+            if(sent_length == state.data.Length)
             {
-                send.result.Complete();
+                state.result.Complete();
             }
             else
             {
-                send.result.Complete(new ProtocolViolationException(string.Format("Can not send all data. Sent {0} bytes instead of {1}.", sent_length, send.data.Length)));
+                state.result.Complete(new ProtocolViolationException(string.Format("Can not send all data. Sent {0} bytes instead of {1}.", sent_length, state.data.Length)));
             }
+        }
+
+        protected void FinalizeReceive(IAsyncResult async_result)
+        {
+            ReceiveState state = (ReceiveState) async_result.AsyncState;
+
+            byte[] data = client.EndReceive(async_result, ref state.ip);
+
+            onReceive.Invoke(state.ip.Address, channel.Value, data);
+
+            // Wait for next data to receive
+            client.BeginReceive(FinalizeReceive, state);
         }
         #endregion
     }

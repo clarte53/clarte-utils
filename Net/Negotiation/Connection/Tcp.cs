@@ -88,7 +88,8 @@ namespace CLARTE.Net.Negotiation.Connection
         public Stream stream;
         public uint version;
 
-        protected byte[] buffer;
+        protected byte[] readBuffer;
+        protected byte[] writeBuffer;
         #endregion
 
         #region Constructors
@@ -102,7 +103,8 @@ namespace CLARTE.Net.Negotiation.Connection
             this.client = client;
             stream = null;
 
-            buffer = new byte[Converter.bytesSize];
+            readBuffer = new byte[Converter.bytesSize];
+            writeBuffer = new byte[Converter.bytesSize];
         }
         #endregion
 
@@ -158,26 +160,54 @@ namespace CLARTE.Net.Negotiation.Connection
         {
             Threads.Result result = new Threads.Result();
 
-            Converter c = new Converter(data.Length);
-
-            if(isLittleEndian)
+            if(client != null)
             {
-                buffer[0] = c.Byte4;
-                buffer[1] = c.Byte3;
-                buffer[2] = c.Byte2;
-                buffer[3] = c.Byte1;
+                Converter c = new Converter(data.Length);
+
+                if(isLittleEndian)
+                {
+                    writeBuffer[0] = c.Byte4;
+                    writeBuffer[1] = c.Byte3;
+                    writeBuffer[2] = c.Byte2;
+                    writeBuffer[3] = c.Byte1;
+                }
+                else
+                {
+                    writeBuffer[0] = c.Byte1;
+                    writeBuffer[1] = c.Byte2;
+                    writeBuffer[2] = c.Byte3;
+                    writeBuffer[3] = c.Byte4;
+                }
+
+                stream.BeginWrite(writeBuffer, 0, writeBuffer.Length, FinalizeSendLength, new SendState { result = result, data = data });
             }
             else
             {
-                buffer[0] = c.Byte1;
-                buffer[1] = c.Byte2;
-                buffer[2] = c.Byte3;
-                buffer[3] = c.Byte4;
+                result.Complete(new ArgumentNullException("client", "The connection tcpClient is not defined."));
             }
 
-            stream.BeginWrite(buffer, 0, buffer.Length, FinalizeSendLength, new SendData { result = result, data = data });
-
             return result;
+        }
+
+        protected override void ReceiveAsync()
+        {
+            if(client != null)
+            {
+                if(channel.HasValue)
+                {
+                    IPEndPoint ip = (IPEndPoint) client.Client.RemoteEndPoint;
+
+                    stream.BeginRead(readBuffer, 0, readBuffer.Length, FinalizeReceiveLength, new ReceiveState { ip = ip, data = null });
+                }
+                else
+                {
+                    throw new ArgumentNullException("channel", "The connection channel is not defined.");
+                }
+            }
+            else
+            {
+                throw new ArgumentNullException("client", "The connection tcpClient is not defined.");
+            }
         }
         #endregion
 
@@ -396,34 +426,78 @@ namespace CLARTE.Net.Negotiation.Connection
         #region Internal methods
         protected void FinalizeSendLength(IAsyncResult async_result)
         {
-            SendData send = (SendData) async_result.AsyncState;
+            SendState state = (SendState) async_result.AsyncState;
 
             stream.EndWrite(async_result);
 
-            stream.BeginWrite(send.data, 0, send.data.Length, FinalizeSendData, send);
+            stream.BeginWrite(state.data, 0, state.data.Length, FinalizeSendData, state);
         }
 
         protected void FinalizeSendData(IAsyncResult async_result)
         {
-            SendData send = (SendData) async_result.AsyncState;
+            SendState state = (SendState) async_result.AsyncState;
 
             stream.EndWrite(async_result);
 
-            send.result.Complete();
+            state.result.Complete();
         }
-        #endregion
-    }
 
-    public class TcpWithChannel : Tcp
-    {
-        #region Members
-        public int channel;
-        #endregion
-
-        #region Constructors
-        public TcpWithChannel(TcpClient client, int channel) : base(client)
+        protected void FinalizeReceiveLength(IAsyncResult async_result)
         {
-            this.channel = channel;
+            ReceiveState state = (ReceiveState) async_result.AsyncState;
+
+            int read_length = stream.EndRead(async_result);
+
+            if(read_length == readBuffer.Length)
+            {
+                byte b1, b2, b3, b4;
+
+                if(isLittleEndian)
+                {
+                    b4 = readBuffer[0];
+                    b3 = readBuffer[1];
+                    b2 = readBuffer[2];
+                    b1 = readBuffer[3];
+                }
+                else
+                {
+                    b1 = readBuffer[0];
+                    b2 = readBuffer[1];
+                    b3 = readBuffer[2];
+                    b4 = readBuffer[3];
+                }
+
+                Converter c = new Converter(b1, b2, b3, b4);
+
+                state.data = new byte[c.Int];
+
+                stream.BeginRead(state.data, 0, state.data.Length, FinalizeReceiveData, state);
+            }
+            else
+            {
+                throw new ProtocolViolationException(string.Format("Can not receive all bytes from buffer length. Received {0} bytes instead of {1}.", read_length, readBuffer.Length));
+            }
+        }
+
+        protected void FinalizeReceiveData(IAsyncResult async_result)
+        {
+            ReceiveState state = (ReceiveState) async_result.AsyncState;
+
+            int read_length = stream.EndRead(async_result);
+
+            if(read_length == state.data.Length)
+            {
+                onReceive.Invoke(state.ip.Address, channel.Value, state.data);
+
+                state.data = null;
+
+                // Wait for next message
+                stream.BeginRead(readBuffer, 0, readBuffer.Length, FinalizeReceiveLength, state);
+            }
+            else
+            {
+                throw new ProtocolViolationException(string.Format("Can not receive all bytes from message. Received {0} bytes instead of {1}.", read_length, state.data.Length));
+            }
         }
         #endregion
     }
