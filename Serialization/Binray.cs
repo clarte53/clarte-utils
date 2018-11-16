@@ -2177,7 +2177,7 @@ namespace CLARTE.Serialization
 				case SupportedTypes.BINARY_SERIALIZABLE:
                     string complete_type = null;
 
-                    if(!typeof(IBinarySerializable).IsAssignableFrom(typeof(T)))
+                    if(value.GetType() != typeof(T))
                     {
                         // We do not have enough static type info to recreate automatically the object.
                         // It can happen when serializing something only typed as "object" which contains some IBinarySerializable data.
