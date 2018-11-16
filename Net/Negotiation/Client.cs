@@ -241,6 +241,8 @@ namespace CLARTE.Net.Negotiation
                                 Drop(connection, "Expected to receive channel type.");
                             }
                         }
+
+                        state = State.RUNNING;
                     }
                     else
                     {
