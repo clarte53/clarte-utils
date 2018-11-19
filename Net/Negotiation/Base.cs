@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using UnityEngine;
@@ -61,6 +62,7 @@ namespace CLARTE.Net.Negotiation
 
         #region Abstract methods
         protected abstract void Dispose(bool disposing);
+        public abstract ushort NbChannels { get; }
         #endregion
 
         #region IDisposable implementation
@@ -158,6 +160,8 @@ namespace CLARTE.Net.Negotiation
 
             tasks = Threads.Tasks.Instance;
 
+            Connection.Base.SetUnityThreadCall();
+
             openedChannels = new Dictionary<IPAddress, Connection.Base[]>();
 
             initializedConnections = new HashSet<Connection.Tcp>();
@@ -209,6 +213,25 @@ namespace CLARTE.Net.Negotiation
         #endregion
 
         #region Public methods
+        public bool Ready(IPAddress remote, ushort channel)
+        {
+            Connection.Base[] channels;
+
+            return state == State.RUNNING && openedChannels.TryGetValue(remote, out channels) && channel < channels.Length && channels[channel] != null && channels[channel].Connected();
+        }
+
+        public bool Ready(IPAddress remote)
+        {
+            Connection.Base[] channels;
+
+            return state == State.RUNNING && openedChannels.TryGetValue(remote, out channels) && channels.All(x => x != null && x.Connected());
+        }
+
+        public bool Ready()
+        {
+            return state == State.RUNNING && openedChannels.All(p => p.Value.All(x => x != null && x.Connected()));
+        }
+
         public void Close()
         {
             Dispose();
@@ -232,6 +255,14 @@ namespace CLARTE.Net.Negotiation
         #endregion
 
         #region Public methods
+        public override ushort NbChannels
+        {
+            get
+            {
+                return (ushort) (channels != null ? channels.Count : 0);
+            }
+        }
+
         public void Send(IPAddress remote, ushort channel, byte[] data)
         {
             if(state == State.RUNNING)
@@ -399,9 +430,9 @@ namespace CLARTE.Net.Negotiation
                     client_channels[channel] = connection;
                 }
 
-                connection.StartReceive();
-
                 Debug.LogFormat("{0} channel {1} success.", connection.GetType(), channel);
+
+                connection.Listen();
             }
             else
             {

@@ -67,6 +67,11 @@ namespace CLARTE.Net.Negotiation.Connection
             return address;
         }
 
+        public override bool Connected()
+        {
+            return client != null;
+        }
+
         public override Threads.Result SendAsync(byte[] data)
         {
             Threads.Result result = new Threads.Result();
@@ -128,7 +133,7 @@ namespace CLARTE.Net.Negotiation.Connection
 
             byte[] data = client.EndReceive(async_result, ref state.ip);
 
-            onReceive.Invoke(state.ip.Address, channel.Value, data);
+            unity.Call(() => onReceive.Invoke(state.ip.Address, channel.Value, data));
 
             // Wait for next data to receive
             client.BeginReceive(FinalizeReceive, state);

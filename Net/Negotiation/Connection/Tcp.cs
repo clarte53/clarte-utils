@@ -156,6 +156,11 @@ namespace CLARTE.Net.Negotiation.Connection
             return address;
         }
 
+        public override bool Connected()
+        {
+            return client != null && stream != null && client.Connected;
+        }
+
         public override Threads.Result SendAsync(byte[] data)
         {
             Threads.Result result = new Threads.Result();
@@ -439,6 +444,8 @@ namespace CLARTE.Net.Negotiation.Connection
 
             stream.EndWrite(async_result);
 
+            stream.Flush();
+            
             state.result.Complete();
         }
 
@@ -487,7 +494,9 @@ namespace CLARTE.Net.Negotiation.Connection
 
             if(read_length == state.data.Length)
             {
-                onReceive.Invoke(state.ip.Address, channel.Value, state.data);
+                byte[] data = state.data; // Otherwise the call to state.data in unity thread will be evaluated to null, because of the weird catching of parameters of lambdas
+
+                unity.Call(() => onReceive.Invoke(state.ip.Address, channel.Value, data));
 
                 state.data = null;
 

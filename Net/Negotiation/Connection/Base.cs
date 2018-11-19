@@ -18,15 +18,19 @@ namespace CLARTE.Net.Negotiation.Connection
         }
 
         #region Members
+        protected static Threads.APC.MonoBehaviourCall unity;
+
         public Events.ReceiveCallback onReceive;
         public ushort? channel;
-        protected bool receiving;
+
+        protected bool listen;
         protected bool disposed;
         #endregion
 
         #region Abstract methods
         protected abstract void Dispose(bool disposing);
         public abstract IPAddress GetRemoteAddress();
+        public abstract bool Connected();
         public abstract Threads.Result SendAsync(byte[] data);
         protected abstract void ReceiveAsync();
         #endregion
@@ -58,14 +62,19 @@ namespace CLARTE.Net.Negotiation.Connection
             Dispose();
         }
 
-        public void StartReceive()
+        public void Listen()
         {
-            if(!receiving)
+            if(!listen)
             {
-                receiving = true;
+                listen = true;
 
                 ReceiveAsync();
             }
+        }
+
+        public static void SetUnityThreadCall()
+        {
+            unity = Threads.APC.MonoBehaviourCall.Instance;
         }
         #endregion
 
