@@ -13,7 +13,7 @@ namespace CLARTE.Net.Negotiation
         #region Members
         public const uint maxSupportedVersion = 1;
 
-        public string certificate;
+        public TextAsset certificate;
         public uint port;
 
         protected Threads.Thread listenerThread;
@@ -66,14 +66,14 @@ namespace CLARTE.Net.Negotiation
             serverCertificate = null;
 
             // Should we use an encrypted channel?
-            if(!string.IsNullOrEmpty(certificate))
+            if(certificate != null && certificate.bytes.Length > 0)
             {
                 try
                 {
                     // Import the certificate
                     serverCertificate = new X509Certificate2();
 
-                    serverCertificate.Import(certificate);
+                    serverCertificate.Import(certificate.bytes);
                 }
                 catch(Exception)
                 {
