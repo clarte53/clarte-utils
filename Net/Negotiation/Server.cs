@@ -41,8 +41,6 @@ namespace CLARTE.Net.Negotiation
 
                     CloseOpenedChannels();
 
-                    Connection.Base.SafeDispose(serverCertificate);
-
                     listenerThread.Join();
 
                     stopEvent.Close();
@@ -80,11 +78,6 @@ namespace CLARTE.Net.Negotiation
                 catch(Exception)
                 {
                     Debug.LogWarningFormat("Invalid certificate file '{0}'. Encryption is disabled.", certificate);
-
-                    if(serverCertificate != null)
-                    {
-                        serverCertificate.Dispose();
-                    }
 
                     serverCertificate = null;
                 }
