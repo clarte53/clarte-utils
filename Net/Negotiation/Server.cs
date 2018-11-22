@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
@@ -68,19 +69,23 @@ namespace CLARTE.Net.Negotiation
             // Should we use an encrypted channel?
             if(certificate != null && certificate.bytes.Length > 0)
             {
+                string tmp_file = string.Format("{0}{1}{2}", Application.temporaryCachePath, Path.DirectorySeparatorChar, certificate.name);
+
+                File.WriteAllBytes(tmp_file, certificate.bytes);
+
                 try
                 {
                     // Import the certificate
-                    serverCertificate = new X509Certificate2();
-
-                    serverCertificate.Import(certificate.bytes);
+                    serverCertificate = new X509Certificate2(tmp_file);
                 }
                 catch(Exception)
                 {
-                    Debug.LogWarningFormat("Invalid certificate file '{0}'. Encryption is disabled.", certificate);
+                    Debug.LogWarningFormat("Invalid certificate file '{0}'. Encryption is disabled.", certificate.name);
 
                     serverCertificate = null;
                 }
+
+                File.Delete(tmp_file);
             }
 
             listener = new TcpListener(IPAddress.IPv6Any, (int) port);
