@@ -8,9 +8,17 @@ namespace CLARTE.Net.Negotiation
 {
     public class Client : Base<Channel>
     {
+        [Serializable]
+        public class CertificateValidation
+        {
+            public bool allowSelfSigned = false;
+            public bool allowInvalidHostname = false;
+        }
+
         #region Members
         public const uint maxSupportedVersion = 1;
 
+        public CertificateValidation certificateValidation;
         public string hostname = "localhost";
         public uint port;
         #endregion
@@ -266,15 +274,31 @@ namespace CLARTE.Net.Negotiation
         #region Internal methods
         protected bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
         {
-            switch(sslPolicyErrors)
-            {
-                case SslPolicyErrors.None:
-                    return true;
-                case SslPolicyErrors.RemoteCertificateNameMismatch:
-                    Debug.LogWarningFormat("The name of the certificate does not match the hostname. Certificate = '{0}', hostname = '{1}'.", certificate.Subject, hostname);
+            SslPolicyErrors handled = SslPolicyErrors.None;
 
-                    return true;
-                case SslPolicyErrors.RemoteCertificateChainErrors:
+            if(sslPolicyErrors == SslPolicyErrors.None)
+            {
+                return true;
+            }
+
+            if((sslPolicyErrors & SslPolicyErrors.RemoteCertificateNameMismatch) != 0)
+            {
+                if(certificateValidation.allowInvalidHostname)
+                {
+                    Debug.LogWarningFormat("The name of the certificate does not match the hostname. Certificate = '{0}', hostname = '{1}'.", certificate.Subject, hostname);
+                }
+                else
+                {
+                    return false;
+                }
+
+                handled |= SslPolicyErrors.RemoteCertificateNameMismatch;
+            }
+
+            if((sslPolicyErrors & SslPolicyErrors.RemoteCertificateChainErrors) != 0)
+            {
+                if(certificateValidation.allowSelfSigned)
+                {
                     foreach(X509ChainStatus chainStatus in chain.ChainStatus)
                     {
                         if(chainStatus.Status != X509ChainStatusFlags.NoError && chainStatus.Status != X509ChainStatusFlags.UntrustedRoot)
@@ -284,11 +308,21 @@ namespace CLARTE.Net.Negotiation
                     }
 
                     Debug.LogWarning("The root certificate is untrusted.");
-
-                    return true;
-                default:
+                }
+                else
+                {
                     return false;
+                }
+
+                handled |= SslPolicyErrors.RemoteCertificateChainErrors;
             }
+
+            if((sslPolicyErrors & handled) == handled)
+            {
+                return true;
+            }
+
+            return false;
         }
         #endregion
     }
