@@ -78,7 +78,7 @@ namespace CLARTE.Net.Negotiation
         protected void ConnectTcp(ushort? channel)
         {
             // Create a new TCP client
-            Connection.Tcp connection = new Connection.Tcp(new TcpClient(AddressFamily.InterNetworkV6));
+            Connection.Tcp connection = new Connection.Tcp(new TcpClient());
 
             connection.channel = channel;
 

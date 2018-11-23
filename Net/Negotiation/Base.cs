@@ -352,7 +352,7 @@ namespace CLARTE.Net.Negotiation
                     {
                         try
                         {
-                            udp = new UdpClient(local_port, AddressFamily.InterNetworkV6);
+                            udp = new UdpClient(local_port, AddressFamily.InterNetwork);
 
                             success = true;
                         }

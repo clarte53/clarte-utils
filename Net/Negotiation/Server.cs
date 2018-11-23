@@ -88,7 +88,7 @@ namespace CLARTE.Net.Negotiation
                 File.Delete(tmp_file);
             }
 
-            listener = new TcpListener(IPAddress.IPv6Any, (int) port);
+            listener = new TcpListener(IPAddress.Any, (int) port);
             listener.Start();
 
             listenerThread = new Threads.Thread(Listen);
