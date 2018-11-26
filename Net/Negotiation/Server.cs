@@ -75,8 +75,14 @@ namespace CLARTE.Net.Negotiation
 
                 try
                 {
+#if !UNITY_WSA
                     // Import the certificate
                     serverCertificate = new X509Certificate2(tmp_file);
+#else
+                    // At the moment, SslStream is not working on Hololens platform.
+                    // Indeed, at the moment, player capabilities does not provide a way to authorize access to the trusted root certificates store.
+                    throw new NotSupportedException("SSL streams are not supported on Hololens.");
+#endif
                 }
                 catch(Exception)
                 {
