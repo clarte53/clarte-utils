@@ -25,6 +25,8 @@ namespace CLARTE.Net.Negotiation.Connection
         {
             if(!disposed)
             {
+                onDisconnected.Invoke(GetRemoteAddress(), channel.HasValue ? channel.Value : (ushort) 0);
+
                 if(disposing)
                 {
                     // TODO: delete managed state (managed objects).

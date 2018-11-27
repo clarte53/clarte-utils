@@ -20,6 +20,8 @@ namespace CLARTE.Net.Negotiation.Connection
         #region Members
         protected static Threads.APC.MonoBehaviourCall unity;
 
+        public Events.ConnectionCallback onConnected;
+        public Events.DisconnectionCallback onDisconnected;
         public Events.ReceiveCallback onReceive;
         public ushort? channel;
 

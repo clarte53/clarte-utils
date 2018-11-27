@@ -411,7 +411,9 @@ namespace CLARTE.Net.Negotiation
 
             if(channel < channels.Count)
             {
-                // Save receive callback to the connection
+                // Save callbacks for the connection
+                connection.onConnected = channels[channel].onConnected;
+                connection.onDisconnected = channels[channel].onDisconnected;
                 connection.onReceive = channels[channel].onReceive;
                 connection.channel = channel;
 
@@ -433,6 +435,8 @@ namespace CLARTE.Net.Negotiation
                 Debug.LogFormat("{0} channel {1} success.", connection.GetType(), channel);
 
                 connection.Listen();
+
+                connection.onConnected.Invoke(remote, channel);
             }
             else
             {
