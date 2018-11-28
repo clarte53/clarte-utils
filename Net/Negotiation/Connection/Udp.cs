@@ -25,7 +25,7 @@ namespace CLARTE.Net.Negotiation.Connection
         {
             if(!disposed)
             {
-                onDisconnected.Invoke(GetRemoteAddress(), channel.HasValue ? channel.Value : (ushort) 0);
+                unity.Call(() => onDisconnected.Invoke(GetRemoteAddress(), channel.HasValue ? channel.Value : (ushort) 0));
 
                 if(disposing)
                 {

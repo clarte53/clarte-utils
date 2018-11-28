@@ -435,8 +435,6 @@ namespace CLARTE.Net.Negotiation
                 Debug.LogFormat("{0} channel {1} success.", connection.GetType(), channel);
 
                 connection.Listen();
-
-                connection.onConnected.Invoke(remote, channel);
             }
             else
             {

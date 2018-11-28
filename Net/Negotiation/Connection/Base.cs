@@ -72,6 +72,8 @@ namespace CLARTE.Net.Negotiation.Connection
 
                 ReceiveAsync();
             }
+
+            unity.Call(() => onConnected.Invoke(GetRemoteAddress(), channel.HasValue ? channel.Value : (ushort) 0));
         }
 
         public static void SetUnityThreadCall()
