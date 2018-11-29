@@ -15,6 +15,30 @@ namespace CLARTE.Net.Negotiation.Connection
         {
             public IPEndPoint ip;
             public byte[] data;
+            public int offset;
+
+            public ReceiveState(IPEndPoint ip)
+            {
+                this.ip = ip;
+
+                data = null;
+                offset = 0;
+            }
+
+            public void Set(byte[] data)
+            {
+                this.data = data;
+
+                offset = 0;
+            }
+
+            public int MissingDataLength
+            {
+                get
+                {
+                    return data != null ? data.Length - offset : 0;
+                }
+            }
         }
 
         #region Members

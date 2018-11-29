@@ -204,7 +204,11 @@ namespace CLARTE.Net.Negotiation.Connection
                 {
                     IPEndPoint ip = (IPEndPoint) client.Client.RemoteEndPoint;
 
-                    stream.BeginRead(readBuffer, 0, readBuffer.Length, FinalizeReceiveLength, new ReceiveState { ip = ip, data = null });
+                    ReceiveState state = new ReceiveState(ip);
+
+                    state.Set(readBuffer);
+
+                    stream.BeginRead(state.data, state.offset, state.MissingDataLength, FinalizeReceiveLength, state);
                 }
                 else
                 {
@@ -399,7 +403,21 @@ namespace CLARTE.Net.Negotiation.Connection
                 {
                     data = new byte[size];
 
-                    if(stream.Read(data, 0, size) == size)
+                    int read;
+                    int required;
+                    int offset = 0;
+
+                    do
+                    {
+                        required = size - offset;
+
+                        read = stream.Read(data, offset, required);
+
+                        offset += read;
+                    }
+                    while(read < required);
+
+                    if(offset == size)
                     {
                         return true;
                     }
@@ -451,64 +469,72 @@ namespace CLARTE.Net.Negotiation.Connection
             state.result.Complete();
         }
 
-        protected void FinalizeReceiveLength(IAsyncResult async_result)
+        protected void FinalizeReceive(IAsyncResult async_result, Action<ReceiveState> callback)
         {
             ReceiveState state = (ReceiveState) async_result.AsyncState;
 
             int read_length = stream.EndRead(async_result);
 
-            if(read_length == readBuffer.Length)
+            if(read_length == state.MissingDataLength)
+            {
+                // We got all the data: pass it back to the application
+                callback(state);
+            }
+            else if(read_length < state.MissingDataLength)
+            {
+                // Get the remaining data
+                state.offset += read_length;
+
+                stream.BeginRead(state.data, state.offset, state.MissingDataLength, FinalizeReceiveData, state);
+            }
+            else
+            {
+                throw new ProtocolViolationException(string.Format("Received too much bytes from message. Received {0} bytes instead of {1}.", state.offset + read_length, state.data.Length));
+            }
+        }
+
+        protected void FinalizeReceiveLength(IAsyncResult async_result)
+        {
+            FinalizeReceive(async_result, state =>
             {
                 byte b1, b2, b3, b4;
 
                 if(isLittleEndian)
                 {
-                    b4 = readBuffer[0];
-                    b3 = readBuffer[1];
-                    b2 = readBuffer[2];
-                    b1 = readBuffer[3];
+                    b4 = state.data[0];
+                    b3 = state.data[1];
+                    b2 = state.data[2];
+                    b1 = state.data[3];
                 }
                 else
                 {
-                    b1 = readBuffer[0];
-                    b2 = readBuffer[1];
-                    b3 = readBuffer[2];
-                    b4 = readBuffer[3];
+                    b1 = state.data[0];
+                    b2 = state.data[1];
+                    b3 = state.data[2];
+                    b4 = state.data[3];
                 }
 
                 Converter c = new Converter(b1, b2, b3, b4);
 
-                state.data = new byte[c.Int];
+                state.Set(new byte[c.Int]);
 
-                stream.BeginRead(state.data, 0, state.data.Length, FinalizeReceiveData, state);
-            }
-            else
-            {
-                throw new ProtocolViolationException(string.Format("Can not receive all bytes from buffer length. Received {0} bytes instead of {1}.", read_length, readBuffer.Length));
-            }
+                stream.BeginRead(state.data, state.offset, state.MissingDataLength, FinalizeReceiveData, state);
+            });
         }
 
         protected void FinalizeReceiveData(IAsyncResult async_result)
         {
-            ReceiveState state = (ReceiveState) async_result.AsyncState;
-
-            int read_length = stream.EndRead(async_result);
-
-            if(read_length == state.data.Length)
+            FinalizeReceive(async_result, state =>
             {
                 byte[] data = state.data; // Otherwise the call to state.data in unity thread will be evaluated to null, because of the weird catching of parameters of lambdas
 
                 unity.Call(() => onReceive.Invoke(state.ip.Address, channel.Value, data));
 
-                state.data = null;
+                state.Set(readBuffer);
 
                 // Wait for next message
-                stream.BeginRead(readBuffer, 0, readBuffer.Length, FinalizeReceiveLength, state);
-            }
-            else
-            {
-                throw new ProtocolViolationException(string.Format("Can not receive all bytes from message. Received {0} bytes instead of {1}.", read_length, state.data.Length));
-            }
+                stream.BeginRead(state.data, state.offset, state.MissingDataLength, FinalizeReceiveLength, state);
+            });
         }
         #endregion
     }

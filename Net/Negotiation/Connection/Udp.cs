@@ -98,7 +98,7 @@ namespace CLARTE.Net.Negotiation.Connection
                 {
                     IPEndPoint ip = (IPEndPoint) client.Client.RemoteEndPoint;
 
-                    client.BeginReceive(FinalizeReceive, new ReceiveState { ip = ip, data = null });
+                    client.BeginReceive(FinalizeReceive, new ReceiveState(ip));
                 }
                 else
                 {
