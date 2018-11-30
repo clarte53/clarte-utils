@@ -1,41 +1,40 @@
 ﻿using System.Collections.Generic;
-using UnityEngine;
 
-namespace CLARTE.Profiling
+namespace CLARTE.Dev.Profiling
 {
 	static public class LogInFile
 	{
-		static private Dictionary<string, List<string>> m_logs;
+		static private Dictionary<string, List<string>> logs;
 
 		/// <summary>
 		/// Add line to the log
 		/// </summary>
 		/// <param name="filename">Log file name</param>
 		/// <param name="log">Line to be added</param>
-		/// <param name="writeImmediately">Should the log be immediately dumped into the file? Otherwise dump will only occur upon manual call to DumpLog() or DumpAllLogs()</param>
-		static public void AddToLog(string filename, System.Object log, bool writeImmediately = false)
+		/// <param name="write_immediately">Should the log be immediately dumped into the file? Otherwise dump will only occur upon manual call to DumpLog() or DumpAllLogs()</param>
+		static public void AddToLog(string filename, System.Object log, bool write_immediately = false)
 		{
-			if(m_logs == null)
+			if(logs == null)
 			{
-				m_logs = new Dictionary<string, List<string>>();
+				logs = new Dictionary<string, List<string>>();
 			}
 
-			if(!m_logs.ContainsKey(filename))
+			if(!logs.ContainsKey(filename))
 			{
-				m_logs.Add(filename, new List<string>());
+				logs.Add(filename, new List<string>());
 
 				System.IO.File.Delete(filename);
 			}
 
-			string logStr = log.ToString();
+			string log_str = log.ToString();
 
-			m_logs[filename].Add(logStr);
-
-			if(writeImmediately)
+			logs[filename].Add(log_str);
+			
+			if(write_immediately)
 			{
 				using(System.IO.StreamWriter file = new System.IO.StreamWriter(filename, true))
 				{
-					file.WriteLine(logStr);
+					file.WriteLine(log_str);
 				}
 			}
 		}
@@ -46,11 +45,11 @@ namespace CLARTE.Profiling
 		/// <param name="filename"></param>
 		static public void DumpLog(string filename)
 		{
-			if(m_logs != null)
+			if(logs != null)
 			{
-				if(m_logs.ContainsKey(filename))
+				if(logs.ContainsKey(filename))
 				{
-					System.IO.File.WriteAllLines(filename, m_logs[filename].ToArray());
+					System.IO.File.WriteAllLines(filename, logs[filename].ToArray());
 
 					UnityEngine.Debug.Log("Log dumped to " + filename);
 				}
@@ -66,9 +65,9 @@ namespace CLARTE.Profiling
 		/// </summary>
 		static public void DumpAllLogs()
 		{
-			if(m_logs != null)
+			if(logs != null)
 			{
-				foreach(string filename in m_logs.Keys)
+				foreach(string filename in logs.Keys)
 				{
 					DumpLog(filename);
 				}

@@ -1,17 +1,17 @@
 ﻿using System.Diagnostics;
 
-namespace CLARTE.Profiling
+namespace CLARTE.Dev.Profiling
 {
 	/// <summary>
 	/// Tick-accurate chronometer class
 	/// </summary>
 	public class Chrono
 	{
-		private Stopwatch m_stopWatch;
+		private Stopwatch stopWatch;
 
 		public Chrono()
 		{
-			m_stopWatch = new Stopwatch();
+			stopWatch = new Stopwatch();
 		}
 
 		/// <summary>
@@ -19,7 +19,7 @@ namespace CLARTE.Profiling
 		/// </summary>
 		public void Start()
 		{
-			m_stopWatch.Start();
+			stopWatch.Start();
 		}
 
 		/// <summary>
@@ -27,7 +27,7 @@ namespace CLARTE.Profiling
 		/// </summary>
 		public void Stop()
 		{
-			m_stopWatch.Stop();
+			stopWatch.Stop();
 		}
 
 		/// <summary>
@@ -35,7 +35,7 @@ namespace CLARTE.Profiling
 		/// </summary>
 		public void Reset()
 		{
-			m_stopWatch.Reset();
+			stopWatch.Reset();
 		}
 
 		/// <summary>
@@ -44,7 +44,7 @@ namespace CLARTE.Profiling
 		/// <returns></returns>
 		public double GetElapsedTime()
 		{
-			long elapsed_ticks = m_stopWatch.ElapsedTicks;
+			long elapsed_ticks = stopWatch.ElapsedTicks;
 			double elapsed_s = (double)elapsed_ticks / (double)Stopwatch.Frequency;
 
 			return elapsed_s;
