@@ -11,6 +11,13 @@ namespace CLARTE.Threads
 		private Pool threads = new Pool();
         #endregion
 
+        #region Constructors
+        protected Tasks()
+        {
+            // To comply with Singleton
+        }
+        #endregion
+
         #region MonoBehaviour callbacks
         protected override void OnDestroy()
 		{

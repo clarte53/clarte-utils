@@ -9,6 +9,13 @@ namespace CLARTE.Threads.APC
         protected Reactor reactor = new Reactor();
         #endregion
 
+        #region Constructors
+        protected MonoBehaviourCall()
+        {
+            // To comply with Singleton
+        }
+        #endregion
+
         #region MonoBehaviour callbacks
         protected void Update()
 		{
