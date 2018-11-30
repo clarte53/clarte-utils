@@ -59,7 +59,7 @@ namespace CLARTE.Pattern
 			{
 				if(applicationIsQuitting)
 				{
-					UnityEngine.Debug.LogWarningFormat("[Singleton] Instance '{0}' already destroyed on application quit.", typeof(T));
+					Debug.LogWarningFormat("[Singleton] Instance '{0}' already destroyed on application quit.", typeof(T));
 
 					return null;
 				}
