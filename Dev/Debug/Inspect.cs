@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace CLARTE.Debug
+namespace CLARTE.Dev.Debug
 {
 	/// <summary>
 	/// Utility script to easily inspect in debugger the values of internal variables
