@@ -214,20 +214,39 @@ namespace CLARTE.Net.Negotiation
         public bool Ready(IPAddress remote, ushort channel)
         {
             Connection.Base[] channels;
+            bool result;
 
-            return state == State.RUNNING && openedChannels.TryGetValue(remote, out channels) && channel < channels.Length && channels[channel] != null && channels[channel].Connected();
+            lock(openedChannels)
+            {
+                result = state == State.RUNNING && openedChannels.TryGetValue(remote, out channels) && channel < channels.Length && channels[channel] != null && channels[channel].Connected();
+            }
+
+            return result;
         }
 
         public bool Ready(IPAddress remote)
         {
             Connection.Base[] channels;
+            bool result;
 
-            return state == State.RUNNING && openedChannels.TryGetValue(remote, out channels) && channels.All(x => x != null && x.Connected());
+            lock(openedChannels)
+            {
+                result = state == State.RUNNING && openedChannels.TryGetValue(remote, out channels) && channels.All(x => x != null && x.Connected());
+            }
+
+            return result;
         }
 
         public bool Ready()
         {
-            return state == State.RUNNING && openedChannels.All(p => p.Value.All(x => x != null && x.Connected()));
+            bool result;
+
+            lock(openedChannels)
+            {
+                result = state == State.RUNNING && openedChannels.All(p => p.Value.All(x => x != null && x.Connected()));
+            }
+
+            return result;
         }
 
         public void Close()
@@ -266,18 +285,24 @@ namespace CLARTE.Net.Negotiation
             if(state == State.RUNNING)
             {
                 Connection.Base[] client_channels;
+                Connection.Base client_channel;
 
-                if(!openedChannels.TryGetValue(remote, out client_channels))
+                lock(openedChannels)
                 {
-                    throw new ArgumentException(string.Format("No connection with remote at {0}. Nothing sent.", remote), "remote");
+                    if(!openedChannels.TryGetValue(remote, out client_channels))
+                    {
+                        throw new ArgumentException(string.Format("No connection with remote at {0}. Nothing sent.", remote), "remote");
+                    }
+
+                    if(channel >= client_channels.Length || client_channels[channel] == null)
+                    {
+                        throw new ArgumentException(string.Format("Invalid channel. No channel with index '{0}'", channel), "channel");
+                    }
+
+                    client_channel = client_channels[channel];
                 }
 
-                if(channel >= client_channels.Length || client_channels[channel] == null)
-                {
-                    throw new ArgumentException(string.Format("Invalid channel. No channel with index '{0}'", channel), "channel");
-                }
-
-                client_channels[channel].SendAsync(data);
+                client_channel.SendAsync(data);
             }
             else
             {
@@ -289,17 +314,27 @@ namespace CLARTE.Net.Negotiation
         {
             if(state == State.RUNNING)
             {
-                foreach(KeyValuePair<IPAddress, Connection.Base[]> pair in openedChannels)
-                {
-                    if(remote == null || pair.Key != remote)
-                    {
-                        if(channel >= pair.Value.Length || pair.Value[channel] == null)
-                        {
-                            throw new ArgumentException(string.Format("Invalid channel. No channel with index '{0}'", channel), "channel");
-                        }
+                List<Connection.Base> client_channels = new List<Connection.Base>();
 
-                        pair.Value[channel].SendAsync(data);
+                lock(openedChannels)
+                {
+                    foreach(KeyValuePair<IPAddress, Connection.Base[]> pair in openedChannels)
+                    {
+                        if(remote == null || pair.Key != remote)
+                        {
+                            if(channel >= pair.Value.Length || pair.Value[channel] == null)
+                            {
+                                throw new ArgumentException(string.Format("Invalid channel. No channel with index '{0}'", channel), "channel");
+                            }
+
+                            client_channels.Add(pair.Value[channel]);
+                        }
                     }
+                }
+
+                foreach(Connection.Base client_channel in client_channels)
+                {
+                    client_channel.SendAsync(data);
                 }
             }
             else
