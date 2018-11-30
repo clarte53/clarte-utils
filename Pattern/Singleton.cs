@@ -3,6 +3,18 @@ using UnityEngine;
 
 namespace CLARTE.Pattern
 {
+    public abstract class Singleton : MonoBehaviour
+    {
+        [Serializable]
+        public class MultipleInstancesException : Exception
+        {
+            public MultipleInstancesException(string message) : base(message)
+            {
+
+            }
+        }
+    }
+
     /// <summary>
     /// Create a singleton instance.
     /// </summary>
@@ -12,20 +24,11 @@ namespace CLARTE.Pattern
     /// 
     /// As a note, this is made as MonoBehaviour because we need Coroutines.
     /// </remarks>
-    public abstract class Singleton<T> : MonoBehaviour where T : MonoBehaviour
+    public abstract class Singleton<T> : Singleton where T : MonoBehaviour
 	{
-		[Serializable]
-		public class MultipleInstancesException : Exception
-		{
-			public MultipleInstancesException(string message) : base(message)
-			{
-
-			}
-		}
-
         #region Members
         private static T me;
-		private static object lockObject = new object();
+		private static readonly object lockObject = new object();
 		private static bool applicationIsQuitting;
         #endregion
 
