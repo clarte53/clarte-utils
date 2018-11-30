@@ -50,8 +50,6 @@ namespace CLARTE.Net.Negotiation
         }
 
         #region Members
-        protected static Threads.Tasks tasks;
-
         public List<PortRange> openPorts;
 
         protected Dictionary<IPAddress, Connection.Base[]> openedChannels;
@@ -158,9 +156,9 @@ namespace CLARTE.Net.Negotiation
         {
             state = State.STARTED;
 
-            tasks = Threads.Tasks.Instance;
-
-            Connection.Base.SetUnityThreadCall();
+            // Initialize singletons while in unity thread, if necessary
+            Threads.Tasks.Instance.GetType();
+            Threads.APC.MonoBehaviourCall.Instance.GetType();
 
             openedChannels = new Dictionary<IPAddress, Connection.Base[]>();
 

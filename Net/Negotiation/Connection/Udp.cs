@@ -25,7 +25,7 @@ namespace CLARTE.Net.Negotiation.Connection
         {
             if(!disposed)
             {
-                unity.Call(() => onDisconnected.Invoke(GetRemoteAddress(), channel.HasValue ? channel.Value : (ushort) 0));
+                Threads.APC.MonoBehaviourCall.Instance.Call(() => onDisconnected.Invoke(GetRemoteAddress(), channel.HasValue ? channel.Value : (ushort) 0));
 
                 if(disposing)
                 {
@@ -135,7 +135,7 @@ namespace CLARTE.Net.Negotiation.Connection
 
             byte[] data = client.EndReceive(async_result, ref state.ip);
 
-            unity.Call(() => onReceive.Invoke(state.ip.Address, channel.Value, data));
+            Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceive.Invoke(state.ip.Address, channel.Value, data));
 
             // Wait for next data to receive
             client.BeginReceive(FinalizeReceive, state);

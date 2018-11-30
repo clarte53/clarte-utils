@@ -42,8 +42,6 @@ namespace CLARTE.Net.Negotiation.Connection
         }
 
         #region Members
-        protected static Threads.APC.MonoBehaviourCall unity;
-
         public Events.ConnectionCallback onConnected;
         public Events.DisconnectionCallback onDisconnected;
         public Events.ReceiveCallback onReceive;
@@ -97,12 +95,7 @@ namespace CLARTE.Net.Negotiation.Connection
                 ReceiveAsync();
             }
 
-            unity.Call(() => onConnected.Invoke(GetRemoteAddress(), channel.HasValue ? channel.Value : (ushort) 0));
-        }
-
-        public static void SetUnityThreadCall()
-        {
-            unity = Threads.APC.MonoBehaviourCall.Instance;
+            Threads.APC.MonoBehaviourCall.Instance.Call(() => onConnected.Invoke(GetRemoteAddress(), channel.HasValue ? channel.Value : (ushort) 0));
         }
         #endregion
 

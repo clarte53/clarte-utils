@@ -88,7 +88,7 @@ namespace CLARTE.Net.Negotiation
             }
 
             // Start asynchronous connection to server
-            connection.initialization = tasks.Add(() => connection.client.BeginConnect(hostname, (int) port, Connected, connection));
+            connection.initialization = Threads.Tasks.Instance.Add(() => connection.client.BeginConnect(hostname, (int) port, Connected, connection));
         }
 
         protected void Connected(IAsyncResult async_result)

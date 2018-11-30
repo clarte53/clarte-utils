@@ -113,7 +113,7 @@ namespace CLARTE.Net.Negotiation.Connection
         {
             if(!disposed)
             {
-                unity.Call(() => onDisconnected.Invoke(GetRemoteAddress(), channel.HasValue ? channel.Value : (ushort) 0));
+                Threads.APC.MonoBehaviourCall.Instance.Call(() => onDisconnected.Invoke(GetRemoteAddress(), channel.HasValue ? channel.Value : (ushort) 0));
 
                 if(disposing)
                 {
@@ -528,7 +528,7 @@ namespace CLARTE.Net.Negotiation.Connection
             {
                 byte[] data = state.data; // Otherwise the call to state.data in unity thread will be evaluated to null, because of the weird catching of parameters of lambdas
 
-                unity.Call(() => onReceive.Invoke(state.ip.Address, channel.Value, data));
+                Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceive.Invoke(state.ip.Address, channel.Value, data));
 
                 state.Set(readBuffer);
 
