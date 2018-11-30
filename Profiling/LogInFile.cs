@@ -52,11 +52,11 @@ namespace CLARTE.Profiling
 				{
 					System.IO.File.WriteAllLines(filename, m_logs[filename].ToArray());
 
-					Debug.Log("Log dumped to " + filename);
+					UnityEngine.Debug.Log("Log dumped to " + filename);
 				}
 				else
 				{
-					Debug.LogWarning("No log to be dumped into " + filename);
+					UnityEngine.Debug.LogWarning("No log to be dumped into " + filename);
 				}
 			}
 		}
