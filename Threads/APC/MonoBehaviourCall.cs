@@ -1,76 +1,39 @@
 ﻿using System;
-using System.Collections.Generic;
+using CLARTE.Pattern;
 
 namespace CLARTE.Threads.APC
 {
-	public class MonoBehaviourCall : Pattern.Singleton<MonoBehaviourCall>, ICall
+	public class MonoBehaviourCall : Singleton<MonoBehaviourCall>, ICall
 	{
-		#region Members
-		protected Queue<Task> pending = new Queue<Task>();
-		protected Queue<Task> inProgress = new Queue<Task>();
-		#endregion
-		
-		#region MonoBehaviour callbacks
-		protected override void OnDestroy()
+        #region Members
+        protected Reactor reactor = new Reactor();
+        #endregion
+
+        #region MonoBehaviour callbacks
+        protected void Update()
 		{
-			pending.Clear();
-			inProgress.Clear();
-			
-			base.OnDestroy();
-		}
-		
-		protected void Update()
-		{
-			lock(pending)
-			{
-				while(pending.Count > 0)
-				{
-					inProgress.Enqueue(pending.Dequeue());
-				}
-			}
-			
-			while(inProgress.Count > 0)
-			{
-                inProgress.Dequeue().callback();
-			}
-		}
-		#endregion
-		
-		#region ICall implementation
-		public Result<T> Call<T>(Func<T> callback)
+            reactor.Update();
+        }
+        #endregion
+
+        #region Public methods
+        public Result<T> Call<T>(Func<T> callback)
 		{
             Task task = Task.Create(callback);
 
-            Call(task);
+            reactor.Add(task, false);
 
             return (Result<T>) task.result;
         }
-		
-		public Result Call(Action callback)
+
+        public Result Call(Action callback)
 		{
             Task task = Task.Create(callback);
 
-            Call(task);
+            reactor.Add(task, false);
 
             return task.result;
 		}
-        #endregion
-
-        #region Internal methods
-        protected void Call(Task task)
-        {
-            if(Thread.IsMainThread)
-            {
-                task.callback();
-            }
-            else
-            {
-                lock(pending)
-                {
-                    pending.Enqueue(task);
-                }
-            }
-        }
         #endregion
     }
 }

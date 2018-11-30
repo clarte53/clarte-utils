@@ -10,7 +10,7 @@ namespace CLARTE.Threads
         #endregion
 
         #region Constructors
-        protected Task(Action func, Result res)
+        public Task(Action func, Result res)
         {
             callback = func;
             result = res;
