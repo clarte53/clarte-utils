@@ -7,8 +7,7 @@ namespace CLARTE.Net.Negotiation.Connection
     public class Udp : Base
     {
         #region Members
-        public UdpClient client;
-
+        protected UdpClient client;
         protected Negotiation.Base parent;
         #endregion
 

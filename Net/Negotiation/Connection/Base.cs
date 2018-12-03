@@ -46,6 +46,7 @@ namespace CLARTE.Net.Negotiation.Connection
         #region Members
         protected Guid remote;
         protected ushort channel;
+        protected TimeSpan heartbeat;
         protected Events.ConnectionCallback onConnected;
         protected Events.DisconnectionCallback onDisconnected;
         protected Events.ReceiveCallback onReceive;
@@ -54,7 +55,6 @@ namespace CLARTE.Net.Negotiation.Connection
         protected Threads.Thread worker;
         protected Threads.Result sendResult;
         protected Queue<Threads.Task> sendQueue;
-        protected TimeSpan heartbeat;
         protected bool listen;
         private bool disposed;
         #endregion
