@@ -54,7 +54,7 @@ namespace CLARTE.Net.Negotiation
 
         public List<PortRange> openPorts;
 
-        protected Dictionary<IPAddress, Connection.Base[]> openedChannels;
+        protected Dictionary<Guid, Connection.Base[]> openedChannels;
         protected HashSet<Connection.Tcp> initializedConnections;
         protected HashSet<ushort> availablePorts;
         protected State state;
@@ -109,7 +109,7 @@ namespace CLARTE.Net.Negotiation
         {
             lock(openedChannels)
             {
-                foreach(KeyValuePair<IPAddress, Connection.Base[]> pair in openedChannels)
+                foreach(KeyValuePair<Guid, Connection.Base[]> pair in openedChannels)
                 {
                     foreach(Connection.Base connection in pair.Value)
                     {
@@ -162,7 +162,7 @@ namespace CLARTE.Net.Negotiation
             Threads.Tasks.Instance.GetType();
             Threads.APC.MonoBehaviourCall.Instance.GetType();
 
-            openedChannels = new Dictionary<IPAddress, Connection.Base[]>();
+            openedChannels = new Dictionary<Guid, Connection.Base[]>();
 
             initializedConnections = new HashSet<Connection.Tcp>();
 
@@ -213,7 +213,7 @@ namespace CLARTE.Net.Negotiation
         #endregion
 
         #region Public methods
-        public bool Ready(IPAddress remote, ushort channel)
+        public bool Ready(Guid remote, ushort channel)
         {
             Connection.Base[] channels;
             bool result;
@@ -226,7 +226,7 @@ namespace CLARTE.Net.Negotiation
             return result;
         }
 
-        public bool Ready(IPAddress remote)
+        public bool Ready(Guid remote)
         {
             Connection.Base[] channels;
             bool result;
@@ -282,7 +282,7 @@ namespace CLARTE.Net.Negotiation
             }
         }
 
-        public void Send(IPAddress remote, ushort channel, byte[] data)
+        public void Send(Guid remote, ushort channel, byte[] data)
         {
             if(state == State.RUNNING)
             {
@@ -293,7 +293,7 @@ namespace CLARTE.Net.Negotiation
                 {
                     if(!openedChannels.TryGetValue(remote, out client_channels))
                     {
-                        throw new ArgumentException(string.Format("No connection with remote at {0}. Nothing sent.", remote), "remote");
+                        throw new ArgumentException(string.Format("No connection with remote '{0}'. Nothing sent.", remote), "remote");
                     }
 
                     if(channel >= client_channels.Length || client_channels[channel] == null)
@@ -312,7 +312,7 @@ namespace CLARTE.Net.Negotiation
             }
         }
 
-        public void SendOthers(IPAddress remote, ushort channel, byte[] data)
+        public void SendOthers(Guid remote, ushort channel, byte[] data)
         {
             if(state == State.RUNNING)
             {
@@ -320,9 +320,9 @@ namespace CLARTE.Net.Negotiation
 
                 lock(openedChannels)
                 {
-                    foreach(KeyValuePair<IPAddress, Connection.Base[]> pair in openedChannels)
+                    foreach(KeyValuePair<Guid, Connection.Base[]> pair in openedChannels)
                     {
-                        if(remote == null || pair.Key != remote)
+                        if(remote == Guid.Empty || pair.Key != remote)
                         {
                             if(channel >= pair.Value.Length || pair.Value[channel] == null)
                             {
@@ -347,12 +347,12 @@ namespace CLARTE.Net.Negotiation
 
         public void SendAll(ushort channel, byte[] data)
         {
-            SendOthers(null, channel, data);
+            SendOthers(Guid.Empty, channel, data);
         }
         #endregion
 
         #region Shared network methods
-        protected void ConnectUdp(Connection.Tcp connection, ushort channel, TimeSpan heartbeat)
+        protected void ConnectUdp(Connection.Tcp connection, Guid remote, ushort channel, TimeSpan heartbeat)
         {
             UdpClient udp = null;
 
@@ -413,7 +413,7 @@ namespace CLARTE.Net.Negotiation
                     {
                         udp.Connect(((IPEndPoint) connection.client.Client.RemoteEndPoint).Address, remote_port);
 
-                        SaveChannel(new Connection.Udp(this, udp, heartbeat), channel);
+                        SaveChannel(new Connection.Udp(this, udp, heartbeat), remote, channel);
                     }
                     else
                     {
@@ -431,7 +431,7 @@ namespace CLARTE.Net.Negotiation
             }
         }
 
-        protected void SaveChannel(Connection.Base connection, ushort channel)
+        protected void SaveChannel(Connection.Base connection, Guid remote, ushort channel)
         {
             // Remove initialized TCP connection from the pool of connections in initialization
             if(connection is Connection.Tcp)
@@ -442,14 +442,13 @@ namespace CLARTE.Net.Negotiation
                 }
             }
 
-            IPAddress remote = connection.GetRemoteAddress();
-
             if(channel < channels.Count)
             {
                 // Save callbacks for the connection
                 connection.onConnected = channels[channel].onConnected;
                 connection.onDisconnected = channels[channel].onDisconnected;
                 connection.onReceive = channels[channel].onReceive;
+                connection.remote = remote;
                 connection.channel = channel;
 
                 // Save the connection

@@ -65,7 +65,7 @@ namespace CLARTE.Net.Negotiation
 
                 state = State.INITIALIZING;
 
-                ConnectTcp(null, defaultHeartbeat);
+                ConnectTcp(Guid.Empty, 0, defaultHeartbeat);
             }
             else
             {
@@ -75,7 +75,7 @@ namespace CLARTE.Net.Negotiation
         #endregion
 
         #region Connection methods
-        protected void ConnectTcp(ushort? channel, TimeSpan heartbeat)
+        protected void ConnectTcp(Guid remote, ushort channel, TimeSpan heartbeat)
         {
             // Create a new TCP client
             Connection.Tcp connection = new Connection.Tcp(new TcpClient(), heartbeat);
@@ -214,69 +214,84 @@ namespace CLARTE.Net.Negotiation
         protected void NegotiateChannels(Connection.Tcp connection)
         {
             // Send channel negotiation flag
-            connection.Send(!connection.channel.HasValue);
+            connection.Send(connection.remote == Guid.Empty);
 
             // Check if we must negotiate other channel or just open the current one
-            if(!connection.channel.HasValue)
+            if(connection.remote == Guid.Empty)
             {
-                // Receive the channels descriptions
-                ushort nb_channels;
+                // Receive the connection identifier
+                byte[] raw_remote;
 
-                if(connection.Receive(out nb_channels))
+                if(connection.Receive(out raw_remote))
                 {
-                    if(nb_channels > 0)
+                    Guid remote = new Guid(raw_remote);
+
+                    // Receive the channels descriptions
+                    ushort nb_channels;
+
+                    if(connection.Receive(out nb_channels))
                     {
-                        for(ushort i = 0; i < nb_channels; i++)
+                        if(nb_channels > 0)
                         {
-                            ushort raw_channel_type;
-                            ushort raw_heartbeat;
-
-                            if(connection.Receive(out raw_channel_type))
+                            for(ushort i = 0; i < nb_channels; i++)
                             {
-                                if(connection.Receive(out raw_heartbeat))
+                                ushort raw_channel_type;
+                                ushort raw_heartbeat;
+
+                                if(connection.Receive(out raw_channel_type))
                                 {
-                                    TimeSpan heartbeat = new TimeSpan(raw_heartbeat * 100 * TimeSpan.TicksPerMillisecond);
-
-                                    switch((Channel.Type) raw_channel_type)
+                                    if(connection.Receive(out raw_heartbeat))
                                     {
-                                        case Channel.Type.TCP:
-                                            ConnectTcp(i, heartbeat);
-                                            break;
-                                        case Channel.Type.UDP:
-                                            ushort channel = i; // To avoid weird behaviour of lambda catching base types as reference in loops
+                                        TimeSpan heartbeat = new TimeSpan(raw_heartbeat * 100 * TimeSpan.TicksPerMillisecond);
 
-                                            ConnectUdp(connection, channel, heartbeat);
-                                            break;
+                                        switch((Channel.Type) raw_channel_type)
+                                        {
+                                            case Channel.Type.TCP:
+                                                ConnectTcp(remote, i, heartbeat);
+                                                break;
+                                            case Channel.Type.UDP:
+                                                ushort channel = i; // To avoid weird behaviour of lambda catching base types as reference in loops
+
+                                                ConnectUdp(connection, remote, channel, heartbeat);
+                                                break;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        Drop(connection, "Expected to receive channel heartbeat for channel {0}.", i);
                                     }
                                 }
                                 else
                                 {
-                                    Drop(connection, "Expected to receive channel heartbeat for channel {0}.", i);
+                                    Drop(connection, "Expected to receive channel type for channel {0}.", i);
                                 }
                             }
-                            else
-                            {
-                                Drop(connection, "Expected to receive channel type for channel {0}.", i);
-                            }
-                        }
 
-                        state = State.RUNNING;
+                            state = State.RUNNING;
+                        }
+                        else
+                        {
+                            Drop(connection, "No channels configured.");
+                        }
                     }
                     else
                     {
-                        Drop(connection, "No channels configured.");
+                        Drop(connection, "Expected to receive the number of channels.");
+
                     }
                 }
                 else
                 {
-                    Drop(connection, "Expected to receive the number of channels.");
+                    Drop(connection, "Expected to receive the connection identifier.");
+
                 }
             }
             else
             {
-                connection.Send(connection.channel.Value);
+                connection.Send(connection.remote.ToByteArray());
+                connection.Send(connection.channel);
 
-                SaveChannel(connection, connection.channel.Value);
+                SaveChannel(connection, connection.remote, connection.channel);
             }
         }
         #endregion

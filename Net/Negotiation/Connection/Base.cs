@@ -47,7 +47,8 @@ namespace CLARTE.Net.Negotiation.Connection
         public Events.ConnectionCallback onConnected;
         public Events.DisconnectionCallback onDisconnected;
         public Events.ReceiveCallback onReceive;
-        public ushort? channel;
+        public Guid remote;
+        public ushort channel;
 
         protected ManualResetEvent stopEvent;
         protected ManualResetEvent addEvent;
@@ -88,7 +89,7 @@ namespace CLARTE.Net.Negotiation.Connection
         {
             if(!disposed)
             {
-                Threads.APC.MonoBehaviourCall.Instance.Call(() => onDisconnected.Invoke(GetRemoteAddress(), channel.HasValue ? channel.Value : (ushort) 0));
+                Threads.APC.MonoBehaviourCall.Instance.Call(() => onDisconnected.Invoke(GetRemoteAddress(), remote, channel));
 
                 DisposeInternal(disposing);
 
@@ -144,7 +145,7 @@ namespace CLARTE.Net.Negotiation.Connection
                 worker.Start();
             }
 
-            Threads.APC.MonoBehaviourCall.Instance.Call(() => onConnected.Invoke(GetRemoteAddress(), channel.HasValue ? channel.Value : (ushort) 0));
+            Threads.APC.MonoBehaviourCall.Instance.Call(() => onConnected.Invoke(GetRemoteAddress(), remote, channel));
         }
 
         public void SetHeartbeat(TimeSpan heartbeat)

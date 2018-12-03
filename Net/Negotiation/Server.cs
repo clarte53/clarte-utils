@@ -292,6 +292,11 @@ namespace CLARTE.Net.Negotiation
             {
                 if(negotiate)
                 {
+                    // Send a new Guid for these connections
+                    Guid remote = Guid.NewGuid();
+
+                    connection.Send(remote.ToByteArray());
+
                     // Send channel description
                     ushort nb_channels = (ushort) Math.Min(channels != null ? channels.Count : 0, ushort.MaxValue);
 
@@ -313,25 +318,33 @@ namespace CLARTE.Net.Negotiation
                         {
                             ushort channel = i; // To avoid weird behaviour of lambda catching base types as reference in loops
 
-                            ConnectUdp(connection, channel, new TimeSpan(heartbeat * 100 * TimeSpan.TicksPerMillisecond));
+                            ConnectUdp(connection, remote, channel, new TimeSpan(heartbeat * 100 * TimeSpan.TicksPerMillisecond));
                         }
                     }
                 }
                 else
                 {
+                    byte[] remote;
                     ushort channel;
 
-                    if(connection.Receive(out channel))
+                    if(connection.Receive(out remote))
                     {
-                        ushort heartbeat = (ushort) (channels[channel].heartbeat * 10f);
+                        if(connection.Receive(out channel))
+                        {
+                            ushort heartbeat = (ushort) (channels[channel].heartbeat * 10f);
 
-                        connection.SetHeartbeat(new TimeSpan(heartbeat * 100 * TimeSpan.TicksPerMillisecond));
+                            connection.SetHeartbeat(new TimeSpan(heartbeat * 100 * TimeSpan.TicksPerMillisecond));
 
-                        SaveChannel(connection, channel);
+                            SaveChannel(connection, new Guid(remote), channel);
+                        }
+                        else
+                        {
+                            Drop(connection, "Expected to receive channel index.");
+                        }
                     }
                     else
                     {
-                        Drop(connection, "Expected to receive channel index.");
+                        Drop(connection, "Expected to receive connection identifier.");
                     }
                 }
             }

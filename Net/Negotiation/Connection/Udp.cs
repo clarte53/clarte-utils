@@ -85,7 +85,7 @@ namespace CLARTE.Net.Negotiation.Connection
         {
             if(client != null)
             {
-                if(channel.HasValue)
+                if(remote != Guid.Empty)
                 {
                     IPEndPoint ip = (IPEndPoint) client.Client.RemoteEndPoint;
 
@@ -93,7 +93,7 @@ namespace CLARTE.Net.Negotiation.Connection
                 }
                 else
                 {
-                    throw new ArgumentNullException("channel", "The connection channel is not defined.");
+                    throw new ArgumentNullException("remote", "The connection remote and channel are not defined.");
                 }
             }
             else
@@ -126,7 +126,7 @@ namespace CLARTE.Net.Negotiation.Connection
 
             byte[] data = client.EndReceive(async_result, ref state.ip);
 
-            Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceive.Invoke(state.ip.Address, channel.Value, data));
+            Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceive.Invoke(state.ip.Address, remote, channel, data));
 
             // Wait for next data to receive
             client.BeginReceive(FinalizeReceive, state);
