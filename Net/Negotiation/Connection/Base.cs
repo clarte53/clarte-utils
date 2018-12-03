@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net;
+using System.Threading;
 
 namespace CLARTE.Net.Negotiation.Connection
 {
@@ -47,19 +49,64 @@ namespace CLARTE.Net.Negotiation.Connection
         public Events.ReceiveCallback onReceive;
         public ushort? channel;
 
+        protected ManualResetEvent stopEvent;
+        protected ManualResetEvent addEvent;
+        protected Threads.Thread worker;
+        protected Threads.Result sendResult;
+        protected Queue<Threads.Task> sendQueue;
+        protected TimeSpan heartbeat;
         protected bool listen;
-        protected bool disposed;
+        private bool disposed;
         #endregion
 
         #region Abstract methods
-        protected abstract void Dispose(bool disposing);
+        protected abstract void DisposeInternal(bool disposing);
         public abstract IPAddress GetRemoteAddress();
         public abstract bool Connected();
-        public abstract Threads.Result SendAsync(byte[] data);
+        protected abstract Threads.Result SendAsync(Threads.Result result, byte[] data);
         protected abstract void ReceiveAsync();
         #endregion
 
+        #region Constructors
+        public Base(TimeSpan heartbeat)
+        {
+            this.heartbeat = heartbeat;
+
+            sendResult = null;
+
+            sendQueue = new Queue<Threads.Task>();
+
+            stopEvent = new ManualResetEvent(false);
+            addEvent = new ManualResetEvent(false);
+
+            worker = new Threads.Thread(Worker);
+        }
+        #endregion
+
         #region IDisposable implementation
+        protected void Dispose(bool disposing)
+        {
+            if(!disposed)
+            {
+                Threads.APC.MonoBehaviourCall.Instance.Call(() => onDisconnected.Invoke(GetRemoteAddress(), channel.HasValue ? channel.Value : (ushort) 0));
+
+                DisposeInternal(disposing);
+
+                if(disposing)
+                {
+                    // TODO: delete managed state (managed objects).
+                    stopEvent.Set();
+
+                    worker.Join();
+                }
+
+                // TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
+                // TODO: set fields of large size with null value.
+
+                disposed = true;
+            }
+        }
+
         // TODO: replace finalizer only if the above Dispose(bool disposing) function as code to free unmanaged resources.
         ~Base()
         {
@@ -93,9 +140,30 @@ namespace CLARTE.Net.Negotiation.Connection
                 listen = true;
 
                 ReceiveAsync();
+
+                worker.Start();
             }
 
             Threads.APC.MonoBehaviourCall.Instance.Call(() => onConnected.Invoke(GetRemoteAddress(), channel.HasValue ? channel.Value : (ushort) 0));
+        }
+
+        public void SetHeartbeat(TimeSpan heartbeat)
+        {
+            this.heartbeat = heartbeat;
+        }
+
+        public void SendAsync(byte[] data)
+        {
+            Threads.Result result = new Threads.Result();
+
+            Threads.Task task = new Threads.Task(() => SendAsync(result, data), result);
+
+            lock(sendQueue)
+            {
+                sendQueue.Enqueue(task);
+            }
+
+            addEvent.Set();
         }
         #endregion
 
@@ -112,6 +180,51 @@ namespace CLARTE.Net.Negotiation.Connection
             catch(ObjectDisposedException)
             {
                 // Already done
+            }
+        }
+        #endregion
+
+        #region Thread background worker
+        protected void Worker()
+        {
+            WaitHandle[] wait = new WaitHandle[] { stopEvent, addEvent };
+
+            int event_idx = 0;
+
+            while((event_idx = WaitHandle.WaitAny(wait, heartbeat)) != 0)
+            {
+                if(event_idx == WaitHandle.WaitTimeout)
+                {
+                    // Handle heartbeat
+
+                    //TODO
+                }
+                else
+                {
+                    Threads.Task task = null;
+
+                    lock(sendQueue)
+                    {
+                        if(sendQueue.Count > 0 && (sendResult == null || sendResult.Done))
+                        {
+                            task = sendQueue.Dequeue();
+                        }
+                        else
+                        {
+                            sendResult = null;
+
+                            // Nothing to do anymore, go to sleep
+                            addEvent.Reset();
+                        }
+                    }
+
+                    if(task != null)
+                    {
+                        sendResult = task.result;
+
+                        task.callback();
+                    }
+                }
             }
         }
         #endregion

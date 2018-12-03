@@ -50,6 +50,8 @@ namespace CLARTE.Net.Negotiation
         }
 
         #region Members
+        protected static readonly TimeSpan defaultHeartbeat = new TimeSpan(5 * TimeSpan.TicksPerSecond);
+
         public List<PortRange> openPorts;
 
         protected Dictionary<IPAddress, Connection.Base[]> openedChannels;
@@ -350,7 +352,7 @@ namespace CLARTE.Net.Negotiation
         #endregion
 
         #region Shared network methods
-        protected void ConnectUdp(Connection.Tcp connection, ushort channel)
+        protected void ConnectUdp(Connection.Tcp connection, ushort channel, TimeSpan heartbeat)
         {
             UdpClient udp = null;
 
@@ -411,7 +413,7 @@ namespace CLARTE.Net.Negotiation
                     {
                         udp.Connect(((IPEndPoint) connection.client.Client.RemoteEndPoint).Address, remote_port);
 
-                        SaveChannel(new Connection.Udp(this, udp), channel);
+                        SaveChannel(new Connection.Udp(this, udp, heartbeat), channel);
                     }
                     else
                     {

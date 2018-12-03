@@ -1,4 +1,5 @@
 ﻿using System;
+using UnityEngine;
 
 namespace CLARTE.Net.Negotiation
 {
@@ -23,6 +24,8 @@ namespace CLARTE.Net.Negotiation
     {
         #region Members
         public Type type;
+        [Range(0.1f, 300f)]
+        public float heartbeat; // In seconds
         #endregion
     }
 }

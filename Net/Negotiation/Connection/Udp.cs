@@ -13,7 +13,7 @@ namespace CLARTE.Net.Negotiation.Connection
         #endregion
 
         #region Constructors
-        public Udp(Negotiation.Base parent, UdpClient client)
+        public Udp(Negotiation.Base parent, UdpClient client, TimeSpan heartbeat) : base(heartbeat)
         {
             this.parent = parent;
             this.client = client;
@@ -21,38 +21,31 @@ namespace CLARTE.Net.Negotiation.Connection
         #endregion
 
         #region IDisposable implementation
-        protected override void Dispose(bool disposing)
+        protected override void DisposeInternal(bool disposing)
         {
-            if(!disposed)
+            if(disposing)
             {
-                Threads.APC.MonoBehaviourCall.Instance.Call(() => onDisconnected.Invoke(GetRemoteAddress(), channel.HasValue ? channel.Value : (ushort) 0));
+                // TODO: delete managed state (managed objects).
 
-                if(disposing)
+                ushort port = 0;
+
+                if(client != null)
                 {
-                    // TODO: delete managed state (managed objects).
-
-                    ushort port = 0;
-
-                    if(client != null)
-                    {
-                        port = (ushort) ((IPEndPoint) client.Client.LocalEndPoint).Port;
-                    }
-
-                    // Close the client
-                    SafeDispose(client);
-
-                    // Release the used port
-                    if(parent != null && port != 0)
-                    {
-                        parent.ReleasePort(port);
-                    }
+                    port = (ushort) ((IPEndPoint) client.Client.LocalEndPoint).Port;
                 }
 
-                // TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
-                // TODO: set fields of large size with null value.
+                // Close the client
+                SafeDispose(client);
 
-                disposed = true;
+                // Release the used port
+                if(parent != null && port != 0)
+                {
+                    parent.ReleasePort(port);
+                }
             }
+
+            // TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
+            // TODO: set fields of large size with null value.
         }
         #endregion
 
@@ -74,10 +67,8 @@ namespace CLARTE.Net.Negotiation.Connection
             return client != null;
         }
 
-        public override Threads.Result SendAsync(byte[] data)
+        protected override Threads.Result SendAsync(Threads.Result result, byte[] data)
         {
-            Threads.Result result = new Threads.Result();
-
             if(client != null)
             {
                 client.BeginSend(data, data.Length, FinalizeSend, new SendState { result = result, data = data });

@@ -109,6 +109,23 @@ namespace CLARTE.Net.Negotiation
         {
             Dispose();
         }
+
+        protected override void OnValidate()
+        {
+            base.OnValidate();
+
+            if(channels != null)
+            {
+                foreach(ServerChannel channel in channels)
+                {
+                    if(channel.heartbeat == 0)
+                    {
+                        channel.type = Channel.Type.TCP;
+                        channel.heartbeat = 2f;
+                    }
+                }
+            }
+        }
         #endregion
 
         #region Connection methods
@@ -134,7 +151,7 @@ namespace CLARTE.Net.Negotiation
                 if(state == State.RUNNING)
                 {
                     // Get the new connection
-                    Connection.Tcp connection = new Connection.Tcp(listener.EndAcceptTcpClient(async_result));
+                    Connection.Tcp connection = new Connection.Tcp(listener.EndAcceptTcpClient(async_result), defaultHeartbeat);
 
                     lock(initializedConnections)
                     {
@@ -287,13 +304,16 @@ namespace CLARTE.Net.Negotiation
 
                     for(ushort i = 0; i < nb_channels; i++)
                     {
+                        ushort heartbeat = (ushort) (channels[i].heartbeat * 10f);
+
                         connection.Send((ushort) channels[i].type);
+                        connection.Send(heartbeat);
 
                         if(channels[i].type == Channel.Type.UDP)
                         {
                             ushort channel = i; // To avoid weird behaviour of lambda catching base types as reference in loops
 
-                            ConnectUdp(connection, channel);
+                            ConnectUdp(connection, channel, new TimeSpan(heartbeat * 100 * TimeSpan.TicksPerMillisecond));
                         }
                     }
                 }
@@ -303,6 +323,10 @@ namespace CLARTE.Net.Negotiation
 
                     if(connection.Receive(out channel))
                     {
+                        ushort heartbeat = (ushort) (channels[channel].heartbeat * 10f);
+
+                        connection.SetHeartbeat(new TimeSpan(heartbeat * 100 * TimeSpan.TicksPerMillisecond));
+
                         SaveChannel(connection, channel);
                     }
                     else

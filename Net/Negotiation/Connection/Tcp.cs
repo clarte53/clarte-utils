@@ -98,7 +98,7 @@ namespace CLARTE.Net.Negotiation.Connection
             isLittleEndian = BitConverter.IsLittleEndian;
         }
 
-        public Tcp(TcpClient client)
+        public Tcp(TcpClient client, TimeSpan heartbeat) : base(heartbeat)
         {
             this.client = client;
             stream = null;
@@ -109,39 +109,32 @@ namespace CLARTE.Net.Negotiation.Connection
         #endregion
 
         #region IDisposable implementation
-        protected override void Dispose(bool disposing)
+        protected override void DisposeInternal(bool disposing)
         {
-            if(!disposed)
+            if(disposing)
             {
-                Threads.APC.MonoBehaviourCall.Instance.Call(() => onDisconnected.Invoke(GetRemoteAddress(), channel.HasValue ? channel.Value : (ushort) 0));
+                // TODO: delete managed state (managed objects).
 
-                if(disposing)
+                try
                 {
-                    // TODO: delete managed state (managed objects).
-
-                    try
+                    // Flush the stream to make sure that all sent data is effectively sent to the client
+                    if(stream != null)
                     {
-                        // Flush the stream to make sure that all sent data is effectively sent to the client
-                        if(stream != null)
-                        {
-                            stream.Flush();
-                        }
+                        stream.Flush();
                     }
-                    catch(ObjectDisposedException)
-                    {
-                        // Already closed
-                    }
-
-                    // Close the stream and client
-                    SafeDispose(stream);
-                    SafeDispose(client);
+                }
+                catch(ObjectDisposedException)
+                {
+                    // Already closed
                 }
 
-                // TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
-                // TODO: set fields of large size with null value.
-
-                disposed = true;
+                // Close the stream and client
+                SafeDispose(stream);
+                SafeDispose(client);
             }
+
+            // TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
+            // TODO: set fields of large size with null value.
         }
         #endregion
 
@@ -163,10 +156,8 @@ namespace CLARTE.Net.Negotiation.Connection
             return client != null && stream != null && client.Connected;
         }
 
-        public override Threads.Result SendAsync(byte[] data)
+        protected override Threads.Result SendAsync(Threads.Result result, byte[] data)
         {
-            Threads.Result result = new Threads.Result();
-
             if(client != null)
             {
                 Converter c = new Converter(data.Length);

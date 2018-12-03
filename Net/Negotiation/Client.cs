@@ -65,7 +65,7 @@ namespace CLARTE.Net.Negotiation
 
                 state = State.INITIALIZING;
 
-                ConnectTcp(null);
+                ConnectTcp(null, defaultHeartbeat);
             }
             else
             {
@@ -75,10 +75,10 @@ namespace CLARTE.Net.Negotiation
         #endregion
 
         #region Connection methods
-        protected void ConnectTcp(ushort? channel)
+        protected void ConnectTcp(ushort? channel, TimeSpan heartbeat)
         {
             // Create a new TCP client
-            Connection.Tcp connection = new Connection.Tcp(new TcpClient());
+            Connection.Tcp connection = new Connection.Tcp(new TcpClient(), heartbeat);
 
             connection.channel = channel;
 
@@ -229,24 +229,34 @@ namespace CLARTE.Net.Negotiation
                         for(ushort i = 0; i < nb_channels; i++)
                         {
                             ushort raw_channel_type;
+                            ushort raw_heartbeat;
 
                             if(connection.Receive(out raw_channel_type))
                             {
-                                switch((Channel.Type) raw_channel_type)
+                                if(connection.Receive(out raw_heartbeat))
                                 {
-                                    case Channel.Type.TCP:
-                                        ConnectTcp(i);
-                                        break;
-                                    case Channel.Type.UDP:
-                                        ushort channel = i; // To avoid weird behaviour of lambda catching base types as reference in loops
+                                    TimeSpan heartbeat = new TimeSpan(raw_heartbeat * 100 * TimeSpan.TicksPerMillisecond);
 
-                                        ConnectUdp(connection, channel);
-                                        break;
+                                    switch((Channel.Type) raw_channel_type)
+                                    {
+                                        case Channel.Type.TCP:
+                                            ConnectTcp(i, heartbeat);
+                                            break;
+                                        case Channel.Type.UDP:
+                                            ushort channel = i; // To avoid weird behaviour of lambda catching base types as reference in loops
+
+                                            ConnectUdp(connection, channel, heartbeat);
+                                            break;
+                                    }
+                                }
+                                else
+                                {
+                                    Drop(connection, "Expected to receive channel heartbeat for channel {0}.", i);
                                 }
                             }
                             else
                             {
-                                Drop(connection, "Expected to receive channel type.");
+                                Drop(connection, "Expected to receive channel type for channel {0}.", i);
                             }
                         }
 
