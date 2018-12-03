@@ -44,12 +44,11 @@ namespace CLARTE.Net.Negotiation.Connection
         }
 
         #region Members
-        public Events.ConnectionCallback onConnected;
-        public Events.DisconnectionCallback onDisconnected;
-        public Events.ReceiveCallback onReceive;
-        public Guid remote;
-        public ushort channel;
-
+        protected Guid remote;
+        protected ushort channel;
+        protected Events.ConnectionCallback onConnected;
+        protected Events.DisconnectionCallback onDisconnected;
+        protected Events.ReceiveCallback onReceive;
         protected ManualResetEvent stopEvent;
         protected ManualResetEvent addEvent;
         protected Threads.Thread worker;
@@ -69,8 +68,10 @@ namespace CLARTE.Net.Negotiation.Connection
         #endregion
 
         #region Constructors
-        public Base(TimeSpan heartbeat)
+        public Base(Guid remote, ushort channel, TimeSpan heartbeat)
         {
+            this.remote = remote;
+            this.channel = channel;
             this.heartbeat = heartbeat;
 
             sendResult = null;
@@ -81,6 +82,24 @@ namespace CLARTE.Net.Negotiation.Connection
             addEvent = new ManualResetEvent(false);
 
             worker = new Threads.Thread(Worker);
+        }
+        #endregion
+
+        #region Getter / Setter
+        public Guid Remote
+        {
+            get
+            {
+                return remote;
+            }
+        }
+
+        public ushort Channel
+        {
+            get
+            {
+                return channel;
+            }
         }
         #endregion
 
@@ -129,6 +148,20 @@ namespace CLARTE.Net.Negotiation.Connection
         #endregion
 
         #region Public methods
+        public void SetConfig(Guid remote, ushort channel, TimeSpan heartbeat)
+        {
+            this.remote = remote;
+            this.channel = channel;
+            this.heartbeat = heartbeat;
+        }
+
+        public void SetEvents(Events.ConnectionCallback on_connected, Events.DisconnectionCallback on_disconnected, Events.ReceiveCallback on_receive)
+        {
+            onConnected = on_connected;
+            onDisconnected = on_disconnected;
+            onReceive = on_receive;
+        }
+
         public void Close()
         {
             Dispose();
@@ -146,11 +179,6 @@ namespace CLARTE.Net.Negotiation.Connection
             }
 
             Threads.APC.MonoBehaviourCall.Instance.Call(() => onConnected.Invoke(GetRemoteAddress(), remote, channel));
-        }
-
-        public void SetHeartbeat(TimeSpan heartbeat)
-        {
-            this.heartbeat = heartbeat;
         }
 
         public void SendAsync(byte[] data)

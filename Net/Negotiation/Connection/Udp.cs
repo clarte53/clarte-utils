@@ -13,7 +13,7 @@ namespace CLARTE.Net.Negotiation.Connection
         #endregion
 
         #region Constructors
-        public Udp(Negotiation.Base parent, UdpClient client, TimeSpan heartbeat) : base(heartbeat)
+        public Udp(Negotiation.Base parent, UdpClient client, Guid remote, ushort channel, TimeSpan heartbeat) : base(remote, channel, heartbeat)
         {
             this.parent = parent;
             this.client = client;

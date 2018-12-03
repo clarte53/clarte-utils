@@ -69,9 +69,7 @@ namespace CLARTE.Net.Negotiation
         protected void ConnectTcp(Guid remote, ushort channel, TimeSpan heartbeat)
         {
             // Create a new TCP client
-            Connection.Tcp connection = new Connection.Tcp(new TcpClient(), heartbeat);
-
-            connection.channel = channel;
+            Connection.Tcp connection = new Connection.Tcp(new TcpClient(), remote, channel, heartbeat);
 
             lock(initializedConnections)
             {
@@ -205,10 +203,10 @@ namespace CLARTE.Net.Negotiation
         protected void NegotiateChannels(Connection.Tcp connection)
         {
             // Send channel negotiation flag
-            connection.Send(connection.remote == Guid.Empty);
+            connection.Send(connection.Remote == Guid.Empty);
 
             // Check if we must negotiate other channel or just open the current one
-            if(connection.remote == Guid.Empty)
+            if(connection.Remote == Guid.Empty)
             {
                 // Receive the connection identifier
                 byte[] raw_remote;
@@ -241,9 +239,7 @@ namespace CLARTE.Net.Negotiation
                                                 ConnectTcp(remote, i, heartbeat);
                                                 break;
                                             case Channel.Type.UDP:
-                                                ushort channel = i; // To avoid weird behaviour of lambda catching base types as reference in loops
-
-                                                ConnectUdp(connection, remote, channel, heartbeat);
+                                                ConnectUdp(connection, remote, i, heartbeat);
                                                 break;
                                         }
                                     }
@@ -279,10 +275,10 @@ namespace CLARTE.Net.Negotiation
             }
             else
             {
-                connection.Send(connection.remote.ToByteArray());
-                connection.Send(connection.channel);
+                connection.Send(connection.Remote.ToByteArray());
+                connection.Send(connection.Channel);
 
-                SaveChannel(connection, connection.remote, connection.channel);
+                SaveChannel(connection);
             }
         }
         #endregion

@@ -413,7 +413,7 @@ namespace CLARTE.Net.Negotiation
                     {
                         udp.Connect(((IPEndPoint) connection.client.Client.RemoteEndPoint).Address, remote_port);
 
-                        SaveChannel(new Connection.Udp(this, udp, heartbeat), remote, channel);
+                        SaveChannel(new Connection.Udp(this, udp, remote, channel, heartbeat));
                     }
                     else
                     {
@@ -431,7 +431,7 @@ namespace CLARTE.Net.Negotiation
             }
         }
 
-        protected void SaveChannel(Connection.Base connection, Guid remote, ushort channel)
+        protected void SaveChannel(Connection.Base connection)
         {
             // Remove initialized TCP connection from the pool of connections in initialization
             if(connection is Connection.Tcp)
@@ -442,38 +442,36 @@ namespace CLARTE.Net.Negotiation
                 }
             }
 
-            if(channel < channels.Count)
+            if(connection.Channel < channels.Count)
             {
+                Channel channel = channels[connection.Channel];
+
                 // Save callbacks for the connection
-                connection.onConnected = channels[channel].onConnected;
-                connection.onDisconnected = channels[channel].onDisconnected;
-                connection.onReceive = channels[channel].onReceive;
-                connection.remote = remote;
-                connection.channel = channel;
+                connection.SetEvents(channel.onConnected, channel.onDisconnected, channel.onReceive);
 
                 // Save the connection
                 lock(openedChannels)
                 {
                     Connection.Base[] client_channels;
 
-                    if(!openedChannels.TryGetValue(remote, out client_channels))
+                    if(!openedChannels.TryGetValue(connection.Remote, out client_channels))
                     {
                         client_channels = new Connection.Base[channels.Count];
 
-                        openedChannels.Add(remote, client_channels);
+                        openedChannels.Add(connection.Remote, client_channels);
                     }
 
-                    client_channels[channel] = connection;
+                    client_channels[connection.Channel] = connection;
                 }
 
-                Debug.LogFormat("{0} channel {1} success.", connection.GetType(), channel);
+                Debug.LogFormat("{0} channel {1} on {2} success.", connection.GetType(), connection.Channel, connection.Remote);
 
                 connection.Listen();
             }
             else
             {
                 // No channel defined for this index. This should never happen as index are checked during port negotiation
-                Debug.LogErrorFormat("No channel defined with index '{0}'.", channel);
+                Debug.LogErrorFormat("No channel defined with index '{0}'.", connection.Channel);
 
                 connection.Close();
             }

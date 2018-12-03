@@ -151,7 +151,7 @@ namespace CLARTE.Net.Negotiation
                 if(state == State.RUNNING)
                 {
                     // Get the new connection
-                    Connection.Tcp connection = new Connection.Tcp(listener.EndAcceptTcpClient(async_result), defaultHeartbeat);
+                    Connection.Tcp connection = new Connection.Tcp(listener.EndAcceptTcpClient(async_result), Guid.Empty, 0, defaultHeartbeat);
 
                     lock(initializedConnections)
                     {
@@ -316,9 +316,7 @@ namespace CLARTE.Net.Negotiation
 
                         if(channels[i].type == Channel.Type.UDP)
                         {
-                            ushort channel = i; // To avoid weird behaviour of lambda catching base types as reference in loops
-
-                            ConnectUdp(connection, remote, channel, new TimeSpan(heartbeat * 100 * TimeSpan.TicksPerMillisecond));
+                            ConnectUdp(connection, remote, i, new TimeSpan(heartbeat * 100 * TimeSpan.TicksPerMillisecond));
                         }
                     }
                 }
@@ -333,9 +331,9 @@ namespace CLARTE.Net.Negotiation
                         {
                             ushort heartbeat = (ushort) (channels[channel].heartbeat * 10f);
 
-                            connection.SetHeartbeat(new TimeSpan(heartbeat * 100 * TimeSpan.TicksPerMillisecond));
+                            connection.SetConfig(new Guid(remote), channel, new TimeSpan(heartbeat * 100 * TimeSpan.TicksPerMillisecond));
 
-                            SaveChannel(connection, new Guid(remote), channel);
+                            SaveChannel(connection);
                         }
                         else
                         {
