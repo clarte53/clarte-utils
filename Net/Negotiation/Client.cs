@@ -47,15 +47,6 @@ namespace CLARTE.Net.Negotiation
         }
         #endregion
 
-        #region MonoBehaviour callbacks
-        protected override void Awake()
-        {
-            base.Awake();
-
-            Connect(); // For debug purposes
-        }
-        #endregion
-
         #region Public methods
         public void Connect()
         {
