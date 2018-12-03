@@ -117,7 +117,10 @@ namespace CLARTE.Net.Negotiation.Connection
                     // TODO: delete managed state (managed objects).
                     stopEvent.Set();
 
-                    worker.Join();
+                    if(listen)
+                    {
+                        worker.Join();
+                    }
                 }
 
                 // TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
