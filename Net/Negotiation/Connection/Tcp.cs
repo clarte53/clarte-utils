@@ -406,9 +406,9 @@ namespace CLARTE.Net.Negotiation.Connection
 
                         offset += read;
                     }
-                    while(read < required);
+                    while(read != 0 && read < required);
 
-                    if(offset == size)
+                    if(read != 0 && offset == size)
                     {
                         return true;
                     }
@@ -465,11 +465,16 @@ namespace CLARTE.Net.Negotiation.Connection
             ReceiveState state = (ReceiveState) async_result.AsyncState;
 
             int read_length = stream.EndRead(async_result);
-
+            
             if(read_length == state.MissingDataLength)
             {
                 // We got all the data: pass it back to the application
                 callback(state);
+            }
+            else if(read_length == 0)
+            {
+                // Connection is closed. Dispose of resources
+                Threads.APC.MonoBehaviourCall.Instance.Call(Close);
             }
             else if(read_length < state.MissingDataLength)
             {
