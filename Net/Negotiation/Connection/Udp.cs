@@ -66,7 +66,7 @@ namespace CLARTE.Net.Negotiation.Connection
             return client != null;
         }
 
-        protected override Threads.Result SendAsync(Threads.Result result, byte[] data)
+        protected override void SendAsync(Threads.Result result, byte[] data)
         {
             if(client != null)
             {
@@ -76,8 +76,6 @@ namespace CLARTE.Net.Negotiation.Connection
             {
                 result.Complete(new ArgumentNullException("client", "The connection UdpClient is not defined."));
             }
-
-            return result;
         }
 
         protected override void ReceiveAsync()

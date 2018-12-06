@@ -63,7 +63,7 @@ namespace CLARTE.Net.Negotiation.Connection
         protected abstract void DisposeInternal(bool disposing);
         public abstract IPAddress GetRemoteAddress();
         public abstract bool Connected();
-        protected abstract Threads.Result SendAsync(Threads.Result result, byte[] data);
+        protected abstract void SendAsync(Threads.Result result, byte[] data);
         protected abstract void ReceiveAsync();
         #endregion
 
@@ -186,7 +186,7 @@ namespace CLARTE.Net.Negotiation.Connection
 
         public void SendAsync(byte[] data)
         {
-            Threads.Result result = new Threads.Result();
+            Threads.Result result = new Threads.Result(() => addEvent.Set());
 
             Threads.Task task = new Threads.Task(() => SendAsync(result, data), result);
 

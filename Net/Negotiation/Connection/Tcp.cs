@@ -156,7 +156,7 @@ namespace CLARTE.Net.Negotiation.Connection
             return client != null && stream != null && client.Connected;
         }
 
-        protected override Threads.Result SendAsync(Threads.Result result, byte[] data)
+        protected override void SendAsync(Threads.Result result, byte[] data)
         {
             if(client != null)
             {
@@ -177,14 +177,14 @@ namespace CLARTE.Net.Negotiation.Connection
                     writeBuffer[3] = c.Byte4;
                 }
 
+                UnityEngine.Debug.LogWarningFormat("Send data length {0}", data.Length);
+
                 stream.BeginWrite(writeBuffer, 0, writeBuffer.Length, FinalizeSendLength, new SendState { result = result, data = data });
             }
             else
             {
                 result.Complete(new ArgumentNullException("client", "The connection tcpClient is not defined."));
             }
-
-            return result;
         }
 
         protected override void ReceiveAsync()
@@ -456,7 +456,9 @@ namespace CLARTE.Net.Negotiation.Connection
             stream.EndWrite(async_result);
 
             stream.Flush();
-            
+
+            UnityEngine.Debug.LogWarningFormat("Sent data");
+
             state.result.Complete();
         }
 
@@ -465,7 +467,9 @@ namespace CLARTE.Net.Negotiation.Connection
             ReceiveState state = (ReceiveState) async_result.AsyncState;
 
             int read_length = stream.EndRead(async_result);
-            
+
+            UnityEngine.Debug.LogWarningFormat("Receive progress {0}", ((float) (state.offset + read_length)) / (float) state.data.Length);
+
             if(read_length == state.MissingDataLength)
             {
                 // We got all the data: pass it back to the application
@@ -514,6 +518,8 @@ namespace CLARTE.Net.Negotiation.Connection
 
                 state.Set(new byte[c.Int]);
 
+                UnityEngine.Debug.LogWarningFormat("Receive data length {0}", state.data.Length);
+
                 stream.BeginRead(state.data, state.offset, state.MissingDataLength, FinalizeReceiveData, state);
             });
         }
@@ -523,6 +529,8 @@ namespace CLARTE.Net.Negotiation.Connection
             FinalizeReceive(async_result, state =>
             {
                 byte[] data = state.data; // Otherwise the call to state.data in unity thread will be evaluated to null, because of the weird catching of parameters of lambdas
+
+                UnityEngine.Debug.LogWarningFormat("Received data {0}", data.Length);
 
                 Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceive.Invoke(state.ip.Address, remote, channel, data));
 
