@@ -11,9 +11,21 @@ namespace CLARTE.Threads
 	{
         #region Members
         protected ManualResetEvent waitHandle = new ManualResetEvent(false);
+        protected Action callback;
         protected Exception exception;
         protected bool exceptionChecked;
         protected bool disposed;
+        #endregion
+
+        #region Constructors
+        /// <summary>
+        /// Create a new future result.
+        /// </summary>
+        /// <param name="callback">An optional callback to call when result is completed.</param>
+        public Result(Action callback = null)
+        {
+            this.callback = callback;
+        }
         #endregion
 
         #region IDisposable implementation
@@ -118,6 +130,11 @@ namespace CLARTE.Threads
 			exception = raised;
 
             waitHandle.Set();
+
+            if(callback != null)
+            {
+                callback();
+            }
 		}
 		#endregion
 
@@ -133,23 +150,34 @@ namespace CLARTE.Threads
 		#endregion
 	}
 
-	/// <summary>
-	/// Specialized async result to get the return value of an async task.
-	/// </summary>
-	/// <typeparam name="T">The type of the return value.</typeparam>
-	public class Result<T> : Result
-	{
-		#region Members
-		protected T result;
-		#endregion
+    /// <summary>
+    /// Specialized async result to get the return value of an async task.
+    /// </summary>
+    /// <typeparam name="T">The type of the return value.</typeparam>
+    public class Result<T> : Result
+    {
+        #region Members
+        protected T result;
+        #endregion
 
-		#region Getter / Setter
-		/// <summary>
-		/// Get or set the return value of the task. The value is automatically set when the task is complete.
-		/// </summary>
-		/// <remarks>The call to this property is blocking until the task is complete.</remarks>
-		/// <returns>The return value of the task.</returns>
-		public T Value
+        #region Constructors
+        /// <summary>
+        /// Create a new future result.
+        /// </summary>
+        /// <param name="callback">An optional callback to call when result is completed.</param>
+        public Result(Action callback = null) : base(callback)
+        {
+
+        }
+        #endregion
+
+        #region Getter / Setter
+        /// <summary>
+        /// Get or set the return value of the task. The value is automatically set when the task is complete.
+        /// </summary>
+        /// <remarks>The call to this property is blocking until the task is complete.</remarks>
+        /// <returns>The return value of the task.</returns>
+        public T Value
 		{
 			get
 			{
