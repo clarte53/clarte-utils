@@ -46,6 +46,8 @@ namespace CLARTE.Net.Negotiation
 
             public void CopyData(byte[] buffer, uint size)
             {
+                data = new byte[size];
+
                 Array.Copy(buffer, data, size);
             }
             #endregion
