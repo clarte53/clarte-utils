@@ -63,6 +63,7 @@ namespace CLARTE.Net.Negotiation
         #region Abstract methods
         protected abstract void Dispose(bool disposing);
         public abstract ushort NbChannels { get; }
+        public abstract IEnumerable<Channel> Channels { get; }
         #endregion
 
         #region IDisposable implementation
@@ -251,37 +252,6 @@ namespace CLARTE.Net.Negotiation
             return result;
         }
 
-        public void Close()
-        {
-            Dispose();
-        }
-
-        public void ReleasePort(ushort port)
-        {
-            lock(availablePorts)
-            {
-                availablePorts.Add(port);
-            }
-        }
-        #endregion
-    }
-
-    public abstract class Base<T> : Base where T : Channel
-    {
-        #region Members
-        public List<T> channels;
-        public Credentials credentials;
-        #endregion
-
-        #region Public methods
-        public override ushort NbChannels
-        {
-            get
-            {
-                return (ushort) (channels != null ? channels.Count : 0);
-            }
-        }
-
         public void Send(Guid remote, ushort channel, byte[] data)
         {
             if(state == State.RUNNING)
@@ -348,6 +318,45 @@ namespace CLARTE.Net.Negotiation
         public void SendAll(ushort channel, byte[] data)
         {
             SendOthers(Guid.Empty, channel, data);
+        }
+
+        public void Close()
+        {
+            Dispose();
+        }
+
+        public void ReleasePort(ushort port)
+        {
+            lock(availablePorts)
+            {
+                availablePorts.Add(port);
+            }
+        }
+        #endregion
+    }
+
+    public abstract class Base<T> : Base where T : Channel
+    {
+        #region Members
+        public List<T> channels;
+        public Credentials credentials;
+        #endregion
+
+        #region Public methods
+        public override ushort NbChannels
+        {
+            get
+            {
+                return (ushort) (channels != null ? channels.Count : 0);
+            }
+        }
+
+        public override IEnumerable<Channel> Channels
+        {
+            get
+            {
+                return channels;
+            }
         }
         #endregion
 

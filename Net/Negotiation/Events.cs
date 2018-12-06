@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net;
 using UnityEngine.Events;
+using CLARTE.Serialization;
 
 namespace CLARTE.Net.Negotiation
 {
@@ -20,6 +21,12 @@ namespace CLARTE.Net.Negotiation
 
         [Serializable]
         public class ReceiveCallback : UnityEvent<IPAddress, Guid, ushort, byte[]>
+        {
+
+        }
+
+        [Serializable]
+        public class ReceiveDeserializedCallback : UnityEvent<IPAddress, Guid, ushort, IBinarySerializable>
         {
 
         }
