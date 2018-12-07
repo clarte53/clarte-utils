@@ -185,9 +185,18 @@ namespace CLARTE.Net.Negotiation
 
                 if(context != null && !context.task.MoveNext())
                 {
-                    context.Execute();
-
-                    context = null;
+                    try
+                    {
+                        context.Execute();
+                    }
+                    catch(Exception e)
+                    {
+                        Debug.LogErrorFormat("{0}: {1}\n{2}", e.GetType(), e.Message, e.StackTrace);
+                    }
+                    finally
+                    {
+                        context = null;
+                    }
                 }
             }
             while(context == null && queue.Count > 0);
