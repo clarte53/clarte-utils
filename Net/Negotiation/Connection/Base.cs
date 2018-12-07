@@ -186,13 +186,11 @@ namespace CLARTE.Net.Negotiation.Connection
 
         public void SendAsync(byte[] data)
         {
-            Threads.Result result = new Threads.Result(() => addEvent.Set());
-
-            Threads.Task task = new Threads.Task(() => SendAsync(result, data), result);
-
             lock(sendQueue)
             {
-                sendQueue.Enqueue(task);
+                Threads.Result result = new Threads.Result(() => addEvent.Set());
+
+                sendQueue.Enqueue(new Threads.Task(() => SendAsync(result, data), result));
             }
 
             addEvent.Set();

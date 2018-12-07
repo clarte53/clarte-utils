@@ -143,44 +143,75 @@ namespace CLARTE.Net.Negotiation
         #region Public methods
         public void Receive(IPAddress remote, Guid id, ushort channel, byte[] data)
         {
-            DeserializationContext context = new DeserializationContext(r => onReceive.Invoke(remote, id, channel, r));
+            lock(deserializationTasks)
+            {
+                DeserializationContext context = new DeserializationContext(r => onReceive.Invoke(remote, id, channel, r));
 
-            context.task = serializer.Deserialize<IBinarySerializable>(data, context.SaveResult);
+                context.task = serializer.Deserialize<IBinarySerializable>(data, context.SaveResult);
 
-            deserializationTasks.Enqueue(context);
+                deserializationTasks.Enqueue(context);
+            }
         }
 
         public void Send(Guid remote, ushort channel, IBinarySerializable data)
         {
-            Send(new SerializationContext(d => network.Send(remote, channel, d)), data);
+            lock(serializationTasks)
+            {
+                SerializationContext context = new SerializationContext(d => network.Send(remote, channel, d));
+
+                context.task = serializer.Serialize(data, context.CopyData);
+
+                serializationTasks.Enqueue(context);
+            }
         }
 
         public void SendOthers(Guid remote, ushort channel, IBinarySerializable data)
         {
-            Send(new SerializationContext(d => network.SendOthers(remote, channel, d)), data);
+            lock(serializationTasks)
+            {
+                SerializationContext context = new SerializationContext(d => network.SendOthers(remote, channel, d));
+
+                context.task = serializer.Serialize(data, context.CopyData);
+
+                serializationTasks.Enqueue(context);
+            }
         }
 
         public void SendAll(ushort channel, IBinarySerializable data)
         {
-            Send(new SerializationContext(d => network.SendAll(channel, d)), data);
+            lock(serializationTasks)
+            {
+                SerializationContext context = new SerializationContext(d => network.SendAll(channel, d));
+
+                context.task = serializer.Serialize(data, context.CopyData);
+
+                serializationTasks.Enqueue(context);
+            }
         }
         #endregion
 
         #region Internal methods
-        protected void Send(SerializationContext context, IBinarySerializable data)
-        {
-            context.task = serializer.Serialize(data, context.CopyData);
-
-            serializationTasks.Enqueue(context);
-        }
-
         protected void Update<T>(Queue<T> queue, ref T context) where T : Context
         {
+            int count;
+
             do
             {
-                if(context == null && queue.Count > 0)
+                count = 0;
+
+                if(context == null)
                 {
-                    context = queue.Dequeue();
+                    lock(queue)
+                    {
+                        count = queue.Count;
+
+                        if(count > 0)
+                        {
+                            context = queue.Dequeue();
+
+                            count--;
+                        }
+                    }
                 }
 
                 if(context != null && !context.task.MoveNext())
@@ -199,7 +230,7 @@ namespace CLARTE.Net.Negotiation
                     }
                 }
             }
-            while(context == null && queue.Count > 0);
+            while(context == null && count > 0);
         }
         #endregion
     }
