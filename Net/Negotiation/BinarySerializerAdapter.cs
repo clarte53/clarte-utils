@@ -21,20 +21,20 @@ namespace CLARTE.Net.Negotiation
             #endregion
         }
 
-        protected class SerializationContext : Context
+        protected class Context<T> : Context
         {
             #region Members
-            public Action<byte[]> callback;
-            public byte[] data;
+            public Action<T> callback;
+            public T data;
             #endregion
 
             #region Constructors
-            public SerializationContext(Action<byte[]> callback)
+            public Context(Action<T> callback)
             {
                 this.callback = callback;
 
                 task = null;
-                data = null;
+                data = default(T);
             }
             #endregion
 
@@ -43,7 +43,19 @@ namespace CLARTE.Net.Negotiation
             {
                 callback(data);
             }
+            #endregion
+        }
 
+        protected class SerializationContext : Context<byte[]>
+        {
+            #region Constructors
+            public SerializationContext(Action<byte[]> callback) : base(callback)
+            {
+
+            }
+            #endregion
+
+            #region Public methods
             public void CopyData(byte[] buffer, uint size)
             {
                 data = new byte[size];
@@ -53,32 +65,19 @@ namespace CLARTE.Net.Negotiation
             #endregion
         }
 
-        protected class DeserializationContext : Context
+        protected class DeserializationContext : Context<IBinarySerializable>
         {
-            #region Members
-            public Action<IBinarySerializable> callback;
-            public IBinarySerializable received;
-            #endregion
-
             #region Constructors
-            public DeserializationContext(Action<IBinarySerializable> callback)
+            public DeserializationContext(Action<IBinarySerializable> callback) : base(callback)
             {
-                this.callback = callback;
 
-                task = null;
-                received = null;
             }
             #endregion
 
             #region Public methods
-            public override void Execute()
+            public void SaveResult(IBinarySerializable data)
             {
-                callback(received);
-            }
-
-            public void SaveResult(IBinarySerializable received)
-            {
-                this.received = received;
+                this.data = data;
             }
             #endregion
         }
