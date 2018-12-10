@@ -470,6 +470,8 @@ namespace CLARTE.Net.Negotiation.Connection
 
             UnityEngine.Debug.LogWarningFormat("Receive progress {0}", ((float) (state.offset + read_length)) / (float) state.data.Length);
 
+            state.offset += read_length;
+
             if(read_length == state.MissingDataLength)
             {
                 // We got all the data: pass it back to the application
@@ -483,8 +485,6 @@ namespace CLARTE.Net.Negotiation.Connection
             else if(read_length < state.MissingDataLength)
             {
                 // Get the remaining data
-                state.offset += read_length;
-
                 stream.BeginRead(state.data, state.offset, state.MissingDataLength, FinalizeReceiveData, state);
             }
             else
