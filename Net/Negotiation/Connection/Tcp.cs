@@ -468,11 +468,13 @@ namespace CLARTE.Net.Negotiation.Connection
 
             int read_length = stream.EndRead(async_result);
 
-            UnityEngine.Debug.LogWarningFormat("Receive progress {0}", ((float) (state.offset + read_length)) / (float) state.data.Length);
+            int missing = state.MissingDataLength;
 
             state.offset += read_length;
 
-            if(read_length == state.MissingDataLength)
+            UnityEngine.Debug.LogWarningFormat("Receive progress {0}", ((float) (state.offset + read_length)) / (float) state.data.Length);
+
+            if(read_length == missing)
             {
                 // We got all the data: pass it back to the application
                 callback(state);
@@ -482,7 +484,7 @@ namespace CLARTE.Net.Negotiation.Connection
                 // Connection is closed. Dispose of resources
                 Threads.APC.MonoBehaviourCall.Instance.Call(Close);
             }
-            else if(read_length < state.MissingDataLength)
+            else if(read_length < missing)
             {
                 // Get the remaining data
                 stream.BeginRead(state.data, state.offset, state.MissingDataLength, FinalizeReceiveData, state);
