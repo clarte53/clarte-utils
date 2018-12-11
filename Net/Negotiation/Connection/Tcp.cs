@@ -177,8 +177,6 @@ namespace CLARTE.Net.Negotiation.Connection
                     writeBuffer[3] = c.Byte4;
                 }
 
-                UnityEngine.Debug.LogWarningFormat("Send data length {0}", data.Length);
-
                 stream.BeginWrite(writeBuffer, 0, writeBuffer.Length, FinalizeSendLength, new SendState { result = result, data = data });
             }
             else
@@ -457,8 +455,6 @@ namespace CLARTE.Net.Negotiation.Connection
 
             stream.Flush();
 
-            UnityEngine.Debug.LogWarningFormat("Sent data");
-
             state.result.Complete();
         }
 
@@ -471,8 +467,6 @@ namespace CLARTE.Net.Negotiation.Connection
             int missing = state.MissingDataLength;
 
             state.offset += read_length;
-
-            UnityEngine.Debug.LogWarningFormat("Receive progress {0}", ((float) (state.offset + read_length)) / (float) state.data.Length);
 
             if(read_length == missing)
             {
@@ -520,8 +514,6 @@ namespace CLARTE.Net.Negotiation.Connection
 
                 state.Set(new byte[c.Int]);
 
-                UnityEngine.Debug.LogWarningFormat("Receive data length {0}", state.data.Length);
-
                 stream.BeginRead(state.data, state.offset, state.MissingDataLength, FinalizeReceiveData, state);
             });
         }
@@ -531,8 +523,6 @@ namespace CLARTE.Net.Negotiation.Connection
             FinalizeReceive(async_result, state =>
             {
                 byte[] data = state.data; // Otherwise the call to state.data in unity thread will be evaluated to null, because of the weird catching of parameters of lambdas
-
-                UnityEngine.Debug.LogWarningFormat("Received data {0}", data.Length);
 
                 Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceive.Invoke(state.ip.Address, remote, channel, data));
 
