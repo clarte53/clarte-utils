@@ -233,19 +233,27 @@ namespace CLARTE.Net.Negotiation.Connection
                 {
                     Threads.Task task = null;
 
-                    lock(sendQueue)
+                    if(sendResult == null || sendResult.Done)
                     {
-                        if(sendQueue.Count > 0 && (sendResult == null || sendResult.Done))
-                        {
-                            task = sendQueue.Dequeue();
-                        }
-                        else
-                        {
-                            sendResult = null;
+                        sendResult = null;
 
-                            // Nothing to do anymore, go to sleep
-                            addEvent.Reset();
+                        lock(sendQueue)
+                        {
+                            if(sendQueue.Count > 0)
+                            {
+                                task = sendQueue.Dequeue();
+                            }
+                            else
+                            {
+                                // Nothing to do anymore, go to sleep
+                                addEvent.Reset();
+                            }
                         }
+                    }
+                    else
+                    {
+                        // Not done yet, go to sleep
+                        addEvent.Reset();
                     }
 
                     if(task != null)
