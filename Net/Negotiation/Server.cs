@@ -105,11 +105,6 @@ namespace CLARTE.Net.Negotiation
             state = State.RUNNING;
         }
 
-        protected void OnDestroy()
-        {
-            Dispose();
-        }
-
         protected override void OnValidate()
         {
             base.OnValidate();

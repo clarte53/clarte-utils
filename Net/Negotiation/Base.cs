@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace CLARTE.Net.Negotiation
 {
-    public abstract class Base : MonoBehaviour, IDisposable
+    public abstract class Base : MonoBehaviour
     {
         protected enum State
         {
@@ -64,27 +64,6 @@ namespace CLARTE.Net.Negotiation
         protected abstract void Dispose(bool disposing);
         public abstract ushort NbChannels { get; }
         public abstract IEnumerable<Channel> Channels { get; }
-        #endregion
-
-        #region IDisposable implementation
-        // TODO: replace finalizer only if the above Dispose(bool disposing) function as code to free unmanaged resources.
-        ~Base()
-        {
-            Dispose(/*false*/);
-        }
-
-        /// <summary>
-        /// Dispose of the HTTP server.
-        /// </summary>
-        public void Dispose()
-        {
-            // Pass true in dispose method to clean managed resources too and say GC to skip finalize in next line.
-            Dispose(true);
-
-            // If dispose is called already then say GC to skip finalize on this instance.
-            // TODO: uncomment next line if finalizer is replaced above.
-            GC.SuppressFinalize(this);
-        }
         #endregion
 
         #region Clean-up helpers
@@ -188,6 +167,11 @@ namespace CLARTE.Net.Negotiation
                     }
                 }
             }
+        }
+
+        protected void OnDestroy()
+        {
+            Close();
         }
 
         protected virtual void OnValidate()
@@ -322,7 +306,7 @@ namespace CLARTE.Net.Negotiation
 
         public void Close()
         {
-            Dispose();
+            Dispose(true);
         }
 
         public void ReleasePort(ushort port)
