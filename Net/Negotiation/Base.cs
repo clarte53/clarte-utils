@@ -139,7 +139,6 @@ namespace CLARTE.Net.Negotiation
             state = State.STARTED;
 
             // Initialize singletons while in unity thread, if necessary
-            Threads.Tasks.Instance.GetType();
             Threads.APC.MonoBehaviourCall.Instance.GetType();
 
             openedChannels = new Dictionary<Guid, Connection.Base[]>();

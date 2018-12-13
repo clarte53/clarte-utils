@@ -51,7 +51,6 @@ namespace CLARTE.Net.HTTP
             }
 
             // Initialize unity objects in unity thread
-            Threads.Tasks.Instance.GetType();
             Threads.APC.MonoBehaviourCall.Instance.GetType();
 
             this.endpoints = endpoints;
@@ -139,7 +138,7 @@ namespace CLARTE.Net.HTTP
             {
                 HttpListenerContext context = listener.EndGetContext(async_result);
 
-                Threads.Tasks.Instance.Add(() => Respond(context));
+                Threads.Tasks.Add(() => Respond(context));
             }
             catch(Exception exception)
             {
@@ -195,7 +194,7 @@ namespace CLARTE.Net.HTTP
                         Response res = callback(parameters);
 
                         // Send response back to the client in another thread
-                        Threads.Tasks.Instance.Add(() =>
+                        Threads.Tasks.Add(() =>
                         {
                             response.ContentType = res.mimeType;
                             response.ContentEncoding = Encoding.UTF8;

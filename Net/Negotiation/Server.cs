@@ -153,7 +153,7 @@ namespace CLARTE.Net.Negotiation
                         initializedConnections.Add(connection);
                     }
 
-                    connection.initialization = Threads.Tasks.Instance.Add(() => Connected(connection));
+                    connection.initialization = Threads.Tasks.Add(() => Connected(connection));
                 }
             }
             catch(Exception exception)
