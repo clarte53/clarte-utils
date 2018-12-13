@@ -1,3 +1,6 @@
+Clarte Utils
+===============
+
 This repository contains shared utility code. It only defines independent and
 reusable class / modules intended to be used in many projects.
 
