@@ -1,7 +1,7 @@
 ﻿using UnityEditor;
 using UnityEngine;
 
-namespace CLARTE.Attributes
+namespace CLARTE.Attributes.Editor
 {
 	/// <summary>
 	/// ReadOnly attribute: make a field in the inspector read only, i.e. disabled/greyed out
