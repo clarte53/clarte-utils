@@ -548,7 +548,7 @@ namespace CLARTE.Serialization
 
 				SupportedTypes type = GetSupportedType(typeof(T));
 
-				Threads.Result<uint> result = Threads.Tasks.Instance.Add(() => ToBytesWrapper(ref buffer, 0, value, type));
+				Threads.Result<uint> result = Threads.Tasks.Add(() => ToBytesWrapper(ref buffer, 0, value, type));
 
 				while(!result.Done)
 				{
@@ -615,7 +615,7 @@ namespace CLARTE.Serialization
 			{
 				SupportedTypes type = GetSupportedType(typeof(T));
 
-				Threads.Result<uint> result = Threads.Tasks.Instance.Add(() => FromBytesWrapper(buffer, 0, out value, type));
+				Threads.Result<uint> result = Threads.Tasks.Add(() => FromBytesWrapper(buffer, 0, out value, type));
 
 				while(!result.Done)
 				{
