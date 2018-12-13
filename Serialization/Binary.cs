@@ -34,6 +34,8 @@ namespace CLARTE.Serialization
 			QUATERNION,
 			COLOR,
 			ARRAY,
+            LIST,
+            HASHSET,
 			DICTIONARY,
 		}
 
@@ -236,6 +238,8 @@ namespace CLARTE.Serialization
 			public enum Parameter
 			{
 				ARRAY,
+                LIST,
+                HASHSET,
 				DICTIONARY
 			}
 
@@ -338,9 +342,13 @@ namespace CLARTE.Serialization
 
 		private static readonly Dictionary<SupportedTypes, uint> sizes;
 		private static readonly MethodInfo fromBytesArray;
-		private static readonly MethodInfo fromBytesDictionary;
+        private static readonly MethodInfo fromBytesList;
+        private static readonly MethodInfo fromBytesHashSet;
+        private static readonly MethodInfo fromBytesDictionary;
 		private static readonly MethodInfo toBytesArray;
-		private static readonly MethodInfo toBytesDictionary;
+        private static readonly MethodInfo toBytesList;
+        private static readonly MethodInfo toBytesHashSet;
+        private static readonly MethodInfo toBytesDictionary;
 		private static readonly object[] emptyParameters;
 		private static readonly bool isLittleEndian;
 
@@ -417,7 +425,13 @@ namespace CLARTE.Serialization
 									case MethodLocatorAttribute.Parameter.ARRAY:
 										fromBytesArray = method;
 										break;
-									case MethodLocatorAttribute.Parameter.DICTIONARY:
+                                    case MethodLocatorAttribute.Parameter.LIST:
+                                        fromBytesList = method;
+                                        break;
+                                    case MethodLocatorAttribute.Parameter.HASHSET:
+                                        fromBytesHashSet = method;
+                                        break;
+                                    case MethodLocatorAttribute.Parameter.DICTIONARY:
 										fromBytesDictionary = method;
 										break;
 									default:
@@ -431,7 +445,13 @@ namespace CLARTE.Serialization
 									case MethodLocatorAttribute.Parameter.ARRAY:
 										toBytesArray = method;
 										break;
-									case MethodLocatorAttribute.Parameter.DICTIONARY:
+                                    case MethodLocatorAttribute.Parameter.LIST:
+                                        toBytesList = method;
+                                        break;
+                                    case MethodLocatorAttribute.Parameter.HASHSET:
+                                        toBytesHashSet = method;
+                                        break;
+                                    case MethodLocatorAttribute.Parameter.DICTIONARY:
 										toBytesDictionary = method;
 										break;
 									default:
@@ -528,7 +548,7 @@ namespace CLARTE.Serialization
 
 				SupportedTypes type = GetSupportedType(typeof(T));
 
-				Threads.Result<uint> result = Threads.Tasks.Instance.Add(() => ToBytesWrapper(ref buffer, 0, value, type));
+				Threads.Result<uint> result = Threads.Tasks.Add(() => ToBytesWrapper(ref buffer, 0, value, type));
 
 				while(!result.Done)
 				{
@@ -595,7 +615,7 @@ namespace CLARTE.Serialization
 			{
 				SupportedTypes type = GetSupportedType(typeof(T));
 
-				Threads.Result<uint> result = Threads.Tasks.Instance.Add(() => FromBytesWrapper(buffer, 0, out value, type));
+				Threads.Result<uint> result = Threads.Tasks.Add(() => FromBytesWrapper(buffer, 0, out value, type));
 
 				while(!result.Done)
 				{
@@ -1693,19 +1713,235 @@ namespace CLARTE.Serialization
 
 			return written;
 		}
-		#endregion
+        #endregion
 
-		#region Dictionaries
-		/// <summary>
-		/// Deserialize a dictionary of supported objects.
-		/// </summary>
-		/// <typeparam name="T">The type of keys in the dictionary.</typeparam>
-		/// <typeparam name="U">The type of values in the dictionary.</typeparam>
-		/// <param name="buffer">The buffer containing the serialized data.</param>
-		/// <param name="start">The start index in the buffer of the serialized object.</param>
-		/// <param name="dict">The deserialized dictionary.</param>
-		/// <returns>The number of deserialized bytes.</returns>
-		[MethodLocator(MethodLocatorAttribute.Type.FROM_BYTES, MethodLocatorAttribute.Parameter.DICTIONARY)]
+        #region Lists
+        /// <summary>
+        /// Deserialize a list of supported objects.
+        /// </summary>
+        /// <typeparam name="T">The type of objects in the list.</typeparam>
+        /// <param name="buffer">The buffer containing the serialized data.</param>
+        /// <param name="start">The start index in the buffer of the serialized object.</param>
+        /// <param name="list">The deserialized list.</param>
+        /// <returns>The number of deserialized bytes.</returns>
+        [MethodLocator(MethodLocatorAttribute.Type.FROM_BYTES, MethodLocatorAttribute.Parameter.LIST)]
+        public uint FromBytes<T>(Buffer buffer, uint start, out List<T> list)
+        {
+            uint list_size, read;
+
+            list = null;
+
+            CheckDeserializationParameters(buffer, start);
+
+            // Read number of elements in list
+            read = FromBytes(buffer, start, out list_size);
+
+            if(read != uintSize)
+            {
+                throw new FormatException(string.Format("The number of read bytes does not match the expected count. Read {0} bytes instead of {1}.", read, uintSize));
+            }
+
+            if(list_size > 0)
+            {
+                T value;
+
+                // Create the final destination list (with correct capacity)
+                list = new List<T>((int) list_size);
+
+                // Get the correct type overload to use
+                SupportedTypes type = GetSupportedType(typeof(T));
+
+                // Read each element one after another
+                for(uint i = 0; i < list_size; ++i)
+                {
+                    read += FromBytesWrapper(buffer, start + read, out value, type);
+
+                    // Save the correctly type value in the output list
+                    list.Add(value);
+                }
+            }
+
+            return read;
+        }
+
+        /// <summary>
+        /// Serialize a list of supported objects.
+        /// </summary>
+        /// <typeparam name="T">The type of objects in the list.</typeparam>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="list">The list to serialize.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        [MethodLocator(MethodLocatorAttribute.Type.TO_BYTES, MethodLocatorAttribute.Parameter.LIST)]
+        public uint ToBytes<T>(ref Buffer buffer, uint start, List<T> list)
+        {
+            uint written;
+
+            CheckSerializationParameters(buffer, start);
+
+            // If list is not defined, just write the length = 0 to the stream
+            if(list == null)
+            {
+                written = ToBytes(ref buffer, start, 0u);
+
+                if(written != uintSize)
+                {
+                    throw new FormatException(string.Format("The number of written bytes does not match the expected count. Wrote {0} bytes instead of {1}.", written, uintSize));
+                }
+            }
+            else
+            {
+                uint type_size;
+
+                uint list_size = (uint) list.Count;
+
+                // Get the correct type overload to use
+                SupportedTypes type = GetSupportedType(typeof(T));
+
+                if(sizes.TryGetValue(type, out type_size)) // If the type size is not defined, we will need to use on-the-fly buffer resizing, which is less effective.
+                {
+                    // Check wether our buffer is large enough to get all data
+                    ResizeBuffer(ref buffer, start + uintSize + list_size * type_size);
+                }
+
+                // Write the length of the list in the buffer
+                written = ToBytes(ref buffer, start, list_size);
+
+                if(written != uintSize)
+                {
+                    throw new FormatException(string.Format("The number of written bytes does not match the expected count. Wrote {0} bytes instead of {1}.", written, uintSize));
+                }
+
+                // Write all data in the buffer
+                for(uint i = 0; i < list_size; ++i)
+                {
+                    written += ToBytesWrapper(ref buffer, start + written, list[(int) i], type);
+                }
+            }
+
+            return written;
+        }
+        #endregion
+
+        #region HashSets
+        /// <summary>
+        /// Deserialize an hashset of supported objects.
+        /// </summary>
+        /// <typeparam name="T">The type of objects in the hashset.</typeparam>
+        /// <param name="buffer">The buffer containing the serialized data.</param>
+        /// <param name="start">The start index in the buffer of the serialized object.</param>
+        /// <param name="hashset">The deserialized hashset.</param>
+        /// <returns>The number of deserialized bytes.</returns>
+        [MethodLocator(MethodLocatorAttribute.Type.FROM_BYTES, MethodLocatorAttribute.Parameter.HASHSET)]
+        public uint FromBytes<T>(Buffer buffer, uint start, out HashSet<T> hashset)
+        {
+            uint hashset_size, read;
+
+            hashset = null;
+
+            CheckDeserializationParameters(buffer, start);
+
+            // Read number of elements in hashset
+            read = FromBytes(buffer, start, out hashset_size);
+
+            if(read != uintSize)
+            {
+                throw new FormatException(string.Format("The number of read bytes does not match the expected count. Read {0} bytes instead of {1}.", read, uintSize));
+            }
+
+            if(hashset_size > 0)
+            {
+                T value;
+
+                // Create the final destination hashset
+                hashset = new HashSet<T>();
+
+                // Get the correct type overload to use
+                SupportedTypes type = GetSupportedType(typeof(T));
+
+                // Read each element one after another
+                for(uint i = 0; i < hashset_size; ++i)
+                {
+                    read += FromBytesWrapper(buffer, start + read, out value, type);
+
+                    // Save the correctly type value in the output hashset
+                    hashset.Add(value);
+                }
+            }
+
+            return read;
+        }
+
+        /// <summary>
+        /// Serialize an hashset of supported objects.
+        /// </summary>
+        /// <typeparam name="T">The type of objects in the list.</typeparam>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="list">The hashset to serialize.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        [MethodLocator(MethodLocatorAttribute.Type.TO_BYTES, MethodLocatorAttribute.Parameter.HASHSET)]
+        public uint ToBytes<T>(ref Buffer buffer, uint start, HashSet<T> hashset)
+        {
+            uint written;
+
+            CheckSerializationParameters(buffer, start);
+
+            // If hashset is not defined, just write the length = 0 to the stream
+            if(hashset == null)
+            {
+                written = ToBytes(ref buffer, start, 0u);
+
+                if(written != uintSize)
+                {
+                    throw new FormatException(string.Format("The number of written bytes does not match the expected count. Wrote {0} bytes instead of {1}.", written, uintSize));
+                }
+            }
+            else
+            {
+                uint type_size;
+
+                uint hashset_size = (uint) hashset.Count;
+
+                // Get the correct type overload to use
+                SupportedTypes type = GetSupportedType(typeof(T));
+
+                if(sizes.TryGetValue(type, out type_size)) // If the type size is not defined, we will need to use on-the-fly buffer resizing, which is less effective.
+                {
+                    // Check wether our buffer is large enough to get all data
+                    ResizeBuffer(ref buffer, start + uintSize + hashset_size * type_size);
+                }
+
+                // Write the length of the hashset in the buffer
+                written = ToBytes(ref buffer, start, hashset_size);
+
+                if(written != uintSize)
+                {
+                    throw new FormatException(string.Format("The number of written bytes does not match the expected count. Wrote {0} bytes instead of {1}.", written, uintSize));
+                }
+
+                // Write all data in the buffer
+                foreach(T value in hashset)
+                {
+                    written += ToBytesWrapper(ref buffer, start + written, value, type);
+                }
+            }
+
+            return written;
+        }
+        #endregion
+
+        #region Dictionaries
+        /// <summary>
+        /// Deserialize a dictionary of supported objects.
+        /// </summary>
+        /// <typeparam name="T">The type of keys in the dictionary.</typeparam>
+        /// <typeparam name="U">The type of values in the dictionary.</typeparam>
+        /// <param name="buffer">The buffer containing the serialized data.</param>
+        /// <param name="start">The start index in the buffer of the serialized object.</param>
+        /// <param name="dict">The deserialized dictionary.</param>
+        /// <returns>The number of deserialized bytes.</returns>
+        [MethodLocator(MethodLocatorAttribute.Type.FROM_BYTES, MethodLocatorAttribute.Parameter.DICTIONARY)]
 		public uint FromBytes<T, U>(Buffer buffer, uint start, out Dictionary<T, U> dict)
 		{
 			uint nb_elements;
@@ -1910,82 +2146,98 @@ namespace CLARTE.Serialization
 		{
 			SupportedTypes result;
 
-			if(type == typeof(byte))
-			{
-				result = SupportedTypes.BYTE;
-			}
-			else if(type == typeof(bool))
-			{
-				result = SupportedTypes.BOOL;
-			}
-			else if(type == typeof(int))
-			{
-				result = SupportedTypes.INT;
-			}
-			else if(type == typeof(uint))
-			{
-				result = SupportedTypes.UINT;
-			}
-			else if(type == typeof(long))
-			{
-				result = SupportedTypes.LONG;
-			}
-			else if(type == typeof(ulong))
-			{
-				result = SupportedTypes.ULONG;
-			}
-			else if(type == typeof(float))
-			{
-				result = SupportedTypes.FLOAT;
-			}
-			else if(type == typeof(double))
-			{
-				result = SupportedTypes.DOUBLE;
-			}
-			else if(type == typeof(string))
-			{
-				result = SupportedTypes.STRING;
-			}
-			else if(type == typeof(Vector2))
-			{
-				result = SupportedTypes.VECTOR2;
-			}
-			else if(type == typeof(Vector3))
-			{
-				result = SupportedTypes.VECTOR3;
-			}
-			else if(type == typeof(Vector4))
-			{
-				result = SupportedTypes.VECTOR4;
-			}
-			else if(type == typeof(Quaternion))
-			{
-				result = SupportedTypes.QUATERNION;
-			}
-			else if(type == typeof(Color))
-			{
-				result = SupportedTypes.COLOR;
-			}
-			else if(typeof(IBinarySerializable).IsAssignableFrom(type))
-			{
-				result = SupportedTypes.BINARY_SERIALIZABLE;
-			}
-			else if(type.IsArray)
-			{
-				result = SupportedTypes.ARRAY;
-			}
+            if(type == typeof(byte))
+            {
+                result = SupportedTypes.BYTE;
+            }
+            else if(type == typeof(bool))
+            {
+                result = SupportedTypes.BOOL;
+            }
+            else if(type == typeof(int))
+            {
+                result = SupportedTypes.INT;
+            }
+            else if(type == typeof(uint))
+            {
+                result = SupportedTypes.UINT;
+            }
+            else if(type == typeof(long))
+            {
+                result = SupportedTypes.LONG;
+            }
+            else if(type == typeof(ulong))
+            {
+                result = SupportedTypes.ULONG;
+            }
+            else if(type == typeof(float))
+            {
+                result = SupportedTypes.FLOAT;
+            }
+            else if(type == typeof(double))
+            {
+                result = SupportedTypes.DOUBLE;
+            }
+            else if(type == typeof(string))
+            {
+                result = SupportedTypes.STRING;
+            }
+            else if(type == typeof(Vector2))
+            {
+                result = SupportedTypes.VECTOR2;
+            }
+            else if(type == typeof(Vector3))
+            {
+                result = SupportedTypes.VECTOR3;
+            }
+            else if(type == typeof(Vector4))
+            {
+                result = SupportedTypes.VECTOR4;
+            }
+            else if(type == typeof(Quaternion))
+            {
+                result = SupportedTypes.QUATERNION;
+            }
+            else if(type == typeof(Color))
+            {
+                result = SupportedTypes.COLOR;
+            }
+            else if(typeof(IBinarySerializable).IsAssignableFrom(type))
+            {
+                result = SupportedTypes.BINARY_SERIALIZABLE;
+            }
+            else if(type.IsArray)
+            {
+                result = SupportedTypes.ARRAY;
+            }
+#if NETFX_CORE
+			else if(type.GetTypeInfo().IsGenericType && type.GetTypeInfo().GetGenericTypeDefinition() == typeof(List<>))
+#else
+            else if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>))
+#endif
+            {
+                result = SupportedTypes.LIST;
+            }
+#if NETFX_CORE
+			else if(type.GetTypeInfo().IsGenericType && type.GetTypeInfo().GetGenericTypeDefinition() == typeof(HashSet<>))
+#else
+            else if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(HashSet<>))
+#endif
+            {
+                result = SupportedTypes.HASHSET;
+            }
 #if NETFX_CORE
 			else if(type.GetTypeInfo().IsGenericType && type.GetTypeInfo().GetGenericTypeDefinition() == typeof(Dictionary<,>))
 #else
             else if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<,>))
 #endif
-			{
-				result = SupportedTypes.DICTIONARY;
-			}
-			else
-			{
-				throw new ArgumentException(string.Format("The type '{0}' is not supported.", type));
-			}
+            {
+                result = SupportedTypes.DICTIONARY;
+            }
+            else
+            {
+                throw new ArgumentException(string.Format("The type '{0}' is not supported.", type));
+            }
 
 			return result;
 		}
@@ -2035,7 +2287,29 @@ namespace CLARTE.Serialization
 					value = (T) parameters[2];
 
 					break;
-				case SupportedTypes.DICTIONARY:
+                case SupportedTypes.LIST:
+                    parameters = new object[nbParameters];
+
+                    parameters[0] = buffer;
+                    parameters[1] = start;
+                    parameters[2] = null;
+
+                    read = (uint) fromBytesList.MakeGenericMethod(typeof(T).GetGenericArguments()).Invoke(this, parameters);
+
+                    value = (T) parameters[2];
+                    break;
+                case SupportedTypes.HASHSET:
+                    parameters = new object[nbParameters];
+
+                    parameters[0] = buffer;
+                    parameters[1] = start;
+                    parameters[2] = null;
+
+                    read = (uint) fromBytesHashSet.MakeGenericMethod(typeof(T).GetGenericArguments()).Invoke(this, parameters);
+
+                    value = (T) parameters[2];
+                    break;
+                case SupportedTypes.DICTIONARY:
 					parameters = new object[nbParameters];
 
 					parameters[0] = buffer;
@@ -2206,7 +2480,31 @@ namespace CLARTE.Serialization
 					buffer = (Buffer) parameters[0];
 
 					break;
-				case SupportedTypes.DICTIONARY:
+                case SupportedTypes.LIST:
+                    parameters = new object[nbParameters];
+
+                    parameters[0] = buffer;
+                    parameters[1] = start;
+                    parameters[2] = value;
+
+                    written = (uint) toBytesList.MakeGenericMethod(typeof(T).GetGenericArguments()).Invoke(this, parameters);
+
+                    buffer = (Buffer) parameters[0];
+
+                    break;
+                case SupportedTypes.HASHSET:
+                    parameters = new object[nbParameters];
+
+                    parameters[0] = buffer;
+                    parameters[1] = start;
+                    parameters[2] = value;
+
+                    written = (uint) toBytesHashSet.MakeGenericMethod(typeof(T).GetGenericArguments()).Invoke(this, parameters);
+
+                    buffer = (Buffer) parameters[0];
+
+                    break;
+                case SupportedTypes.DICTIONARY:
 					parameters = new object[nbParameters];
 
 					parameters[0] = buffer;

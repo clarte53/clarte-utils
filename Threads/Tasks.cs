@@ -5,32 +5,23 @@ namespace CLARTE.Threads
 	/// <summary>
 	/// Helper class providing a global thread pool for the application.
 	/// </summary>
-	public class Tasks : Pattern.Singleton<Tasks>
+	public class Tasks
 	{
 		#region Members
-		private Pool threads = new Pool();
+		private static Pool threads = new Pool();
         #endregion
 
-        #region Constructors
-        protected Tasks()
+        #region Destructors
+        ~Tasks()
         {
-            // To comply with Singleton
+            if(threads != null)
+            {
+                threads.Dispose();
+
+                threads = null;
+            }
         }
         #endregion
-
-        #region MonoBehaviour callbacks
-        protected override void OnDestroy()
-		{
-			if(threads != null)
-			{
-				threads.Dispose();
-
-				threads = null;
-			}
-
-            base.OnDestroy();
-		}
-		#endregion
 
 		#region Public methods
 		/// <summary>
@@ -38,7 +29,7 @@ namespace CLARTE.Threads
 		/// </summary>
 		/// <param name="task">A method (task) that does not return any value.</param>
 		/// <returns>A helper class to be notified when the task is complete.</returns>
-		public Result Add(Action task)
+		public static Result Add(Action task)
 		{
 			return threads.AddTask(task);
 		}
@@ -49,7 +40,7 @@ namespace CLARTE.Threads
 		/// <typeparam name="T">The type of the returned value.</typeparam>
 		/// <param name="task">A method (task) that does return a value.</param>
 		/// <returns>A helper class to be notified when the task is complete and get the returned value.</returns>
-		public Result<T> Add<T>(Func<T> task)
+		public static Result<T> Add<T>(Func<T> task)
 		{
 			return threads.AddTask(task);
 		}
