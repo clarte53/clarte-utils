@@ -16,6 +16,7 @@ namespace CLARTE.Net.Negotiation
         public Events.ConnectionCallback onConnected;
         public Events.DisconnectionCallback onDisconnected;
         public Events.ReceiveCallback onReceive;
+        public Events.ReceiveProgressCallback onReceiveProgress;
         #endregion
     }
 

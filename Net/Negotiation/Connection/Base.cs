@@ -50,6 +50,7 @@ namespace CLARTE.Net.Negotiation.Connection
         protected Events.ConnectionCallback onConnected;
         protected Events.DisconnectionCallback onDisconnected;
         protected Events.ReceiveCallback onReceive;
+        protected Events.ReceiveProgressCallback onReceiveProgress;
         protected ManualResetEvent stopEvent;
         protected ManualResetEvent addEvent;
         protected Threads.Thread worker;
@@ -158,11 +159,12 @@ namespace CLARTE.Net.Negotiation.Connection
             this.heartbeat = heartbeat;
         }
 
-        public void SetEvents(Events.ConnectionCallback on_connected, Events.DisconnectionCallback on_disconnected, Events.ReceiveCallback on_receive)
+        public void SetEvents(Events.ConnectionCallback on_connected, Events.DisconnectionCallback on_disconnected, Events.ReceiveCallback on_receive, Events.ReceiveProgressCallback on_receive_progress)
         {
             onConnected = on_connected;
             onDisconnected = on_disconnected;
             onReceive = on_receive;
+            onReceiveProgress = on_receive_progress;
         }
 
         public void Close()

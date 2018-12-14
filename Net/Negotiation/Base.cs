@@ -439,7 +439,7 @@ namespace CLARTE.Net.Negotiation
                 Channel channel = channels[connection.Channel];
 
                 // Save callbacks for the connection
-                connection.SetEvents(channel.onConnected, channel.onDisconnected, channel.onReceive);
+                connection.SetEvents(channel.onConnected, channel.onDisconnected, channel.onReceive, channel.onReceiveProgress);
 
                 // Save the connection
                 lock(openedChannels)

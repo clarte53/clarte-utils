@@ -30,5 +30,11 @@ namespace CLARTE.Net.Negotiation
         {
 
         }
+
+        [Serializable]
+        public class ReceiveProgressCallback : UnityEvent<IPAddress, Guid, ushort, float>
+        {
+
+        }
     }
 }
