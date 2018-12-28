@@ -190,12 +190,21 @@ namespace CLARTE.Net.Negotiation.Connection
         {
             lock(sendQueue)
             {
-                Threads.Result result = new Threads.Result(() => addEvent.Set());
+                Threads.Result result = new Threads.Result(() =>
+                {
+                    lock(addEvent)
+                    {
+                        addEvent.Set();
+                    }
+                });
 
                 sendQueue.Enqueue(new Threads.Task(() => SendAsync(result, data), result));
             }
 
-            addEvent.Set();
+            lock(addEvent)
+            {
+                addEvent.Set();
+            }
         }
         #endregion
 
@@ -235,27 +244,30 @@ namespace CLARTE.Net.Negotiation.Connection
                 {
                     Threads.Task task = null;
 
-                    if(sendResult == null || sendResult.Done)
+                    lock(addEvent)
                     {
-                        sendResult = null;
-
-                        lock(sendQueue)
+                        if(sendResult == null || sendResult.Done)
                         {
-                            if(sendQueue.Count > 0)
+                            sendResult = null;
+
+                            lock(sendQueue)
                             {
-                                task = sendQueue.Dequeue();
-                            }
-                            else
-                            {
-                                // Nothing to do anymore, go to sleep
-                                addEvent.Reset();
+                                if(sendQueue.Count > 0)
+                                {
+                                    task = sendQueue.Dequeue();
+                                }
+                                else
+                                {
+                                    // Nothing to do anymore, go to sleep
+                                    addEvent.Reset();
+                                }
                             }
                         }
-                    }
-                    else
-                    {
-                        // Not done yet, go to sleep
-                        addEvent.Reset();
+                        else
+                        {
+                            // Not done yet, go to sleep
+                            addEvent.Reset();
+                        }
                     }
 
                     if(task != null)
