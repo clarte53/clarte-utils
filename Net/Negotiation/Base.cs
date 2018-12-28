@@ -269,8 +269,6 @@ namespace CLARTE.Net.Negotiation
         {
             if(state == State.RUNNING)
             {
-                List<Connection.Base> client_channels = new List<Connection.Base>();
-
                 lock(openedChannels)
                 {
                     foreach(KeyValuePair<Guid, Connection.Base[]> pair in openedChannels)
@@ -282,14 +280,9 @@ namespace CLARTE.Net.Negotiation
                                 throw new ArgumentException(string.Format("Invalid channel. No channel with index '{0}'", channel), "channel");
                             }
 
-                            client_channels.Add(pair.Value[channel]);
+                            pair.Value[channel].SendAsync(data);
                         }
                     }
-                }
-
-                foreach(Connection.Base client_channel in client_channels)
-                {
-                    client_channel.SendAsync(data);
                 }
             }
             else
