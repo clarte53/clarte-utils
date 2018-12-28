@@ -68,13 +68,20 @@ namespace CLARTE.Net.Negotiation.Connection
 
         protected override void SendAsync(Threads.Result result, byte[] data)
         {
-            if(client != null)
+            try
             {
-                client.BeginSend(data, data.Length, FinalizeSend, new SendState { result = result, data = data });
+                if(client != null)
+                {
+                    client.BeginSend(data, data.Length, FinalizeSend, new SendState { result = result, data = data });
+                }
+                else
+                {
+                    throw new ArgumentNullException("client", "The connection UdpClient is not defined.");
+                }
             }
-            else
+            catch(Exception e)
             {
-                result.Complete(new ArgumentNullException("client", "The connection UdpClient is not defined."));
+                result.Complete(e);
             }
         }
 
@@ -105,15 +112,22 @@ namespace CLARTE.Net.Negotiation.Connection
         {
             SendState state = (SendState) async_result.AsyncState;
 
-            int sent_length = client.EndSend(async_result);
+            try
+            {
+                int sent_length = client.EndSend(async_result);
 
-            if(sent_length == state.data.Length)
-            {
-                state.result.Complete();
+                if(sent_length == state.data.Length)
+                {
+                    state.result.Complete();
+                }
+                else
+                {
+                    throw new ProtocolViolationException(string.Format("Can not send all data. Sent {0} bytes instead of {1}.", sent_length, state.data.Length));
+                }
             }
-            else
+            catch(Exception e)
             {
-                state.result.Complete(new ProtocolViolationException(string.Format("Can not send all data. Sent {0} bytes instead of {1}.", sent_length, state.data.Length)));
+                state.result.Complete(e);
             }
         }
 

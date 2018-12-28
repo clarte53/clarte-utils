@@ -158,30 +158,37 @@ namespace CLARTE.Net.Negotiation.Connection
 
         protected override void SendAsync(Threads.Result result, byte[] data)
         {
-            if(client != null)
+            try
             {
-                Converter c = new Converter(data.Length);
-
-                if(isLittleEndian)
+                if(client != null)
                 {
-                    writeBuffer[0] = c.Byte4;
-                    writeBuffer[1] = c.Byte3;
-                    writeBuffer[2] = c.Byte2;
-                    writeBuffer[3] = c.Byte1;
+                    Converter c = new Converter(data.Length);
+
+                    if(isLittleEndian)
+                    {
+                        writeBuffer[0] = c.Byte4;
+                        writeBuffer[1] = c.Byte3;
+                        writeBuffer[2] = c.Byte2;
+                        writeBuffer[3] = c.Byte1;
+                    }
+                    else
+                    {
+                        writeBuffer[0] = c.Byte1;
+                        writeBuffer[1] = c.Byte2;
+                        writeBuffer[2] = c.Byte3;
+                        writeBuffer[3] = c.Byte4;
+                    }
+
+                    stream.BeginWrite(writeBuffer, 0, writeBuffer.Length, FinalizeSendLength, new SendState { result = result, data = data });
                 }
                 else
                 {
-                    writeBuffer[0] = c.Byte1;
-                    writeBuffer[1] = c.Byte2;
-                    writeBuffer[2] = c.Byte3;
-                    writeBuffer[3] = c.Byte4;
+                    throw new ArgumentNullException("client", "The connection tcpClient is not defined.");
                 }
-
-                stream.BeginWrite(writeBuffer, 0, writeBuffer.Length, FinalizeSendLength, new SendState { result = result, data = data });
             }
-            else
+            catch(Exception e)
             {
-                result.Complete(new ArgumentNullException("client", "The connection tcpClient is not defined."));
+                result.Complete(e);
             }
         }
 
@@ -442,20 +449,34 @@ namespace CLARTE.Net.Negotiation.Connection
         {
             SendState state = (SendState) async_result.AsyncState;
 
-            stream.EndWrite(async_result);
+            try
+            {
+                stream.EndWrite(async_result);
 
-            stream.BeginWrite(state.data, 0, state.data.Length, FinalizeSendData, state);
+                stream.BeginWrite(state.data, 0, state.data.Length, FinalizeSendData, state);
+            }
+            catch(Exception e)
+            {
+                state.result.Complete(e);
+            }
         }
 
         protected void FinalizeSendData(IAsyncResult async_result)
         {
             SendState state = (SendState) async_result.AsyncState;
 
-            stream.EndWrite(async_result);
+            try
+            {
+                stream.EndWrite(async_result);
 
-            stream.Flush();
+                stream.Flush();
 
-            state.result.Complete();
+                state.result.Complete();
+            }
+            catch(Exception e)
+            {
+                state.result.Complete(e);
+            }
         }
 
         protected void FinalizeReceive(IAsyncResult async_result, Action<ReceiveState> callback)
