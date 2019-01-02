@@ -120,7 +120,9 @@ namespace CLARTE.UI
                     }
 				}
 
-				selectionTime = float.MaxValue;
+                feedback.SetActive(false);
+
+                selectionTime = float.MaxValue;
 			}
 		}
 
@@ -131,9 +133,29 @@ namespace CLARTE.UI
 			// Because eventSystem is not defined in Awake
 			pointerEventData = new PointerEventData(eventSystem);
 		}
-		#endregion
 
-		#region Input handling
+        protected override void OnEnable()
+        {
+            base.OnEnable();
+
+            if(pointer != null)
+            {
+                pointer.transform.parent.gameObject.SetActive(true);
+            }
+        }
+
+        protected override void OnDisable()
+        {
+            base.OnDisable();
+
+            if(pointer != null)
+            {
+                pointer.transform.parent.gameObject.SetActive(false);
+            }
+        }
+        #endregion
+
+        #region Input handling
         public void Click()
         {
             externalClick = true;
