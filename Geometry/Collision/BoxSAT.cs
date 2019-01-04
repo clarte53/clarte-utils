@@ -164,5 +164,116 @@ namespace CLARTE.Geometry.Collision
 			// All tested axis does overlap, therefore the boxes collide
 			return true;
 		}
-	}
+
+        /// <summary>
+		/// Detected collision between two OOBB projected on a Camera's space using the Separating Axis Theorem (SAT) algorithm.
+		/// </summary>
+		/// <param name="a">The first box.</param>
+		/// <param name="b">The second box.</param>
+		/// <returns>True if the two boxes are colliding, false otherwise.</returns>
+		public static bool Collision2D(this BoxCollider a, BoxCollider b, Camera camera)
+        {
+            Transform a_transform = a.transform;
+            Transform b_transform = b.transform;
+
+            Vector3 a_axis_x = camera.WorldToScreenPoint(a_transform.right);
+            Vector3 a_axis_y = camera.WorldToScreenPoint(a_transform.up);
+            Vector3 b_axis_x = camera.WorldToScreenPoint(b_transform.right);
+            Vector3 b_axis_y = camera.WorldToScreenPoint(b_transform.up);
+
+            // Get all the 15 test axis to use for Box-Box collision test using SAT
+            Vector3[] axes = new Vector3[]
+            {
+                a_axis_x,
+                a_axis_y,
+                b_axis_x,
+                b_axis_y,
+                Vector3.Cross(a_axis_x, b_axis_x),
+                Vector3.Cross(a_axis_x, b_axis_y),
+                Vector3.Cross(a_axis_y, b_axis_x),
+                Vector3.Cross(a_axis_y, b_axis_y),
+            };
+
+            // Get the corners of each box
+            Vector3[] a_corners = a.GetCorners(Space.World);
+            Vector3[] b_corners = b.GetCorners(Space.World);
+
+            int nb_axes = axes.Length;
+            int nb_corners = a_corners.Length;
+
+            // Test overlap on each axis
+            for (int i = 0; i < nb_axes; i++)
+            {
+                Vector3 axis = camera.WorldToScreenPoint(axes[i]);
+
+                // Cross product = (0, 0, 0) => collinear base vectors
+                // i.e. box alligned on some axis: we can safely skip the test on this degenerated axis
+                if (axis != Vector3.zero)
+                {
+                    float a_proj_min = float.MaxValue;
+                    float a_proj_max = float.MinValue;
+                    float b_proj_min = float.MaxValue;
+                    float b_proj_max = float.MinValue;
+
+                    // Get min and max value of projected corners into current axis
+                    for (int j = 0; j < nb_corners; j++)
+                    {
+                        float a_proj = Vector3.Dot(camera.WorldToScreenPoint(a_corners[j]), axis);
+                        float b_proj = Vector3.Dot(camera.WorldToScreenPoint(b_corners[j]), axis);
+
+                        if (a_proj < a_proj_min)
+                        {
+                            a_proj_min = a_proj;
+                        }
+
+                        if (a_proj > a_proj_max)
+                        {
+                            a_proj_max = a_proj;
+                        }
+
+                        if (b_proj < b_proj_min)
+                        {
+                            b_proj_min = b_proj;
+                        }
+
+                        if (b_proj > b_proj_max)
+                        {
+                            b_proj_max = b_proj;
+                        }
+                    }
+
+                    bool overlap = false;
+
+                    // Test if projections are overlaping on the current axis
+                    if (a_proj_min == a_proj_max)
+                    {
+                        overlap = true;
+                    }
+                    else if (a_proj_min < b_proj_min)
+                    {
+                        if (a_proj_max >= b_proj_min)
+                        {
+                            overlap = true;
+                        }
+                    }
+                    else
+                    {
+                        if (b_proj_max >= a_proj_min)
+                        {
+                            overlap = true;
+                        }
+                    }
+
+                    // No collision if boxes does not overlap on at least one axis
+                    if (!overlap)
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            // All tested axis does overlap, therefore the boxes collide
+            return true;
+        }
+    }
 }
