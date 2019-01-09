@@ -26,12 +26,15 @@ namespace CLARTE.UI
 		public float gazeTimeInSeconds = 1.5f;
 		[Range(-1f, 1f)]
 		public float verticalOffset = 0.2f;
-		public Camera eventCamera;
+        public bool useTimeBasedClick = true;
+        public bool addPhysicsRaycaster = true;
+
+        [Header("Assets")]
+        public Camera eventCamera;
         public Shader overlayShader;
         public Sprite crosshair;
 		public Sprite visualFeedback;
 		public AudioClip audioFeedback;
-		public bool addPhysicsRaycaster = true;
 
 		private PointerEventData pointerEventData;
 		private List<RaycastResult> raycastResults;
@@ -40,6 +43,7 @@ namespace CLARTE.UI
 		private Image progressRange;
 		private AudioSource audioSource;
 		private float selectionTime;
+        private bool externalClick;
 		#endregion
 
 		#region MonoBehaviour callbacks
@@ -116,7 +120,9 @@ namespace CLARTE.UI
                     }
 				}
 
-				selectionTime = float.MaxValue;
+                feedback.SetActive(false);
+
+                selectionTime = float.MaxValue;
 			}
 		}
 
@@ -127,9 +133,34 @@ namespace CLARTE.UI
 			// Because eventSystem is not defined in Awake
 			pointerEventData = new PointerEventData(eventSystem);
 		}
-		#endregion
 
-		#region Input handling
+        protected override void OnEnable()
+        {
+            base.OnEnable();
+
+            if(pointer != null)
+            {
+                pointer.transform.parent.gameObject.SetActive(true);
+            }
+        }
+
+        protected override void OnDisable()
+        {
+            base.OnDisable();
+
+            if(pointer != null)
+            {
+                pointer.transform.parent.gameObject.SetActive(false);
+            }
+        }
+        #endregion
+
+        #region Input handling
+        public void Click()
+        {
+            externalClick = true;
+        }
+
 		public override void Process()
 		{
 			if(eventCamera != null)
@@ -200,17 +231,15 @@ namespace CLARTE.UI
 					selectionTime = float.MaxValue;
 				}
 
-				bool click = false;
-
-				click = Time.realtimeSinceStartup > selectionTime;
-
-				if(progressRange != null)
+                if(useTimeBasedClick && progressRange != null)
 				{
 					progressRange.fillAmount = Mathf.Clamp01((Time.realtimeSinceStartup - (selectionTime - gazeTimeInSeconds)) / gazeTimeInSeconds);
 				}
 
-				// If we have a handler and it's time to click, do it now
-				if(selectedObject != null && click)
+                bool click = externalClick || (useTimeBasedClick && Time.realtimeSinceStartup > selectionTime);
+
+                // If we have a handler and it's time to click, do it now
+                if(selectedObject != null && click)
 				{
 					ExecuteEvents.ExecuteHierarchy(selectedObject, pointerEventData, ExecuteEvents.pointerClickHandler);
 
@@ -224,7 +253,9 @@ namespace CLARTE.UI
 				selectedObject = null;
 				selectionTime = float.MaxValue;
 			}
-		}
+
+            externalClick = false;
+        }
 
 		private void ProcessMouseEvent()
 		{
