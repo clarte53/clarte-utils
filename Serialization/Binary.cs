@@ -327,8 +327,6 @@ namespace CLARTE.Serialization
 		public const uint defaultSerializationBufferSize = 1024 * 1024 * 10;
 		public const float minResizeOffset = 0.1f;
 
-		protected static readonly TimeSpan progressRefresRate = new TimeSpan(0, 0, 0, 0, 40);
-
 		protected const uint nbParameters = 3;
 		protected const uint mask = 0xFF;
 		protected const uint byteBits = 8;
@@ -340,8 +338,10 @@ namespace CLARTE.Serialization
 		protected const uint floatSize = sizeof(float);
 		protected const uint doubleSize = sizeof(double);
 
-		private static readonly Dictionary<SupportedTypes, uint> sizes;
-		private static readonly MethodInfo fromBytesArray;
+        private static readonly Dictionary<Type, SupportedTypes> mapping;
+        private static readonly Dictionary<SupportedTypes, uint> sizes;
+        private static readonly TimeSpan progressRefresRate;
+        private static readonly MethodInfo fromBytesArray;
         private static readonly MethodInfo fromBytesList;
         private static readonly MethodInfo fromBytesHashSet;
         private static readonly MethodInfo fromBytesDictionary;
@@ -353,57 +353,78 @@ namespace CLARTE.Serialization
 		private static readonly bool isLittleEndian;
 
 		private LinkedList<byte[]> available;
-		#endregion
+        #endregion
 
-		#region Constructors
-		static Binary()
-		{
+        #region Constructors
+        static Binary()
+        {
 #pragma warning disable 0162
-			if(uintSize != intSize)
-			{
-				throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. ({2} != {3})", "int", "uint", intSize, uintSize));
-			}
+            if(uintSize != intSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. ({2} != {3})", "int", "uint", intSize, uintSize));
+            }
 
-			if(longSize != 2 * intSize)
-			{
-				throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (2 * {2} != {3})", "int", "long", intSize, longSize));
-			}
+            if(longSize != 2 * intSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (2 * {2} != {3})", "int", "long", intSize, longSize));
+            }
 
-			if(ulongSize != 2 * intSize)
-			{
-				throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (2 * {2} != {3})", "int", "ulong", intSize, ulongSize));
-			}
+            if(ulongSize != 2 * intSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (2 * {2} != {3})", "int", "ulong", intSize, ulongSize));
+            }
 
-			if(floatSize != intSize)
-			{
-				throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. ({2} != {3})", "int", "float", intSize, floatSize));
-			}
+            if(floatSize != intSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. ({2} != {3})", "int", "float", intSize, floatSize));
+            }
 
-			if(doubleSize != 2 * intSize)
-			{
-				throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (2 * {2} != {3})", "int", "double", intSize, doubleSize));
-			}
+            if(doubleSize != 2 * intSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (2 * {2} != {3})", "int", "double", intSize, doubleSize));
+            }
 #pragma warning restore 0162
 
-			emptyParameters = new object[] { };
+            emptyParameters = new object[] { };
 
-			isLittleEndian = BitConverter.IsLittleEndian;
+            isLittleEndian = BitConverter.IsLittleEndian;
 
-			sizes = new Dictionary<SupportedTypes, uint>();
+            progressRefresRate = new TimeSpan(0, 0, 0, 0, 40);
 
-			sizes.Add(SupportedTypes.BYTE, byteSize);
-			sizes.Add(SupportedTypes.BOOL, byteSize);
-			sizes.Add(SupportedTypes.INT, intSize);
-			sizes.Add(SupportedTypes.UINT, uintSize);
-			sizes.Add(SupportedTypes.LONG, longSize);
-			sizes.Add(SupportedTypes.ULONG, ulongSize);
-			sizes.Add(SupportedTypes.FLOAT, floatSize);
-			sizes.Add(SupportedTypes.DOUBLE, doubleSize);
-			sizes.Add(SupportedTypes.VECTOR2, 2 * floatSize);
-			sizes.Add(SupportedTypes.VECTOR3, 3 * floatSize);
-			sizes.Add(SupportedTypes.VECTOR4, 4 * floatSize);
-			sizes.Add(SupportedTypes.QUATERNION, 4 * floatSize);
-			sizes.Add(SupportedTypes.COLOR, 4 * byteSize);
+            mapping = new Dictionary<Type, SupportedTypes>()
+            {
+                {typeof(byte), SupportedTypes.BYTE},
+                {typeof(bool), SupportedTypes.BOOL},
+                {typeof(int), SupportedTypes.INT},
+                {typeof(uint), SupportedTypes.UINT},
+                {typeof(long), SupportedTypes.LONG},
+                {typeof(ulong), SupportedTypes.ULONG},
+                {typeof(float), SupportedTypes.FLOAT},
+                {typeof(double), SupportedTypes.DOUBLE},
+                {typeof(string), SupportedTypes.STRING},
+                {typeof(Vector2), SupportedTypes.VECTOR2},
+                {typeof(Vector3), SupportedTypes.VECTOR3},
+                {typeof(Vector4), SupportedTypes.VECTOR4},
+                {typeof(Quaternion), SupportedTypes.QUATERNION},
+                {typeof(Color), SupportedTypes.COLOR}
+            };
+
+            sizes = new Dictionary<SupportedTypes, uint>()
+            {
+                {SupportedTypes.BYTE, byteSize},
+                {SupportedTypes.BOOL, byteSize},
+                {SupportedTypes.INT, intSize},
+                {SupportedTypes.UINT, uintSize},
+                {SupportedTypes.LONG, longSize},
+                {SupportedTypes.ULONG, ulongSize},
+                {SupportedTypes.FLOAT, floatSize},
+                {SupportedTypes.DOUBLE, doubleSize},
+                {SupportedTypes.VECTOR2, 2 * floatSize},
+                {SupportedTypes.VECTOR3, 3 * floatSize},
+                {SupportedTypes.VECTOR4, 4 * floatSize},
+                {SupportedTypes.QUATERNION, 4 * floatSize},
+                {SupportedTypes.COLOR, 4 * byteSize}
+            };
 
 			MethodInfo[] methods = typeof(Binary).GetMethods();
 
@@ -2146,97 +2167,44 @@ namespace CLARTE.Serialization
 		{
 			SupportedTypes result;
 
-            if(type == typeof(byte))
+            if(!mapping.TryGetValue(type, out result))
             {
-                result = SupportedTypes.BYTE;
-            }
-            else if(type == typeof(bool))
-            {
-                result = SupportedTypes.BOOL;
-            }
-            else if(type == typeof(int))
-            {
-                result = SupportedTypes.INT;
-            }
-            else if(type == typeof(uint))
-            {
-                result = SupportedTypes.UINT;
-            }
-            else if(type == typeof(long))
-            {
-                result = SupportedTypes.LONG;
-            }
-            else if(type == typeof(ulong))
-            {
-                result = SupportedTypes.ULONG;
-            }
-            else if(type == typeof(float))
-            {
-                result = SupportedTypes.FLOAT;
-            }
-            else if(type == typeof(double))
-            {
-                result = SupportedTypes.DOUBLE;
-            }
-            else if(type == typeof(string))
-            {
-                result = SupportedTypes.STRING;
-            }
-            else if(type == typeof(Vector2))
-            {
-                result = SupportedTypes.VECTOR2;
-            }
-            else if(type == typeof(Vector3))
-            {
-                result = SupportedTypes.VECTOR3;
-            }
-            else if(type == typeof(Vector4))
-            {
-                result = SupportedTypes.VECTOR4;
-            }
-            else if(type == typeof(Quaternion))
-            {
-                result = SupportedTypes.QUATERNION;
-            }
-            else if(type == typeof(Color))
-            {
-                result = SupportedTypes.COLOR;
-            }
-            else if(typeof(IBinarySerializable).IsAssignableFrom(type))
-            {
-                result = SupportedTypes.BINARY_SERIALIZABLE;
-            }
-            else if(type.IsArray)
-            {
-                result = SupportedTypes.ARRAY;
-            }
+                if(typeof(IBinarySerializable).IsAssignableFrom(type))
+                {
+                    result = SupportedTypes.BINARY_SERIALIZABLE;
+                }
+                else if(type.IsArray)
+                {
+                    result = SupportedTypes.ARRAY;
+                }
 #if NETFX_CORE
-			else if(type.GetTypeInfo().IsGenericType && type.GetTypeInfo().GetGenericTypeDefinition() == typeof(List<>))
+			    else if(type.GetTypeInfo().IsGenericType && type.GetTypeInfo().GetGenericTypeDefinition() == typeof(List<>))
 #else
-            else if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>))
+                else if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>))
 #endif
-            {
-                result = SupportedTypes.LIST;
-            }
+                {
+                    result = SupportedTypes.LIST;
+                }
 #if NETFX_CORE
-			else if(type.GetTypeInfo().IsGenericType && type.GetTypeInfo().GetGenericTypeDefinition() == typeof(HashSet<>))
+			    else if(type.GetTypeInfo().IsGenericType && type.GetTypeInfo().GetGenericTypeDefinition() == typeof(HashSet<>))
 #else
-            else if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(HashSet<>))
+                else if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(HashSet<>))
 #endif
-            {
-                result = SupportedTypes.HASHSET;
-            }
+                {
+                    result = SupportedTypes.HASHSET;
+                }
 #if NETFX_CORE
-			else if(type.GetTypeInfo().IsGenericType && type.GetTypeInfo().GetGenericTypeDefinition() == typeof(Dictionary<,>))
+			    else if(type.GetTypeInfo().IsGenericType && type.GetTypeInfo().GetGenericTypeDefinition() == typeof(Dictionary<,>))
 #else
-            else if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<,>))
+                else if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<,>))
 #endif
-            {
-                result = SupportedTypes.DICTIONARY;
-            }
-            else
-            {
-                throw new ArgumentException(string.Format("The type '{0}' is not supported.", type));
+                {
+                    result = SupportedTypes.DICTIONARY;
+                }
+                else
+                {
+                    throw new ArgumentException(string.Format("The type '{0}' is not supported.", type));
+                }
             }
 
 			return result;
