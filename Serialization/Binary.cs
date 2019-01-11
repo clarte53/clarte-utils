@@ -833,7 +833,7 @@ namespace CLARTE.Serialization
 		}
 
 		// Create a wrapper to call from recursive call where generic type constraints can not be matched
-		private uint FromBytes(Buffer buffer, uint start, out IBinarySerializable value, System.Type type, bool optional = false)
+		private uint FromBytes(Buffer buffer, uint start, out IBinarySerializable value, Type type, bool optional = false)
 		{
 			uint read = 0;
 			bool defined = true;
@@ -2151,9 +2151,9 @@ namespace CLARTE.Serialization
 		#endregion
 
 		#region Generics to type overloads casts
-		protected void CallDefaultConstructor(System.Type type, out IBinarySerializable value)
+		protected void CallDefaultConstructor(Type type, out IBinarySerializable value)
 		{
-			ConstructorInfo constructor = type.GetConstructor(System.Type.EmptyTypes);
+			ConstructorInfo constructor = type.GetConstructor(Type.EmptyTypes);
 
 			if(constructor == null)
 			{
@@ -2163,7 +2163,7 @@ namespace CLARTE.Serialization
 			value = (IBinarySerializable) constructor.Invoke(emptyParameters);
 		}
 
-		protected SupportedTypes GetSupportedType(System.Type type)
+		protected SupportedTypes GetSupportedType(Type type)
 		{
 			SupportedTypes result;
 
