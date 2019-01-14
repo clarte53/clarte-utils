@@ -1218,7 +1218,9 @@ namespace CLARTE.Serialization
 
 			if(value != null)
 			{
-				written += value.ToBytes(this, ref buffer, start + written);
+                CheckDefaultConstructor(value.GetType());
+
+                written += value.ToBytes(this, ref buffer, start + written);
 			}
 			else if(! optional)
 			{
@@ -2148,19 +2150,24 @@ namespace CLARTE.Serialization
 
 			return written;
 		}
-		#endregion
+        #endregion
 
-		#region Generics to type overloads casts
-		protected void CallDefaultConstructor(Type type, out IBinarySerializable value)
+        #region Generics to type overloads casts
+        protected ConstructorInfo CheckDefaultConstructor(Type type)
+        {
+            ConstructorInfo constructor = type.GetConstructor(Type.EmptyTypes);
+
+            if(constructor == null)
+            {
+                throw new ArgumentException(string.Format("Invalid deserialization of object of type '{0}'. No default constructor defined.", type.FullName));
+            }
+
+            return constructor;
+        }
+
+        protected void CallDefaultConstructor(Type type, out IBinarySerializable value)
 		{
-			ConstructorInfo constructor = type.GetConstructor(Type.EmptyTypes);
-
-			if(constructor == null)
-			{
-				throw new ArgumentException(string.Format("Invalid deserialization of object of type '{0}'. No default constructor defined.", type.FullName));
-			}
-
-			value = (IBinarySerializable) constructor.Invoke(emptyParameters);
+			value = (IBinarySerializable) CheckDefaultConstructor(type).Invoke(emptyParameters);
 		}
 
 		protected SupportedTypes GetSupportedType(Type type)
