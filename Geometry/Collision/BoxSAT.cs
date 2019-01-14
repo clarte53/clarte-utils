@@ -212,10 +212,10 @@ namespace CLARTE.Geometry.Collision
             Transform a_transform = a.transform;
             Transform b_transform = b.transform;
 
-            Vector3 a_axis_x = a_transform.right;
-            Vector3 a_axis_y = a_transform.up;
-            Vector3 b_axis_x = Vector3.ProjectOnPlane(b_transform.right, a.transform.forward);
-            Vector3 b_axis_y = Vector3.ProjectOnPlane(b_transform.up, a.transform.forward);
+            Vector3 a_axis_x = Vector3.ProjectOnPlane(a_transform.right, Camera.main.transform.forward);
+            Vector3 a_axis_y = Vector3.ProjectOnPlane(a_transform.up, Camera.main.transform.forward);
+            Vector3 b_axis_x = Vector3.ProjectOnPlane(b_transform.right, Camera.main.transform.forward);
+            Vector3 b_axis_y = Vector3.ProjectOnPlane(b_transform.up, Camera.main.transform.forward);
 
             // Get all the 4 test axis to use for Box-Box collision test using SAT
             Vector3[] axes = new Vector3[]
@@ -232,8 +232,8 @@ namespace CLARTE.Geometry.Collision
 
             for (int i = 0; i < a_corners.Length; i++)
             {
-                a_corners[i] = Vector3.ProjectOnPlane(a_corners[i], a.transform.forward);
-                b_corners[i] = Vector3.ProjectOnPlane(b_corners[i], a.transform.forward);
+                a_corners[i] = Vector3.ProjectOnPlane(a_corners[i], Camera.main.transform.forward);
+                b_corners[i] = Vector3.ProjectOnPlane(b_corners[i], Camera.main.transform.forward);
             }
 
             int nb_axes = axes.Length;
@@ -242,7 +242,7 @@ namespace CLARTE.Geometry.Collision
             // Test overlap on each axis
             for (int i = 0; i < nb_axes; i++)
             {
-                Vector3 axis = Vector3.ProjectOnPlane(axes[i], a.transform.forward);
+                Vector3 axis = Vector3.ProjectOnPlane(axes[i], Camera.main.transform.forward);
 
                 // Cross product = (0, 0, 0) => collinear base vectors
                 // i.e. box alligned on some axis: we can safely skip the test on this degenerated axis
@@ -309,11 +309,6 @@ namespace CLARTE.Geometry.Collision
                         distance = 0;
                         return false;
                     }
-
-                    if (i == 0)
-                        direction.x = b_proj_min - b_proj_max;
-                    else if (i == 1)
-                        direction.y = b_proj_min - b_proj_max;
                 }
             }
 
@@ -331,6 +326,8 @@ namespace CLARTE.Geometry.Collision
             Vector3 dirY = a.transform.up;
             float distX = a_x_max - b_x_min + b_x_max - a_x_min;
             float distY = a_y_max - b_y_min + b_y_max - a_y_min;
+
+            //Debug.Log(a.name + "//" + b.name + ": " + distX + "//" + distY);
 
             ////chevauchement à droite
             //if (b_x_min < a_x_max)
