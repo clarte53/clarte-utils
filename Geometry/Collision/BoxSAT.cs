@@ -212,10 +212,10 @@ namespace CLARTE.Geometry.Collision
             Transform a_transform = a.transform;
             Transform b_transform = b.transform;
 
-            Vector3 a_axis_x = Vector3.ProjectOnPlane(a_transform.right, Camera.main.transform.forward);
-            Vector3 a_axis_y = Vector3.ProjectOnPlane(a_transform.up, Camera.main.transform.forward);
-            Vector3 b_axis_x = Vector3.ProjectOnPlane(b_transform.right, Camera.main.transform.forward);
-            Vector3 b_axis_y = Vector3.ProjectOnPlane(b_transform.up, Camera.main.transform.forward);
+            Vector3 a_axis_x = (a_transform.right);
+            Vector3 a_axis_y = (a_transform.up);
+            Vector3 b_axis_x = (b_transform.right);
+            Vector3 b_axis_y = (b_transform.up);
 
             // Get all the 4 test axis to use for Box-Box collision test using SAT
             Vector3[] axes = new Vector3[]
@@ -232,8 +232,8 @@ namespace CLARTE.Geometry.Collision
 
             for (int i = 0; i < a_corners.Length; i++)
             {
-                a_corners[i] = Vector3.ProjectOnPlane(a_corners[i], Camera.main.transform.forward);
-                b_corners[i] = Vector3.ProjectOnPlane(b_corners[i], Camera.main.transform.forward);
+                a_corners[i] = Camera.main.WorldToScreenPoint(a_corners[i]);
+                b_corners[i] = Camera.main.WorldToScreenPoint(b_corners[i]);
             }
 
             int nb_axes = axes.Length;
@@ -242,7 +242,7 @@ namespace CLARTE.Geometry.Collision
             // Test overlap on each axis
             for (int i = 0; i < nb_axes; i++)
             {
-                Vector3 axis = Vector3.ProjectOnPlane(axes[i], Camera.main.transform.forward);
+                Vector3 axis = (axes[i]);
 
                 // Cross product = (0, 0, 0) => collinear base vectors
                 // i.e. box alligned on some axis: we can safely skip the test on this degenerated axis
@@ -258,6 +258,9 @@ namespace CLARTE.Geometry.Collision
                     {
                         float a_proj = Vector3.Dot(a_corners[j], axis);
                         float b_proj = Vector3.Dot(b_corners[j], axis);
+
+                        Debug.DrawRay(a_corners[j], axis);
+                        Debug.DrawRay(b_corners[j], axis);
 
                         if (a_proj < a_proj_min)
                         {
@@ -311,6 +314,9 @@ namespace CLARTE.Geometry.Collision
                     }
                 }
             }
+
+            a_corners = a.GetCorners2D(Space.World);
+            b_corners = b.GetCorners2D(Space.World);
 
             float a_x_min = a_corners[0].x;
             float a_y_min = a_corners[0].y;
