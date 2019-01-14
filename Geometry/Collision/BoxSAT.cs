@@ -330,8 +330,8 @@ namespace CLARTE.Geometry.Collision
 
             Vector3 dirX = a.transform.right;
             Vector3 dirY = a.transform.up;
-            float distX = a_x_max - b_x_min + b_x_max - a_x_min;
-            float distY = a_y_max - b_y_min + b_y_max - a_y_min;
+            float distX = Mathf.Abs(a_x_max - b_x_min + b_x_max - a_x_min);
+            float distY = Mathf.Abs(a_y_max - b_y_min + b_y_max - a_y_min);
 
             //Debug.Log(a.name + "//" + b.name + ": " + distX + "//" + distY);
 
