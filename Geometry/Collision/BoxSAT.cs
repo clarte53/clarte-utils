@@ -230,12 +230,6 @@ namespace CLARTE.Geometry.Collision
             Vector3[] a_corners = a.GetCorners2D(Space.World);
             Vector3[] b_corners = b.GetCorners2D(Space.World);
 
-            for (int i = 0; i < a_corners.Length; i++)
-            {
-                a_corners[i] = Camera.main.WorldToScreenPoint(a_corners[i]);
-                b_corners[i] = Camera.main.WorldToScreenPoint(b_corners[i]);
-            }
-
             int nb_axes = axes.Length;
             int nb_corners = a_corners.Length;
 
@@ -256,11 +250,8 @@ namespace CLARTE.Geometry.Collision
                     // Get min and max value of projected corners into current axis
                     for (int j = 0; j < nb_corners; j++)
                     {
-                        float a_proj = Vector3.Dot(a_corners[j], axis);
-                        float b_proj = Vector3.Dot(b_corners[j], axis);
-
-                        Debug.DrawRay(a_corners[j], axis);
-                        Debug.DrawRay(b_corners[j], axis);
+                        float a_proj = Vector3.Dot(Camera.main.WorldToScreenPoint(a_corners[j]), axis);
+                        float b_proj = Vector3.Dot(Camera.main.WorldToScreenPoint(b_corners[j]), axis);
 
                         if (a_proj < a_proj_min)
                         {
@@ -315,27 +306,24 @@ namespace CLARTE.Geometry.Collision
                 }
             }
 
-            a_corners = a.GetCorners2D(Space.World);
-            b_corners = b.GetCorners2D(Space.World);
+            float a_x_min = Camera.main.WorldToScreenPoint(a_corners[0]).x;
+            float a_y_min = Camera.main.WorldToScreenPoint(a_corners[0]).y;
+            float a_x_max = Camera.main.WorldToScreenPoint(a_corners[3]).x;
+            float a_y_max = Camera.main.WorldToScreenPoint(a_corners[3]).y;
 
-            float a_x_min = a_corners[0].x;
-            float a_y_min = a_corners[0].y;
-            float a_x_max = a_corners[3].x;
-            float a_y_max = a_corners[3].y;
+            float b_x_min = Camera.main.WorldToScreenPoint(b_corners[0]).x;
+            float b_y_min = Camera.main.WorldToScreenPoint(b_corners[0]).y;
+            float b_x_max = Camera.main.WorldToScreenPoint(b_corners[3]).x;
+            float b_y_max = Camera.main.WorldToScreenPoint(b_corners[3]).y;
 
-            float b_x_min = b_corners[0].x;
-            float b_y_min = b_corners[0].y;
-            float b_x_max = b_corners[3].x;
-            float b_y_max = b_corners[3].y;
-
-            Vector3 dirX = a.transform.right;
-            Vector3 dirY = a.transform.up;
+            Vector3 dirX = Camera.main.transform.right;
+            Vector3 dirY = Camera.main.transform.up;
             float distX = Mathf.Abs(a_x_max - b_x_min + b_x_max - a_x_min);
             float distY = Mathf.Abs(a_y_max - b_y_min + b_y_max - a_y_min);
 
             //Debug.Log(a.name + "//" + b.name + ": " + distX + "//" + distY);
 
-            ////chevauchement à droite
+            //chevauchement à droite
             //if (b_x_min < a_x_max)
             //{
             //    dirX = a.transform.right;
@@ -363,14 +351,15 @@ namespace CLARTE.Geometry.Collision
 
             if (distX < distY && distX > 0)
             {
-                distance = distX;
+                distance = Mathf.Abs(distX);
                 direction = dirX;
             }
             else if (distY < distX && distY > 0)
             {
-                distance = distY;
+                distance = Mathf.Abs(distY);
                 direction = dirY;
             }
+
             // All tested axis does overlap, therefore the boxes collide
             return true;
         }
