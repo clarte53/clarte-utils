@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.IO;
 
 namespace CLARTE.Dev.Profiling
 {
@@ -12,7 +13,7 @@ namespace CLARTE.Dev.Profiling
 		/// <param name="filename">Log file name</param>
 		/// <param name="log">Line to be added</param>
 		/// <param name="write_immediately">Should the log be immediately dumped into the file? Otherwise dump will only occur upon manual call to DumpLog() or DumpAllLogs()</param>
-		static public void AddToLog(string filename, System.Object log, bool write_immediately = false)
+		static public void AddToLog(string filename, object log, bool write_immediately = false)
 		{
 			if(logs == null)
 			{
@@ -23,7 +24,7 @@ namespace CLARTE.Dev.Profiling
 			{
 				logs.Add(filename, new List<string>());
 
-				System.IO.File.Delete(filename);
+				File.Delete(filename);
 			}
 
 			string log_str = log.ToString();
@@ -32,10 +33,13 @@ namespace CLARTE.Dev.Profiling
 			
 			if(write_immediately)
 			{
-				using(System.IO.StreamWriter file = new System.IO.StreamWriter(filename, true))
-				{
-					file.WriteLine(log_str);
-				}
+                using(FileStream file = new FileStream(filename, FileMode.Append, FileAccess.Write, FileShare.None))
+                {
+                    using(StreamWriter stream = new StreamWriter(file))
+                    {
+                        stream.WriteLine(log_str);
+                    }
+                }
 			}
 		}
 
@@ -49,7 +53,7 @@ namespace CLARTE.Dev.Profiling
 			{
 				if(logs.ContainsKey(filename))
 				{
-					System.IO.File.WriteAllLines(filename, logs[filename].ToArray());
+					File.WriteAllLines(filename, logs[filename].ToArray());
 
 					UnityEngine.Debug.Log("Log dumped to " + filename);
 				}
