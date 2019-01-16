@@ -306,15 +306,15 @@ namespace CLARTE.Geometry.Collision
                 }
             }
 
-            float a_x_min = Camera.main.WorldToScreenPoint(a_corners[0]).x;
-            float a_y_min = Camera.main.WorldToScreenPoint(a_corners[0]).y;
-            float a_x_max = Camera.main.WorldToScreenPoint(a_corners[3]).x;
-            float a_y_max = Camera.main.WorldToScreenPoint(a_corners[3]).y;
-
-            float b_x_min = Camera.main.WorldToScreenPoint(b_corners[0]).x;
-            float b_y_min = Camera.main.WorldToScreenPoint(b_corners[0]).y;
-            float b_x_max = Camera.main.WorldToScreenPoint(b_corners[3]).x;
-            float b_y_max = Camera.main.WorldToScreenPoint(b_corners[3]).y;
+            float a_x_min = Camera.main.WorldToViewportPoint(a_corners[0]).x;
+            float a_y_min = Camera.main.WorldToViewportPoint(a_corners[0]).y;
+            float a_x_max = Camera.main.WorldToViewportPoint(a_corners[3]).x;
+            float a_y_max = Camera.main.WorldToViewportPoint(a_corners[3]).y;
+                                        
+            float b_x_min = Camera.main.WorldToViewportPoint(b_corners[0]).x;
+            float b_y_min = Camera.main.WorldToViewportPoint(b_corners[0]).y;
+            float b_x_max = Camera.main.WorldToViewportPoint(b_corners[3]).x;
+            float b_y_max = Camera.main.WorldToViewportPoint(b_corners[3]).y;
 
             Vector3 dirX = Camera.main.transform.right;
             Vector3 dirY = Camera.main.transform.up;
@@ -360,7 +360,7 @@ namespace CLARTE.Geometry.Collision
                 direction = dirY;
             }
 
-            direction.z = 0;
+            //direction.z = 0;
 
             // All tested axis does overlap, therefore the boxes collide
             return true;
