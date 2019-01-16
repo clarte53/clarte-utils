@@ -360,6 +360,12 @@ namespace CLARTE.Geometry.Collision
                 direction = dirY;
             }
 
+            direction = dirX * distX + dirY * distY;
+
+            distance = direction.magnitude;
+
+            direction = direction / distance;
+
             //direction.z = 0;
 
             // All tested axis does overlap, therefore the boxes collide
