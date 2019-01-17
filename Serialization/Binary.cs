@@ -2153,7 +2153,7 @@ namespace CLARTE.Serialization
         #endregion
 
         #region Generics to type overloads casts
-        protected ConstructorInfo CheckDefaultConstructor(Type type)
+        protected static ConstructorInfo CheckDefaultConstructor(Type type)
         {
             ConstructorInfo constructor = type.GetConstructor(Type.EmptyTypes);
 
@@ -2165,12 +2165,12 @@ namespace CLARTE.Serialization
             return constructor;
         }
 
-        protected void CallDefaultConstructor(Type type, out IBinarySerializable value)
+        protected static void CallDefaultConstructor(Type type, out IBinarySerializable value)
 		{
 			value = (IBinarySerializable) CheckDefaultConstructor(type).Invoke(emptyParameters);
 		}
 
-		protected SupportedTypes GetSupportedType(Type type)
+		public static SupportedTypes GetSupportedType(Type type)
 		{
 			SupportedTypes result;
 
