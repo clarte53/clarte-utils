@@ -2170,6 +2170,35 @@ namespace CLARTE.Serialization
 			value = (IBinarySerializable) CheckDefaultConstructor(type).Invoke(emptyParameters);
 		}
 
+        protected static bool CheckGenericDefinition(Type type, Type generic_definition)
+        {
+#if NETFX_CORE
+			return type.GetTypeInfo().IsGenericType && type.GetTypeInfo().GetGenericTypeDefinition() == generic_definition;
+#else
+            return type.IsGenericType && type.GetGenericTypeDefinition() == generic_definition;
+#endif
+        }
+
+        protected static void CheckGenericParametersTypes(Type type, uint nb_expected_types)
+        {
+#if NETFX_CORE
+            Type[] element_types = type.GetTypeInfo().GetGenericArguments();
+#else
+            Type[] element_types = type.GetGenericArguments();
+#endif
+
+            if(element_types == null || element_types.Length < nb_expected_types)
+            {
+                throw new ArgumentException(string.Format("The type '{0}' is not supported.", type));
+            }
+
+            for(uint i = 0; i < nb_expected_types; i++)
+            {
+                // Check if we get an exception or not
+                GetSupportedType(element_types[i]);
+            }
+        }
+
 		public static SupportedTypes GetSupportedType(Type type)
 		{
 			SupportedTypes result;
@@ -2183,30 +2212,30 @@ namespace CLARTE.Serialization
                 else if(type.IsArray)
                 {
                     result = SupportedTypes.ARRAY;
+
+                    // Check inner type support
+                    GetSupportedType(type.GetElementType());
                 }
-#if NETFX_CORE
-			    else if(type.GetTypeInfo().IsGenericType && type.GetTypeInfo().GetGenericTypeDefinition() == typeof(List<>))
-#else
-                else if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>))
-#endif
+                else if(CheckGenericDefinition(type, typeof(List<>)))
                 {
                     result = SupportedTypes.LIST;
+
+                    // Check inner type support
+                    CheckGenericParametersTypes(type, 1);
                 }
-#if NETFX_CORE
-			    else if(type.GetTypeInfo().IsGenericType && type.GetTypeInfo().GetGenericTypeDefinition() == typeof(HashSet<>))
-#else
-                else if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(HashSet<>))
-#endif
+                else if(CheckGenericDefinition(type, typeof(HashSet<>)))
                 {
                     result = SupportedTypes.HASHSET;
+
+                    // Check inner type support
+                    CheckGenericParametersTypes(type, 1);
                 }
-#if NETFX_CORE
-			    else if(type.GetTypeInfo().IsGenericType && type.GetTypeInfo().GetGenericTypeDefinition() == typeof(Dictionary<,>))
-#else
-                else if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<,>))
-#endif
+                else if(CheckGenericDefinition(type, typeof(Dictionary<,>)))
                 {
                     result = SupportedTypes.DICTIONARY;
+
+                    // Check inner type support
+                    CheckGenericParametersTypes(type, 2);
                 }
                 else
                 {
@@ -2221,13 +2250,13 @@ namespace CLARTE.Serialization
 		{
 			uint read;
 
-			object[] parameters;
-
 			switch(type)
 			{
 				case SupportedTypes.BINARY_SERIALIZABLE: // We cannot call the correct overload directly because the type constraints are not matched
-					IBinarySerializable ret;
-
+                case SupportedTypes.ARRAY:
+                case SupportedTypes.LIST:
+                case SupportedTypes.HASHSET:
+                case SupportedTypes.DICTIONARY:
                     string raw_complete_type;
 
                     Type complete_type = typeof(T);
@@ -2241,59 +2270,44 @@ namespace CLARTE.Serialization
                         complete_type = Type.GetType(raw_complete_type);
                     }
 
-                    // Optional parameter useless here: arrays and dictionnaries does call this wrapper only when strictly necessary,
-                    // i.e. when the value is defined. Moreover, the call of this wrapper from the Deserialize method also imply
-                    // that the value is mandatory. By forcing the optional parameter to false, we avoid allocating 1 more byte for
-                    // each value.
-                    read += FromBytes(buffer, start + read, out ret, complete_type, false);
-                    
-					value = (T) ret;
+                    if(type == SupportedTypes.BINARY_SERIALIZABLE)
+                    {
+                        IBinarySerializable ret;
 
-					break;
-				case SupportedTypes.ARRAY:
-					parameters = new object[nbParameters];
+                        // Optional parameter useless here: arrays and dictionnaries does call this wrapper only when strictly necessary,
+                        // i.e. when the value is defined. Moreover, the call of this wrapper from the Deserialize method also imply
+                        // that the value is mandatory. By forcing the optional parameter to false, we avoid allocating 1 more byte for
+                        // each value.
+                        read += FromBytes(buffer, start + read, out ret, complete_type, false);
 
-					parameters[0] = buffer;
-					parameters[1] = start;
-					parameters[2] = null;
+                        value = (T) ret;
+                    }
+                    else
+                    {
+                        object[] parameters = new object[nbParameters];
 
-					read = (uint) fromBytesArray.MakeGenericMethod(typeof(T).GetElementType()).Invoke(this, parameters);
+                        parameters[0] = buffer;
+                        parameters[1] = start + read;
+                        parameters[2] = null;
 
-					value = (T) parameters[2];
+                        switch(type)
+                        {
+                            case SupportedTypes.ARRAY:
+                                read += (uint) fromBytesArray.MakeGenericMethod(complete_type.GetElementType()).Invoke(this, parameters);
+                                break;
+                            case SupportedTypes.LIST:
+                                read += (uint) fromBytesList.MakeGenericMethod(complete_type.GetGenericArguments()).Invoke(this, parameters);
+                                break;
+                            case SupportedTypes.HASHSET:
+                                read += (uint) fromBytesHashSet.MakeGenericMethod(complete_type.GetGenericArguments()).Invoke(this, parameters);
+                                break;
+                            case SupportedTypes.DICTIONARY:
+                                read += (uint) fromBytesDictionary.MakeGenericMethod(complete_type.GetGenericArguments()).Invoke(this, parameters);
+                                break;
+                        }
 
-					break;
-                case SupportedTypes.LIST:
-                    parameters = new object[nbParameters];
-
-                    parameters[0] = buffer;
-                    parameters[1] = start;
-                    parameters[2] = null;
-
-                    read = (uint) fromBytesList.MakeGenericMethod(typeof(T).GetGenericArguments()).Invoke(this, parameters);
-
-                    value = (T) parameters[2];
-                    break;
-                case SupportedTypes.HASHSET:
-                    parameters = new object[nbParameters];
-
-                    parameters[0] = buffer;
-                    parameters[1] = start;
-                    parameters[2] = null;
-
-                    read = (uint) fromBytesHashSet.MakeGenericMethod(typeof(T).GetGenericArguments()).Invoke(this, parameters);
-
-                    value = (T) parameters[2];
-                    break;
-                case SupportedTypes.DICTIONARY:
-					parameters = new object[nbParameters];
-
-					parameters[0] = buffer;
-					parameters[1] = start;
-					parameters[2] = null;
-
-					read = (uint) fromBytesDictionary.MakeGenericMethod(typeof(T).GetGenericArguments()).Invoke(this, parameters);
-
-					value = (T) parameters[2];
+                        value = (T) parameters[2];
+                    }
 
 					break;
 				case SupportedTypes.BYTE:
@@ -2419,11 +2433,13 @@ namespace CLARTE.Serialization
 		{
 			uint written;
 
-			object[] parameters;
-
 			switch(type)
 			{
 				case SupportedTypes.BINARY_SERIALIZABLE:
+                case SupportedTypes.ARRAY:
+                case SupportedTypes.LIST:
+                case SupportedTypes.HASHSET:
+                case SupportedTypes.DICTIONARY:
                     string complete_type = null;
 
                     if(value.GetType() != typeof(T))
@@ -2437,58 +2453,40 @@ namespace CLARTE.Serialization
                     // Usually only 4 bytes used for null types when we have enough static info.
                     written = ToBytes(ref buffer, start, complete_type);
 
-                    // Optional parameter useless here: arrays and dictionnaries does call this wrapper only when strictly necessary,
-                    // i.e. when the value is defined. Moreover, the call of this wrapper from the Serialize method also imply
-                    // that the value is mandatory. By forcing the optional parameter to false, we avoid allocating 1 more byte for
-                    // each value.
-                    written += ToBytes(ref buffer, start + written, (IBinarySerializable) ((object) value), false);
-					break;
-				case SupportedTypes.ARRAY:
-					parameters = new object[nbParameters];
+                    if(type == SupportedTypes.BINARY_SERIALIZABLE)
+                    {
+                        // Optional parameter useless here: arrays and dictionnaries does call this wrapper only when strictly necessary,
+                        // i.e. when the value is defined. Moreover, the call of this wrapper from the Serialize method also imply
+                        // that the value is mandatory. By forcing the optional parameter to false, we avoid allocating 1 more byte for
+                        // each value.
+                        written += ToBytes(ref buffer, start + written, (IBinarySerializable) ((object) value), false);
+                    }
+                    else
+                    {
+                        object[]  parameters = new object[nbParameters];
 
-					parameters[0] = buffer;
-					parameters[1] = start;
-					parameters[2] = value;
+                        parameters[0] = buffer;
+                        parameters[1] = start + written;
+                        parameters[2] = value;
 
-					written = (uint) toBytesArray.MakeGenericMethod(typeof(T).GetElementType()).Invoke(this, parameters);
+                        switch(type)
+                        {
+                            case SupportedTypes.ARRAY:
+                                written += (uint) toBytesArray.MakeGenericMethod(value.GetType().GetElementType()).Invoke(this, parameters);
+                                break;
+                            case SupportedTypes.LIST:
+                                written += (uint) toBytesList.MakeGenericMethod(value.GetType().GetGenericArguments()).Invoke(this, parameters);
+                                break;
+                            case SupportedTypes.HASHSET:
+                                written += (uint) toBytesHashSet.MakeGenericMethod(value.GetType().GetGenericArguments()).Invoke(this, parameters);
+                                break;
+                            case SupportedTypes.DICTIONARY:
+                                written += (uint) toBytesDictionary.MakeGenericMethod(value.GetType().GetGenericArguments()).Invoke(this, parameters);
+                                break;
+                        }
 
-					buffer = (Buffer) parameters[0];
-
-					break;
-                case SupportedTypes.LIST:
-                    parameters = new object[nbParameters];
-
-                    parameters[0] = buffer;
-                    parameters[1] = start;
-                    parameters[2] = value;
-
-                    written = (uint) toBytesList.MakeGenericMethod(typeof(T).GetGenericArguments()).Invoke(this, parameters);
-
-                    buffer = (Buffer) parameters[0];
-
-                    break;
-                case SupportedTypes.HASHSET:
-                    parameters = new object[nbParameters];
-
-                    parameters[0] = buffer;
-                    parameters[1] = start;
-                    parameters[2] = value;
-
-                    written = (uint) toBytesHashSet.MakeGenericMethod(typeof(T).GetGenericArguments()).Invoke(this, parameters);
-
-                    buffer = (Buffer) parameters[0];
-
-                    break;
-                case SupportedTypes.DICTIONARY:
-					parameters = new object[nbParameters];
-
-					parameters[0] = buffer;
-					parameters[1] = start;
-					parameters[2] = value;
-
-					written = (uint) toBytesDictionary.MakeGenericMethod(typeof(T).GetGenericArguments()).Invoke(this, parameters);
-
-					buffer = (Buffer) parameters[0];
+                        buffer = (Buffer) parameters[0];
+                    }
 
 					break;
 				case SupportedTypes.BYTE:
