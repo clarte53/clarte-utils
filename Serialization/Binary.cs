@@ -809,19 +809,48 @@ namespace CLARTE.Serialization
 				}
 			}
 		}
-		#endregion
+        #endregion
 
-		#region Convert from bytes
-		/// <summary>
-		/// Deserialize a IBinarySerializable object.
-		/// </summary>
-		/// <typeparam name="T">The type of the IBinarySerializable object.</typeparam>
-		/// <param name="buffer">The buffer containing the serialized data.</param>
-		/// <param name="start">The start index in the buffer of the serialized object.</param>
-		/// <param name="value">The deserialized object.</param>
-		/// <param name="optional">If true, no error will be raised if the value is missing and null will be returned.</param>
-		/// <returns>The number of deserialized bytes.</returns>
-		public uint FromBytes<T>(Buffer buffer, uint start, out T value, bool optional = false) where T : IBinarySerializable
+        #region Convert from bytes
+        /// <summary>
+        /// Deserialize into an existing IBinarySerializable object.
+        /// </summary>
+        /// <typeparam name="T">The type of the IBinarySerializable object.</typeparam>
+        /// <param name="buffer">The buffer containing the serialized data.</param>
+        /// <param name="start">The start index in the buffer of the serialized object.</param>
+        /// <param name="value">The deserialized object.</param>
+        /// <param name="optional">If true, no error will be raised if the value is missing and null will be returned.</param>
+        /// <returns>The number of deserialized bytes.</returns>
+        public uint FromBytesOverwrite<T>(Buffer buffer, uint start, T value, bool optional = false) where T : IBinarySerializable
+        {
+            uint read = 0;
+            bool defined = true;
+
+            CheckDeserializationParameters(buffer, start);
+
+            if(optional)
+            {
+                read = FromBytes(buffer, start, out defined);
+            }
+
+            if(defined)
+            {
+                read += value.FromBytes(this, buffer, start + read);
+            }
+
+            return read;
+        }
+
+        /// <summary>
+        /// Deserialize a IBinarySerializable object.
+        /// </summary>
+        /// <typeparam name="T">The type of the IBinarySerializable object.</typeparam>
+        /// <param name="buffer">The buffer containing the serialized data.</param>
+        /// <param name="start">The start index in the buffer of the serialized object.</param>
+        /// <param name="value">The deserialized object.</param>
+        /// <param name="optional">If true, no error will be raised if the value is missing and null will be returned.</param>
+        /// <returns>The number of deserialized bytes.</returns>
+        public uint FromBytes<T>(Buffer buffer, uint start, out T value, bool optional = false) where T : IBinarySerializable
 		{
 			IBinarySerializable ret;
 			
