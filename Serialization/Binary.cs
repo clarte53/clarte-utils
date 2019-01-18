@@ -2447,7 +2447,7 @@ namespace CLARTE.Serialization
                         // We do not have enough static type info to recreate automatically the object.
                         // It can happen when serializing something only typed as "object" which contains some IBinarySerializable data.
                         // Threfore, i this case the "type" parameter does not hold enough info for deserialization and we must be more explicit.
-                        complete_type = value.GetType().ToString();
+                        complete_type = string.Format("{0}, {1}", value.GetType().ToString(), value.GetType().Assembly.GetName().Name);
                     }
 
                     // Usually only 4 bytes used for null types when we have enough static info.
