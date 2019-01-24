@@ -264,7 +264,7 @@ namespace CLARTE.Serialization
 			[FieldOffset(0)]
 			public float Float1;
 
-			[FieldOffset(sizeof(int))]
+			[FieldOffset(sizeof(float))]
 			public float Float2;
 
 			[FieldOffset(0)]
@@ -2184,7 +2184,7 @@ namespace CLARTE.Serialization
         #region Generics to type overloads casts
         protected static ConstructorInfo CheckDefaultConstructor(Type type)
         {
-            ConstructorInfo constructor = type.GetConstructor(Type.EmptyTypes);
+            ConstructorInfo constructor = type.GetConstructor(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null);
 
             if(constructor == null)
             {
