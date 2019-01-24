@@ -19,21 +19,21 @@ namespace CLARTE.Serialization
 		public enum SupportedTypes
 		{
 			BINARY_SERIALIZABLE,
-			BYTE,
-			BOOL,
+            BOOL,
+            BYTE,
 			INT,
 			UINT,
 			LONG,
 			ULONG,
 			FLOAT,
 			DOUBLE,
-			STRING,
+            STRING,
 			VECTOR2,
 			VECTOR3,
 			VECTOR4,
 			QUATERNION,
 			COLOR,
-			ARRAY,
+            ARRAY,
             LIST,
             HASHSET,
 			DICTIONARY,
@@ -888,14 +888,32 @@ namespace CLARTE.Serialization
 			return read;
 		}
 
-		/// <summary>
-		/// Deserialize a byte value.
+        /// <summary>
+		/// Deserialize a bool value.
 		/// </summary>
 		/// <param name="buffer">The buffer containing the serialized data.</param>
 		/// <param name="start">The start index in the buffer of the serialized value.</param>
 		/// <param name="value">The deserialized value.</param>
 		/// <returns>The number of deserialized bytes.</returns>
-		public uint FromBytes(Buffer buffer, uint start, out byte value)
+		public uint FromBytes(Buffer buffer, uint start, out bool value)
+        {
+            byte ret;
+
+            uint read = FromBytes(buffer, start, out ret);
+
+            value = (ret != 0);
+
+            return read;
+        }
+
+        /// <summary>
+        /// Deserialize a byte value.
+        /// </summary>
+        /// <param name="buffer">The buffer containing the serialized data.</param>
+        /// <param name="start">The start index in the buffer of the serialized value.</param>
+        /// <param name="value">The deserialized value.</param>
+        /// <returns>The number of deserialized bytes.</returns>
+        public uint FromBytes(Buffer buffer, uint start, out byte value)
 		{
 			CheckDeserializationParameters(buffer, start);
 
@@ -911,24 +929,6 @@ namespace CLARTE.Serialization
 			buffer.Progress(start + byteSize);
 
 			return byteSize;
-		}
-
-		/// <summary>
-		/// Deserialize a bool value.
-		/// </summary>
-		/// <param name="buffer">The buffer containing the serialized data.</param>
-		/// <param name="start">The start index in the buffer of the serialized value.</param>
-		/// <param name="value">The deserialized value.</param>
-		/// <returns>The number of deserialized bytes.</returns>
-		public uint FromBytes(Buffer buffer, uint start, out bool value)
-		{
-			byte ret;
-
-			uint read = FromBytes(buffer, start, out ret);
-
-			value = (ret != 0);
-
-			return read;
 		}
 
 		/// <summary>
@@ -1259,14 +1259,26 @@ namespace CLARTE.Serialization
 			return written;
 		}
 
-		/// <summary>
-		/// Serialize a byte value.
+        /// <summary>
+		/// Serialize a bool value.
 		/// </summary>
 		/// <param name="buffer">The buffer where to serialize the data.</param>
 		/// <param name="start">The start index in the buffer where to serialize the data.</param>
 		/// <param name="value">The value to serialize.</param>
 		/// <returns>The number of serialized bytes.</returns>
-		public uint ToBytes(ref Buffer buffer, uint start, byte value)
+		public uint ToBytes(ref Buffer buffer, uint start, bool value)
+        {
+            return ToBytes(ref buffer, start, value ? (byte) 0x1 : (byte) 0x0);
+        }
+
+        /// <summary>
+        /// Serialize a byte value.
+        /// </summary>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="value">The value to serialize.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        public uint ToBytes(ref Buffer buffer, uint start, byte value)
 		{
 			CheckSerializationParameters(buffer, start);
 
@@ -1278,18 +1290,6 @@ namespace CLARTE.Serialization
 			buffer.Progress(start + byteSize);
 
 			return byteSize;
-		}
-
-		/// <summary>
-		/// Serialize a bool value.
-		/// </summary>
-		/// <param name="buffer">The buffer where to serialize the data.</param>
-		/// <param name="start">The start index in the buffer where to serialize the data.</param>
-		/// <param name="value">The value to serialize.</param>
-		/// <returns>The number of serialized bytes.</returns>
-		public uint ToBytes(ref Buffer buffer, uint start, bool value)
-		{
-			return ToBytes(ref buffer, start, value ? (byte) 0x1 : (byte) 0x0);
 		}
 
 		/// <summary>
