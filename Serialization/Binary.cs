@@ -393,8 +393,8 @@ namespace CLARTE.Serialization
 
             mapping = new Dictionary<Type, SupportedTypes>()
             {
-                {typeof(byte), SupportedTypes.BYTE},
                 {typeof(bool), SupportedTypes.BOOL},
+                {typeof(byte), SupportedTypes.BYTE},
                 {typeof(int), SupportedTypes.INT},
                 {typeof(uint), SupportedTypes.UINT},
                 {typeof(long), SupportedTypes.LONG},
@@ -411,8 +411,8 @@ namespace CLARTE.Serialization
 
             sizes = new Dictionary<SupportedTypes, uint>()
             {
-                {SupportedTypes.BYTE, byteSize},
                 {SupportedTypes.BOOL, byteSize},
+                {SupportedTypes.BYTE, byteSize},
                 {SupportedTypes.INT, intSize},
                 {SupportedTypes.UINT, uintSize},
                 {SupportedTypes.LONG, longSize},
@@ -2339,20 +2339,20 @@ namespace CLARTE.Serialization
                     }
 
 					break;
-				case SupportedTypes.BYTE:
+                case SupportedTypes.BOOL:
+                    bool o;
+
+                    read = FromBytes(buffer, start, out o);
+
+                    value = (T) ((object) o);
+
+                    break;
+                case SupportedTypes.BYTE:
 					byte b;
 
 					read = FromBytes(buffer, start, out b);
 
 					value = (T) ((object) b);
-
-					break;
-				case SupportedTypes.BOOL:
-					bool o;
-
-					read = FromBytes(buffer, start, out o);
-
-					value = (T) ((object) o);
 
 					break;
 				case SupportedTypes.INT:
@@ -2518,11 +2518,11 @@ namespace CLARTE.Serialization
                     }
 
 					break;
-				case SupportedTypes.BYTE:
+                case SupportedTypes.BOOL:
+                    written = ToBytes(ref buffer, start, (bool) ((object) value));
+                    break;
+                case SupportedTypes.BYTE:
 					written = ToBytes(ref buffer, start, (byte) ((object) value));
-					break;
-				case SupportedTypes.BOOL:
-					written = ToBytes(ref buffer, start, (bool) ((object) value));
 					break;
 				case SupportedTypes.INT:
 					written = ToBytes(ref buffer, start, (int) ((object) value));
