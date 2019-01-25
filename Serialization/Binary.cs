@@ -2,7 +2,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using UnityEngine;
 
 namespace CLARTE.Serialization
@@ -21,12 +20,17 @@ namespace CLARTE.Serialization
 			BINARY_SERIALIZABLE,
             BOOL,
             BYTE,
+            SBYTE,
+            CHAR,
+            SHORT,
+            USHORT,
 			INT,
 			UINT,
 			LONG,
 			ULONG,
 			FLOAT,
 			DOUBLE,
+            DECIMAL,
             STRING,
 			VECTOR2,
 			VECTOR3,
@@ -257,86 +261,27 @@ namespace CLARTE.Serialization
 			#endregion
 		}
 
-		// Store both int and float values at the same offset. Therefore, both fields share the same bytes
-		[StructLayout(LayoutKind.Explicit)]
-		private struct Converter
-		{
-			[FieldOffset(0)]
-			public float Float1;
-
-			[FieldOffset(sizeof(float))]
-			public float Float2;
-
-			[FieldOffset(0)]
-			public double Double;
-
-			[FieldOffset(0)]
-			public int Int1;
-
-			[FieldOffset(sizeof(int))]
-			public int Int2;
-
-			[FieldOffset(0)]
-			public long Long;
-
-			public Converter(float value1, float value2 = 0f)
-			{
-				Double = 0d;
-				Int1 = 0;
-				Int2 = 0;
-				Long = 0;
-				Float1 = value1;
-				Float2 = value2;
-			}
-
-			public Converter(double value)
-			{
-				Float1 = 0f;
-				Float2 = 0f;
-				Int1 = 0;
-				Int2 = 0;
-				Long = 0;
-				Double = value;
-			}
-
-			public Converter(int value1, int value2 = 0)
-			{
-				Float1 = 0f;
-				Float2 = 0f;
-				Double = 0d;
-				Long = 0;
-				Int1 = value1;
-				Int2 = value2;
-			}
-
-			public Converter(long value)
-			{
-				Float1 = 0f;
-				Float2 = 0f;
-				Double = 0d;
-				Int1 = 0;
-				Int2 = 0;
-				Long = value;
-			}
-		}
-
-		#region Members
-		/// <summary>
-		/// Serialization buffer of 10 Mo by default.
-		/// </summary>
-		public const uint defaultSerializationBufferSize = 1024 * 1024 * 10;
+        #region Members
+        /// <summary>
+        /// Serialization buffer of 10 Mo by default.
+        /// </summary>
+        public const uint defaultSerializationBufferSize = 1024 * 1024 * 10;
 		public const float minResizeOffset = 0.1f;
 
 		protected const uint nbParameters = 3;
-		protected const uint mask = 0xFF;
-		protected const uint byteBits = 8;
-		protected const uint byteSize = sizeof(byte);
-		protected const uint intSize = sizeof(int);
+        protected const uint boolSize = sizeof(bool);
+        protected const uint byteSize = sizeof(byte);
+        protected const uint sbyteSize = sizeof(sbyte);
+        protected const uint charSize = sizeof(char);
+        protected const uint shortSize = sizeof(short);
+        protected const uint ushortSize = sizeof(ushort);
+        protected const uint intSize = sizeof(int);
 		protected const uint uintSize = sizeof(uint);
 		protected const uint longSize = sizeof(long);
 		protected const uint ulongSize = sizeof(ulong);
 		protected const uint floatSize = sizeof(float);
 		protected const uint doubleSize = sizeof(double);
+        protected const uint decimalSize = sizeof(decimal);
 
         private static readonly Dictionary<Type, SupportedTypes> mapping;
         private static readonly Dictionary<SupportedTypes, uint> sizes;
@@ -350,7 +295,6 @@ namespace CLARTE.Serialization
         private static readonly MethodInfo toBytesHashSet;
         private static readonly MethodInfo toBytesDictionary;
 		private static readonly object[] emptyParameters;
-		private static readonly bool isLittleEndian;
 
 		private LinkedList<byte[]> available;
         #endregion
@@ -359,6 +303,36 @@ namespace CLARTE.Serialization
         static Binary()
         {
 #pragma warning disable 0162
+            if(boolSize != byteSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. ({2} != {3})", "byte", "bool", byteSize, boolSize));
+            }
+
+            if(sbyteSize != byteSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. ({2} != {3})", "byte", "sbyte", byteSize, sbyteSize));
+            }
+
+            if(charSize != 2 * byteSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (2 * {2} != {3})", "byte", "char", byteSize, charSize));
+            }
+
+            if(shortSize != 2 * byteSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (2 * {2} != {3})", "byte", "short", byteSize, shortSize));
+            }
+
+            if(ushortSize != shortSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. ({2} != {3})", "short", "ushort", shortSize, ushortSize));
+            }
+
+            if(intSize != 4 * byteSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (4 * {2} != {3})", "byte", "int", byteSize, intSize));
+            }
+
             if(uintSize != intSize)
             {
                 throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. ({2} != {3})", "int", "uint", intSize, uintSize));
@@ -369,9 +343,9 @@ namespace CLARTE.Serialization
                 throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (2 * {2} != {3})", "int", "long", intSize, longSize));
             }
 
-            if(ulongSize != 2 * intSize)
+            if(ulongSize != longSize)
             {
-                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (2 * {2} != {3})", "int", "ulong", intSize, ulongSize));
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. ({2} != {3})", "long", "ulong", longSize, ulongSize));
             }
 
             if(floatSize != intSize)
@@ -379,15 +353,18 @@ namespace CLARTE.Serialization
                 throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. ({2} != {3})", "int", "float", intSize, floatSize));
             }
 
-            if(doubleSize != 2 * intSize)
+            if(doubleSize != 2 * floatSize)
             {
-                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (2 * {2} != {3})", "int", "double", intSize, doubleSize));
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (2 * {2} != {3})", "float", "double", floatSize, doubleSize));
+            }
+
+            if(decimalSize != 4 * floatSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (4 * {2} != {3})", "float", "decimal", floatSize, decimalSize));
             }
 #pragma warning restore 0162
 
             emptyParameters = new object[] { };
-
-            isLittleEndian = BitConverter.IsLittleEndian;
 
             progressRefresRate = new TimeSpan(0, 0, 0, 0, 40);
 
@@ -395,12 +372,17 @@ namespace CLARTE.Serialization
             {
                 {typeof(bool), SupportedTypes.BOOL},
                 {typeof(byte), SupportedTypes.BYTE},
+                {typeof(sbyte), SupportedTypes.SBYTE},
+                {typeof(char), SupportedTypes.CHAR},
+                {typeof(short), SupportedTypes.SHORT},
+                {typeof(ushort), SupportedTypes.USHORT},
                 {typeof(int), SupportedTypes.INT},
                 {typeof(uint), SupportedTypes.UINT},
                 {typeof(long), SupportedTypes.LONG},
                 {typeof(ulong), SupportedTypes.ULONG},
                 {typeof(float), SupportedTypes.FLOAT},
                 {typeof(double), SupportedTypes.DOUBLE},
+                {typeof(decimal), SupportedTypes.DECIMAL},
                 {typeof(string), SupportedTypes.STRING},
                 {typeof(Vector2), SupportedTypes.VECTOR2},
                 {typeof(Vector3), SupportedTypes.VECTOR3},
@@ -411,14 +393,19 @@ namespace CLARTE.Serialization
 
             sizes = new Dictionary<SupportedTypes, uint>()
             {
-                {SupportedTypes.BOOL, byteSize},
+                {SupportedTypes.BOOL, boolSize},
                 {SupportedTypes.BYTE, byteSize},
+                {SupportedTypes.SBYTE, sbyteSize},
+                {SupportedTypes.CHAR, charSize},
+                {SupportedTypes.SHORT, shortSize},
+                {SupportedTypes.USHORT, ushortSize},
                 {SupportedTypes.INT, intSize},
                 {SupportedTypes.UINT, uintSize},
                 {SupportedTypes.LONG, longSize},
                 {SupportedTypes.ULONG, ulongSize},
                 {SupportedTypes.FLOAT, floatSize},
                 {SupportedTypes.DOUBLE, doubleSize},
+                {SupportedTypes.DECIMAL, decimalSize},
                 {SupportedTypes.VECTOR2, 2 * floatSize},
                 {SupportedTypes.VECTOR3, 3 * floatSize},
                 {SupportedTypes.VECTOR4, 4 * floatSize},
@@ -889,6 +876,86 @@ namespace CLARTE.Serialization
 		}
 
         /// <summary>
+		/// Deserialize a 16 bits value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
+		protected uint FromBytes(Buffer buffer, uint start, out Converter16 value)
+        {
+            byte b1, b2;
+
+            uint read = FromBytes(buffer, start, out b1);
+            read += FromBytes(buffer, start + read, out b2);
+
+            value = new Converter16(b1, b2);
+
+            return read;
+        }
+
+        /// <summary>
+		/// Deserialize a 32 bits value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
+		protected uint FromBytes(Buffer buffer, uint start, out Converter32 value)
+        {
+            byte b1, b2, b3, b4;
+
+            uint read = FromBytes(buffer, start, out b1);
+            read += FromBytes(buffer, start + read, out b2);
+            read += FromBytes(buffer, start + read, out b3);
+            read += FromBytes(buffer, start + read, out b4);
+
+            value = new Converter32(b1, b2, b3, b4);
+
+            return read;
+        }
+
+        /// <summary>
+		/// Deserialize a 64 bits value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
+		protected uint FromBytes(Buffer buffer, uint start, out Converter64 value)
+        {
+            Converter32 i1, i2;
+
+            uint read = FromBytes(buffer, start, out i1);
+            read += FromBytes(buffer, start + read, out i2);
+
+            value = new Converter64(i1, i2);
+
+            return read;
+        }
+
+        /// <summary>
+		/// Deserialize a 128 bits value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
+		protected uint FromBytes(Buffer buffer, uint start, out Converter128 value)
+        {
+            Converter32 i1, i2, i3, i4;
+
+            uint read = FromBytes(buffer, start, out i1);
+            read += FromBytes(buffer, start + read, out i2);
+            read += FromBytes(buffer, start + read, out i3);
+            read += FromBytes(buffer, start + read, out i4);
+
+            value = new Converter128(i1, i2, i3, i4);
+
+            return read;
+        }
+
+        /// <summary>
 		/// Deserialize a bool value.
 		/// </summary>
 		/// <param name="buffer">The buffer containing the serialized data.</param>
@@ -914,24 +981,96 @@ namespace CLARTE.Serialization
         /// <param name="value">The deserialized value.</param>
         /// <returns>The number of deserialized bytes.</returns>
         public uint FromBytes(Buffer buffer, uint start, out byte value)
-		{
-			CheckDeserializationParameters(buffer, start);
+        {
+            CheckDeserializationParameters(buffer, start);
 
-			byte[] data = buffer.Data;
+            byte[] data = buffer.Data;
 
-			if(start + byteSize > data.Length)
-			{
-				throw new ArgumentException(string.Format("Buffer too small. {0} bytes required, only {1} bytes available.", byteSize, data.Length - start));
-			}
+            if(start + byteSize > data.Length)
+            {
+                throw new ArgumentException(string.Format("Buffer too small. {0} bytes required, only {1} bytes available.", byteSize, data.Length - start));
+            }
 
-			value = data[start];
+            value = data[start];
 
-			buffer.Progress(start + byteSize);
+            buffer.Progress(start + byteSize);
 
-			return byteSize;
-		}
+            return byteSize;
+        }
 
-		/// <summary>
+        /// <summary>
+		/// Deserialize a sbyte value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
+		public uint FromBytes(Buffer buffer, uint start, out sbyte value)
+        {
+            byte b;
+
+            uint read = FromBytes(buffer, start, out b);
+
+            value = (sbyte) b;
+
+            return read;
+        }
+
+        /// <summary>
+		/// Deserialize a char value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
+		public uint FromBytes(Buffer buffer, uint start, out char value)
+        {
+            Converter16 c;
+
+            uint read = FromBytes(buffer, start, out c);
+
+            value = c;
+
+            return read;
+        }
+
+        /// <summary>
+		/// Deserialize a short value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
+		public uint FromBytes(Buffer buffer, uint start, out short value)
+        {
+            Converter16 c;
+
+            uint read = FromBytes(buffer, start, out c);
+
+            value = c;
+
+            return read;
+        }
+
+        /// <summary>
+		/// Deserialize a ushort value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
+		public uint FromBytes(Buffer buffer, uint start, out ushort value)
+        {
+            Converter16 c;
+
+            uint read = FromBytes(buffer, start, out c);
+
+            value = c;
+
+            return read;
+        }
+
+        /// <summary>
 		/// Deserialize a int value.
 		/// </summary>
 		/// <param name="buffer">The buffer containing the serialized data.</param>
@@ -939,45 +1078,17 @@ namespace CLARTE.Serialization
 		/// <param name="value">The deserialized value.</param>
 		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out int value)
-		{
-			int begin, end, iter;
+        {
+            Converter32 c;
 
-			CheckDeserializationParameters(buffer, start);
+            uint read = FromBytes(buffer, start, out c);
 
-			byte[] data = buffer.Data;
+            value = c;
 
-			if(start + intSize > data.Length)
-			{
-				throw new ArgumentException(string.Format("Buffer too small. {0} bytes required, only {1} bytes available.", intSize, data.Length - start));
-			}
+            return read;
+        }
 
-			// Get in big endian form
-			if(isLittleEndian)
-			{
-				begin = (int) (start + intSize - 1);
-				end = (int) (begin - intSize);
-				iter = -1;
-			}
-			else
-			{
-				begin = (int) start;
-				end = (int) (begin + intSize);
-				iter = 1;
-			}
-
-			value = 0;
-
-			for(int i = begin, offset = 0; i != end; i += iter, offset += (int) byteBits)
-			{
-				value |= data[i] << offset;
-			}
-
-			buffer.Progress(start + intSize);
-
-			return intSize;
-		}
-
-		/// <summary>
+        /// <summary>
 		/// Deserialize a uint value.
 		/// </summary>
 		/// <param name="buffer">The buffer containing the serialized data.</param>
@@ -985,17 +1096,17 @@ namespace CLARTE.Serialization
 		/// <param name="value">The deserialized value.</param>
 		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out uint value)
-		{
-			int ret;
+        {
+            Converter32 c;
 
-			uint read = FromBytes(buffer, start, out ret);
+            uint read = FromBytes(buffer, start, out c);
 
-			value = (uint) ret;
+            value = c;
 
-			return read;
-		}
+            return read;
+        }
 
-		/// <summary>
+        /// <summary>
 		/// Deserialize a long value.
 		/// </summary>
 		/// <param name="buffer">The buffer containing the serialized data.</param>
@@ -1003,25 +1114,17 @@ namespace CLARTE.Serialization
 		/// <param name="value">The deserialized value.</param>
 		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out long value)
-		{
-			int i1, i2;
+        {
+            Converter64 c;
 
-			uint read = FromBytes(buffer, start, out i1);
-			read += FromBytes(buffer, start + read, out i2);
+            uint read = FromBytes(buffer, start, out c);
 
-			if(isLittleEndian)
-			{
-				value = new Converter(i2, i1).Long;
-			}
-			else
-			{
-				value = new Converter(i1, i2).Long;
-			}
+            value = c;
 
-			return read;
-		}
+            return read;
+        }
 
-		/// <summary>
+        /// <summary>
 		/// Deserialize a ulong value.
 		/// </summary>
 		/// <param name="buffer">The buffer containing the serialized data.</param>
@@ -1029,17 +1132,17 @@ namespace CLARTE.Serialization
 		/// <param name="value">The deserialized value.</param>
 		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out ulong value)
-		{
-			long ret;
+        {
+            Converter64 c;
 
-			uint read = FromBytes(buffer, start, out ret);
+            uint read = FromBytes(buffer, start, out c);
 
-			value = (ulong) ret;
+            value = c;
 
-			return read;
-		}
+            return read;
+        }
 
-		/// <summary>
+        /// <summary>
 		/// Deserialize a float value.
 		/// </summary>
 		/// <param name="buffer">The buffer containing the serialized data.</param>
@@ -1047,17 +1150,17 @@ namespace CLARTE.Serialization
 		/// <param name="value">The deserialized value.</param>
 		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out float value)
-		{
-			int ret;
+        {
+            Converter32 c;
 
-			uint read = FromBytes(buffer, start, out ret);
+            uint read = FromBytes(buffer, start, out c);
 
-			value = new Converter(ret).Float1;
+            value = c;
 
-			return read;
-		}
+            return read;
+        }
 
-		/// <summary>
+        /// <summary>
 		/// Deserialize a double value.
 		/// </summary>
 		/// <param name="buffer">The buffer containing the serialized data.</param>
@@ -1065,32 +1168,42 @@ namespace CLARTE.Serialization
 		/// <param name="value">The deserialized value.</param>
 		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out double value)
-		{
-			int i1, i2;
+        {
+            Converter64 c;
 
-			uint read = FromBytes(buffer, start, out i1);
-			read += FromBytes(buffer, start + read, out i2);
+            uint read = FromBytes(buffer, start, out c);
 
-			if(isLittleEndian)
-			{
-				value = new Converter(i2, i1).Double;
-			}
-			else
-			{
-				value = new Converter(i1, i2).Double;
-			}
+            value = c;
 
-			return read;
-		}
+            return read;
+        }
 
-		/// <summary>
-		/// Deserialize a Vector2 value.
+        /// <summary>
+		/// Deserialize a decimal value.
 		/// </summary>
 		/// <param name="buffer">The buffer containing the serialized data.</param>
 		/// <param name="start">The start index in the buffer of the serialized value.</param>
 		/// <param name="value">The deserialized value.</param>
 		/// <returns>The number of deserialized bytes.</returns>
-		public uint FromBytes(Buffer buffer, uint start, out Vector2 value)
+		public uint FromBytes(Buffer buffer, uint start, out decimal value)
+        {
+            Converter128 c;
+
+            uint read = FromBytes(buffer, start, out c);
+
+            value = c;
+
+            return read;
+        }
+
+        /// <summary>
+        /// Deserialize a Vector2 value.
+        /// </summary>
+        /// <param name="buffer">The buffer containing the serialized data.</param>
+        /// <param name="start">The start index in the buffer of the serialized value.</param>
+        /// <param name="value">The deserialized value.</param>
+        /// <returns>The number of deserialized bytes.</returns>
+        public uint FromBytes(Buffer buffer, uint start, out Vector2 value)
 		{
 			float x, y;
 
@@ -1260,6 +1373,98 @@ namespace CLARTE.Serialization
 		}
 
         /// <summary>
+        /// Serialize a 16 bits value.
+        /// </summary>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="value">The value to serialize.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        public uint ToBytes(ref Buffer buffer, uint start, Converter16 value)
+        {
+            CheckSerializationParameters(buffer, start);
+
+            // Resize buffer if necessary
+            ResizeBuffer(ref buffer, start + shortSize);
+
+            byte[] data = buffer.Data;
+
+            data[start] = value.Byte1;
+            data[start + 1] = value.Byte2;
+
+            buffer.Progress(start + shortSize);
+
+            return shortSize;
+        }
+
+        /// <summary>
+        /// Serialize a 32 bits value.
+        /// </summary>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="value">The value to serialize.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        public uint ToBytes(ref Buffer buffer, uint start, Converter32 value)
+        {
+            CheckSerializationParameters(buffer, start);
+
+            // Resize buffer if necessary
+            ResizeBuffer(ref buffer, start + intSize);
+
+            byte[] data = buffer.Data;
+
+            data[start] = value.Byte1;
+            data[start + 1] = value.Byte2;
+            data[start + 2] = value.Byte3;
+            data[start + 3] = value.Byte4;
+
+            buffer.Progress(start + intSize);
+
+            return intSize;
+        }
+
+        /// <summary>
+        /// Serialize a 64 bits value.
+        /// </summary>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="value">The value to serialize.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        public uint ToBytes(ref Buffer buffer, uint start, Converter64 value)
+        {
+            CheckSerializationParameters(buffer, start);
+
+            // Resize buffer if necessary
+            ResizeBuffer(ref buffer, start + longSize);
+
+            uint written = ToBytes(ref buffer, start, value.Int1);
+            written += ToBytes(ref buffer, start + written, value.Int2);
+
+            return written;
+        }
+
+        /// <summary>
+        /// Serialize a 128 bits value.
+        /// </summary>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="value">The value to serialize.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        public uint ToBytes(ref Buffer buffer, uint start, Converter128 value)
+        {
+            CheckSerializationParameters(buffer, start);
+
+            // Resize buffer if necessary
+            ResizeBuffer(ref buffer, start + decimalSize);
+
+            uint written = ToBytes(ref buffer, start, value.Int1);
+            written += ToBytes(ref buffer, start + written, value.Int2);
+            written += ToBytes(ref buffer, start + written, value.Int3);
+            written += ToBytes(ref buffer, start + written, value.Int4);
+
+            return written;
+        }
+
+        /// <summary>
 		/// Serialize a bool value.
 		/// </summary>
 		/// <param name="buffer">The buffer where to serialize the data.</param>
@@ -1292,47 +1497,65 @@ namespace CLARTE.Serialization
 			return byteSize;
 		}
 
-		/// <summary>
-		/// Serialize a int value.
+        /// <summary>
+		/// Serialize a sbyte value.
 		/// </summary>
 		/// <param name="buffer">The buffer where to serialize the data.</param>
 		/// <param name="start">The start index in the buffer where to serialize the data.</param>
 		/// <param name="value">The value to serialize.</param>
 		/// <returns>The number of serialized bytes.</returns>
-		public uint ToBytes(ref Buffer buffer, uint start, int value)
+		public uint ToBytes(ref Buffer buffer, uint start, sbyte value)
+        {
+            return ToBytes(ref buffer, start, (byte) value);
+        }
+
+        /// <summary>
+        /// Serialize a char value.
+        /// </summary>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="value">The value to serialize.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        public uint ToBytes(ref Buffer buffer, uint start, char value)
+        {
+            return ToBytes(ref buffer, start, (Converter16) value);
+        }
+
+        /// <summary>
+        /// Serialize a short value.
+        /// </summary>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="value">The value to serialize.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        public uint ToBytes(ref Buffer buffer, uint start, short value)
+        {
+            return ToBytes(ref buffer, start, (Converter16) value);
+        }
+
+        /// <summary>
+        /// Serialize a ushort value.
+        /// </summary>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="value">The value to serialize.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        public uint ToBytes(ref Buffer buffer, uint start, ushort value)
+        {
+            return ToBytes(ref buffer, start, (Converter16) value);
+        }
+
+        /// <summary>
+        /// Serialize a int value.
+        /// </summary>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="value">The value to serialize.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        public uint ToBytes(ref Buffer buffer, uint start, int value)
 		{
-			int begin, end, iter;
-
-			CheckSerializationParameters(buffer, start);
-
-			// Resize buffer if necessary
-			ResizeBuffer(ref buffer, start + intSize);
-
-			byte[] data = buffer.Data;
-
-			// Store in big endian form
-			if(isLittleEndian)
-			{
-				begin = (int) (start + intSize - 1);
-				end = (int) (begin - intSize);
-				iter = -1;
-			}
-			else
-			{
-				begin = (int) start;
-				end = (int) (begin + intSize);
-				iter = 1;
-			}
-
-			for(int i = begin, offset = 0; i != end; i += iter, offset += (int) byteBits)
-			{
-				data[i] = (byte) ((value >> offset) & mask);
-			}
-
-			buffer.Progress(start + intSize);
-
-			return intSize;
-		}
+            return ToBytes(ref buffer, start, (Converter32) value);
+        }
 
 		/// <summary>
 		/// Serialize a uint value.
@@ -1343,8 +1566,8 @@ namespace CLARTE.Serialization
 		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, uint value)
 		{
-			return ToBytes(ref buffer, start, (int) value);
-		}
+            return ToBytes(ref buffer, start, (Converter32) value);
+        }
 
 		/// <summary>
 		/// Serialize a long value.
@@ -1355,26 +1578,8 @@ namespace CLARTE.Serialization
 		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, long value)
 		{
-			int i1, i2;
-
-			Converter c = new Converter(value);
-
-			if(isLittleEndian)
-			{
-				i1 = c.Int2;
-				i2 = c.Int1;
-			}
-			else
-			{
-				i1 = c.Int1;
-				i2 = c.Int2;
-			}
-
-			uint written = ToBytes(ref buffer, start, i1);
-			written += ToBytes(ref buffer, start + written, i2);
-
-			return written;
-		}
+            return ToBytes(ref buffer, start, (Converter64) value);
+        }
 
 		/// <summary>
 		/// Serialize a ulong value.
@@ -1385,8 +1590,8 @@ namespace CLARTE.Serialization
 		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, ulong value)
 		{
-			return ToBytes(ref buffer, start, (long) value);
-		}
+            return ToBytes(ref buffer, start, (Converter64) value);
+        }
 
 		/// <summary>
 		/// Serialize a float value.
@@ -1397,8 +1602,8 @@ namespace CLARTE.Serialization
 		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, float value)
 		{
-			return ToBytes(ref buffer, start, new Converter(value).Int1);
-		}
+            return ToBytes(ref buffer, start, (Converter32) value);
+        }
 
 		/// <summary>
 		/// Serialize a double value.
@@ -1409,35 +1614,29 @@ namespace CLARTE.Serialization
 		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, double value)
 		{
-			int i1, i2;
+            return ToBytes(ref buffer, start, (Converter64) value);
+        }
 
-			Converter c = new Converter(value);
-
-			if(isLittleEndian)
-			{
-				i1 = c.Int2;
-				i2 = c.Int1;
-			}
-			else
-			{
-				i1 = c.Int1;
-				i2 = c.Int2;
-			}
-
-			uint written = ToBytes(ref buffer, start, i1);
-			written += ToBytes(ref buffer, start + written, i2);
-
-			return written;
-		}
-
-		/// <summary>
-		/// Serialize a Vector2 value.
+        /// <summary>
+		/// Serialize a decimal value.
 		/// </summary>
 		/// <param name="buffer">The buffer where to serialize the data.</param>
 		/// <param name="start">The start index in the buffer where to serialize the data.</param>
 		/// <param name="value">The value to serialize.</param>
 		/// <returns>The number of serialized bytes.</returns>
-		public uint ToBytes(ref Buffer buffer, uint start, Vector2 value)
+		public uint ToBytes(ref Buffer buffer, uint start, decimal value)
+        {
+            return ToBytes(ref buffer, start, (Converter128) value);
+        }
+
+        /// <summary>
+        /// Serialize a Vector2 value.
+        /// </summary>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="value">The value to serialize.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        public uint ToBytes(ref Buffer buffer, uint start, Vector2 value)
 		{
 			uint written = ToBytes(ref buffer, start, value.x);
 			written += ToBytes(ref buffer, start + written, value.y);
