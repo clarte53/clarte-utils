@@ -17,6 +17,7 @@ namespace CLARTE.Serialization
 		/// </summary>
 		public enum SupportedTypes
 		{
+            NONE = 0,
 			BINARY_SERIALIZABLE,
             BOOL,
             BYTE,
