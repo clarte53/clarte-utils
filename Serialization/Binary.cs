@@ -2555,7 +2555,39 @@ namespace CLARTE.Serialization
 					value = (T) ((object) b);
 
 					break;
-				case SupportedTypes.INT:
+                case SupportedTypes.SBYTE:
+                    sbyte sb;
+
+                    read = FromBytes(buffer, start, out sb);
+
+                    value = (T) ((object) sb);
+
+                    break;
+                case SupportedTypes.CHAR:
+                    char c;
+
+                    read = FromBytes(buffer, start, out c);
+
+                    value = (T) ((object) c);
+
+                    break;
+                case SupportedTypes.SHORT:
+                    short s;
+
+                    read = FromBytes(buffer, start, out s);
+
+                    value = (T) ((object) s);
+
+                    break;
+                case SupportedTypes.USHORT:
+                    ushort us;
+
+                    read = FromBytes(buffer, start, out us);
+
+                    value = (T) ((object) us);
+
+                    break;
+                case SupportedTypes.INT:
 					int i;
 
 					read = FromBytes(buffer, start, out i);
@@ -2603,12 +2635,20 @@ namespace CLARTE.Serialization
 					value = (T) ((object) d);
 
 					break;
-				case SupportedTypes.STRING:
-					string s;
+                case SupportedTypes.DECIMAL:
+                    decimal dec;
 
-					read = FromBytes(buffer, start, out s);
+                    read = FromBytes(buffer, start, out dec);
 
-					value = (T) ((object) s);
+                    value = (T) ((object) dec);
+
+                    break;
+                case SupportedTypes.STRING:
+					string str;
+
+					read = FromBytes(buffer, start, out str);
+
+					value = (T) ((object) str);
 
 					break;
 				case SupportedTypes.VECTOR2:
@@ -2644,11 +2684,11 @@ namespace CLARTE.Serialization
 
 					break;
 				case SupportedTypes.COLOR:
-					Color c;
+					Color col;
 
-					read = FromBytes(buffer, start, out c);
+					read = FromBytes(buffer, start, out col);
 
-					value = (T) ((object) c);
+					value = (T) ((object) col);
 
 					break;
 				default:
@@ -2724,7 +2764,19 @@ namespace CLARTE.Serialization
                 case SupportedTypes.BYTE:
 					written = ToBytes(ref buffer, start, (byte) ((object) value));
 					break;
-				case SupportedTypes.INT:
+                case SupportedTypes.SBYTE:
+                    written = ToBytes(ref buffer, start, (sbyte) ((object) value));
+                    break;
+                case SupportedTypes.CHAR:
+                    written = ToBytes(ref buffer, start, (char) ((object) value));
+                    break;
+                case SupportedTypes.SHORT:
+                    written = ToBytes(ref buffer, start, (short) ((object) value));
+                    break;
+                case SupportedTypes.USHORT:
+                    written = ToBytes(ref buffer, start, (ushort) ((object) value));
+                    break;
+                case SupportedTypes.INT:
 					written = ToBytes(ref buffer, start, (int) ((object) value));
 					break;
 				case SupportedTypes.UINT:
@@ -2742,7 +2794,10 @@ namespace CLARTE.Serialization
 				case SupportedTypes.DOUBLE:
 					written = ToBytes(ref buffer, start, (double) ((object) value));
 					break;
-				case SupportedTypes.STRING:
+                case SupportedTypes.DECIMAL:
+                    written = ToBytes(ref buffer, start, (decimal) ((object) value));
+                    break;
+                case SupportedTypes.STRING:
 					written = ToBytes(ref buffer, start, (string) ((object) value));
 					break;
 				case SupportedTypes.VECTOR2:
