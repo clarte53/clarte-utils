@@ -1197,6 +1197,45 @@ namespace CLARTE.Serialization
         }
 
         /// <summary>
+		/// Deserialize a string value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
+		public uint FromBytes(Buffer buffer, uint start, out string value)
+        {
+            uint size;
+
+            value = null;
+
+            CheckDeserializationParameters(buffer, start);
+
+            uint read = FromBytes(buffer, start, out size);
+
+            if(read != uintSize)
+            {
+                throw new FormatException(string.Format("The number of read bytes does not match the expected count. Read {0} bytes instead of {1}.", read, uintSize));
+            }
+
+            if(size > 0)
+            {
+                if(start + size > buffer.Data.Length)
+                {
+                    throw new ArgumentException(string.Format("Buffer too small. {0} bytes required, only {1} bytes available.", size, buffer.Data.Length - start));
+                }
+
+                value = System.Text.Encoding.UTF8.GetString(buffer.Data, (int) (start + read), (int) size);
+
+                read += size;
+            }
+
+            buffer.Progress(start + read);
+
+            return read;
+        }
+
+        /// <summary>
         /// Deserialize a Vector2 value.
         /// </summary>
         /// <param name="buffer">The buffer containing the serialized data.</param>
@@ -1294,45 +1333,6 @@ namespace CLARTE.Serialization
 			read += FromBytes(buffer, start + read, out a);
 
 			value = new Color32(r, g, b, a);
-
-			return read;
-		}
-
-		/// <summary>
-		/// Deserialize a string value.
-		/// </summary>
-		/// <param name="buffer">The buffer containing the serialized data.</param>
-		/// <param name="start">The start index in the buffer of the serialized value.</param>
-		/// <param name="value">The deserialized value.</param>
-		/// <returns>The number of deserialized bytes.</returns>
-		public uint FromBytes(Buffer buffer, uint start, out string value)
-		{
-			uint size;
-
-			value = null;
-
-			CheckDeserializationParameters(buffer, start);
-
-			uint read = FromBytes(buffer, start, out size);
-
-			if(read != uintSize)
-			{
-				throw new FormatException(string.Format("The number of read bytes does not match the expected count. Read {0} bytes instead of {1}.", read, uintSize));
-			}
-
-			if(size > 0)
-			{
-				if(start + size > buffer.Data.Length)
-				{
-					throw new ArgumentException(string.Format("Buffer too small. {0} bytes required, only {1} bytes available.", size, buffer.Data.Length - start));
-				}
-
-				value = System.Text.Encoding.UTF8.GetString(buffer.Data, (int) (start + read), (int) size);
-
-				read += size;
-			}
-
-			buffer.Progress(start + read);
 
 			return read;
 		}
@@ -1630,6 +1630,53 @@ namespace CLARTE.Serialization
         }
 
         /// <summary>
+		/// Serialize a string value.
+		/// </summary>
+		/// <param name="buffer">The buffer where to serialize the data.</param>
+		/// <param name="start">The start index in the buffer where to serialize the data.</param>
+		/// <param name="value">The value to serialize.</param>
+		/// <returns>The number of serialized bytes.</returns>
+		public uint ToBytes(ref Buffer buffer, uint start, string value)
+        {
+            uint written = 0;
+
+            CheckSerializationParameters(buffer, start);
+
+            if(!string.IsNullOrEmpty(value))
+            {
+                // Get number of required bytes
+                uint size = (uint) System.Text.Encoding.UTF8.GetByteCount(value);
+
+                // Make sure the buffer is large enough
+                ResizeBuffer(ref buffer, start + uintSize + size);
+
+                // Encode the string length first
+                written = ToBytes(ref buffer, start, size);
+
+                if(written != uintSize)
+                {
+                    throw new FormatException(string.Format("The number of written bytes does not match the expected count. Wrote {0} bytes instead of {1}.", written, uintSize));
+                }
+
+                // Add the string bytes to the buffer (in-place)
+                written += (uint) System.Text.Encoding.UTF8.GetBytes(value, 0, value.Length, buffer.Data, (int) (start + uintSize));
+            }
+            else
+            {
+                written = ToBytes(ref buffer, start, 0u);
+
+                if(written != uintSize)
+                {
+                    throw new FormatException(string.Format("The number of written bytes does not match the expected count. Wrote {0} bytes instead of {1}.", written, uintSize));
+                }
+            }
+
+            buffer.Progress(start + written);
+
+            return written;
+        }
+
+        /// <summary>
         /// Serialize a Vector2 value.
         /// </summary>
         /// <param name="buffer">The buffer where to serialize the data.</param>
@@ -1709,53 +1756,6 @@ namespace CLARTE.Serialization
 			written += ToBytes(ref buffer, start + written, val.g);
 			written += ToBytes(ref buffer, start + written, val.b);
 			written += ToBytes(ref buffer, start + written, val.a);
-
-			return written;
-		}
-
-		/// <summary>
-		/// Serialize a string value.
-		/// </summary>
-		/// <param name="buffer">The buffer where to serialize the data.</param>
-		/// <param name="start">The start index in the buffer where to serialize the data.</param>
-		/// <param name="value">The value to serialize.</param>
-		/// <returns>The number of serialized bytes.</returns>
-		public uint ToBytes(ref Buffer buffer, uint start, string value)
-		{
-			uint written = 0;
-
-			CheckSerializationParameters(buffer, start);
-
-			if(!string.IsNullOrEmpty(value))
-			{
-				// Get number of required bytes
-				uint size = (uint) System.Text.Encoding.UTF8.GetByteCount(value);
-
-				// Make sure the buffer is large enough
-				ResizeBuffer(ref buffer, start + uintSize + size);
-
-				// Encode the string length first
-				written = ToBytes(ref buffer, start, size);
-
-				if(written != uintSize)
-				{
-					throw new FormatException(string.Format("The number of written bytes does not match the expected count. Wrote {0} bytes instead of {1}.", written, uintSize));
-				}
-
-				// Add the string bytes to the buffer (in-place)
-				written += (uint) System.Text.Encoding.UTF8.GetBytes(value, 0, value.Length, buffer.Data, (int) (start + uintSize));
-			}
-			else
-			{
-				written = ToBytes(ref buffer, start, 0u);
-
-				if(written != uintSize)
-				{
-					throw new FormatException(string.Format("The number of written bytes does not match the expected count. Wrote {0} bytes instead of {1}.", written, uintSize));
-				}
-			}
-
-			buffer.Progress(start + written);
 
 			return written;
 		}
