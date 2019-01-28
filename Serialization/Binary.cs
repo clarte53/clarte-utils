@@ -38,6 +38,7 @@ namespace CLARTE.Serialization
 			VECTOR4,
 			QUATERNION,
 			COLOR,
+            ENUM,
             ARRAY,
             LIST,
             HASHSET,
@@ -242,6 +243,7 @@ namespace CLARTE.Serialization
 
 			public enum Parameter
 			{
+                ENUM,
 				ARRAY,
                 LIST,
                 HASHSET,
@@ -287,11 +289,13 @@ namespace CLARTE.Serialization
         private static readonly Dictionary<Type, SupportedTypes> mapping;
         private static readonly Dictionary<SupportedTypes, uint> sizes;
         private static readonly TimeSpan progressRefresRate;
+        private static readonly MethodInfo fromBytesEnum;
         private static readonly MethodInfo fromBytesArray;
         private static readonly MethodInfo fromBytesList;
         private static readonly MethodInfo fromBytesHashSet;
         private static readonly MethodInfo fromBytesDictionary;
-		private static readonly MethodInfo toBytesArray;
+        private static readonly MethodInfo toBytesEnum;
+        private static readonly MethodInfo toBytesArray;
         private static readonly MethodInfo toBytesList;
         private static readonly MethodInfo toBytesHashSet;
         private static readonly MethodInfo toBytesDictionary;
@@ -431,6 +435,9 @@ namespace CLARTE.Serialization
 							case MethodLocatorAttribute.Type.FROM_BYTES:
 								switch(locator.parameter)
 								{
+                                    case MethodLocatorAttribute.Parameter.ENUM:
+                                        fromBytesEnum = method;
+                                        break;
 									case MethodLocatorAttribute.Parameter.ARRAY:
 										fromBytesArray = method;
 										break;
@@ -451,7 +458,10 @@ namespace CLARTE.Serialization
 							case MethodLocatorAttribute.Type.TO_BYTES:
 								switch(locator.parameter)
 								{
-									case MethodLocatorAttribute.Parameter.ARRAY:
+                                    case MethodLocatorAttribute.Parameter.ENUM:
+                                        toBytesEnum = method;
+                                        break;
+                                    case MethodLocatorAttribute.Parameter.ARRAY:
 										toBytesArray = method;
 										break;
                                     case MethodLocatorAttribute.Parameter.LIST:
@@ -1760,18 +1770,156 @@ namespace CLARTE.Serialization
 
 			return written;
 		}
-		#endregion
+        #endregion
 
-		#region Arrays
-		/// <summary>
-		/// Deserialize an array of supported objects.
+        #region Enums
+#if CSHARP_7_3_OR_NEWER
+        /// <summary>
+        /// Deserialize an enum.
+        /// </summary>
+        /// <typeparam name="T">The type of the enum object.</typeparam>
+        /// <param name="buffer">The buffer containing the serialized data.</param>
+        /// <param name="start">The start index in the buffer of the serialized object.</param>
+        /// <param name="array">The deserialized enum.</param>
+        /// <returns>The number of deserialized bytes.</returns>
+        [MethodLocator(MethodLocatorAttribute.Type.FROM_BYTES, MethodLocatorAttribute.Parameter.ENUM)]
+        public uint FromBytes<T>(Buffer buffer, uint start, out T enumerate) where T : Enum
+        {
+            uint read = 0;
+
+            enumerate = default(T);
+
+            switch(enumerate.GetTypeCode())
+            {
+                case TypeCode.Byte:
+                    byte b;
+
+                    read = FromBytes(buffer, start, out b);
+
+                    enumerate = (T) ((object) b);
+
+                    break;
+                case TypeCode.SByte:
+                    sbyte sb;
+
+                    read = FromBytes(buffer, start, out sb);
+
+                    enumerate = (T) ((object) sb);
+
+                    break;
+                case TypeCode.Int16:
+                    short s;
+
+                    read = FromBytes(buffer, start, out s);
+
+                    enumerate = (T) ((object) s);
+
+                    break;
+                case TypeCode.UInt16:
+                    ushort us;
+
+                    read = FromBytes(buffer, start, out us);
+
+                    enumerate = (T) ((object) us);
+
+                    break;
+                case TypeCode.Int32:
+                    int i;
+
+                    read = FromBytes(buffer, start, out i);
+
+                    enumerate = (T) ((object) i);
+
+                    break;
+                case TypeCode.UInt32:
+                    uint ui;
+
+                    read = FromBytes(buffer, start, out ui);
+
+                    enumerate = (T) ((object) ui);
+
+                    break;
+                case TypeCode.Int64:
+                    long l;
+
+                    read = FromBytes(buffer, start, out l);
+
+                    enumerate = (T) ((object) l);
+
+                    break;
+                case TypeCode.UInt64:
+                    ulong ul;
+
+                    read = FromBytes(buffer, start, out ul);
+
+                    enumerate = (T) ((object) ul);
+
+                    break;
+                default:
+                    throw new DeserializationException(string.Format("Unsupported enum underlying type. '{0}' is not a valid integral type for enums.", enumerate.GetTypeCode()), new TypeInitializationException(typeof(T).ToString(), null));
+            }
+
+            return read;
+        }
+
+        /// <summary>
+		/// Serialize an enum.
 		/// </summary>
-		/// <typeparam name="T">The type of objects in the array.</typeparam>
-		/// <param name="buffer">The buffer containing the serialized data.</param>
-		/// <param name="start">The start index in the buffer of the serialized object.</param>
-		/// <param name="array">The deserialized array.</param>
-		/// <returns>The number of deserialized bytes.</returns>
-		[MethodLocator(MethodLocatorAttribute.Type.FROM_BYTES, MethodLocatorAttribute.Parameter.ARRAY)]
+		/// <typeparam name="T">The type of the enum objects.</typeparam>
+		/// <param name="buffer">The buffer where to serialize the data.</param>
+		/// <param name="start">The start index in the buffer where to serialize the data.</param>
+		/// <param name="array">The enum to serialize.</param>
+		/// <returns>The number of serialized bytes.</returns>
+        [MethodLocator(MethodLocatorAttribute.Type.TO_BYTES, MethodLocatorAttribute.Parameter.ENUM)]
+        public uint ToBytes<T>(ref Buffer buffer, uint start, T enumerate) where T : Enum
+        {
+            uint written = 0;
+
+            switch(enumerate.GetTypeCode())
+            {
+                case TypeCode.Byte:
+                    written = ToBytes(ref buffer, start, (byte) ((object) enumerate));
+                    break;
+                case TypeCode.SByte:
+                    written = ToBytes(ref buffer, start, (sbyte) ((object) enumerate));
+                    break;
+                case TypeCode.Int16:
+                    written = ToBytes(ref buffer, start, (short) ((object) enumerate));
+                    break;
+                case TypeCode.UInt16:
+                    written = ToBytes(ref buffer, start, (ushort) ((object) enumerate));
+                    break;
+                case TypeCode.Int32:
+                    written = ToBytes(ref buffer, start, (int) ((object) enumerate));
+                    break;
+                case TypeCode.UInt32:
+                    written = ToBytes(ref buffer, start, (uint) ((object) enumerate));
+                    break;
+                case TypeCode.Int64:
+                    written = ToBytes(ref buffer, start, (long) ((object) enumerate));
+                    break;
+                case TypeCode.UInt64:
+                    written = ToBytes(ref buffer, start, (ulong) ((object) enumerate));
+                    break;
+                default:
+                    throw new SerializationException(string.Format("Unsupported enum underlying type. '{0}' is not a valid integral type for enums.", enumerate.GetTypeCode()), new TypeInitializationException(typeof(T).ToString(), null));
+            }
+
+            return written;
+        }
+#endif
+        #endregion
+
+        #region Arrays
+        /// <summary>
+        /// Deserialize an array of supported objects.
+        /// </summary>
+        /// <typeparam name="T">The type of objects in the array.</typeparam>
+        /// <param name="buffer">The buffer containing the serialized data.</param>
+        /// <param name="start">The start index in the buffer of the serialized object.</param>
+        /// <param name="array">The deserialized array.</param>
+        /// <returns>The number of deserialized bytes.</returns>
+        [MethodLocator(MethodLocatorAttribute.Type.FROM_BYTES, MethodLocatorAttribute.Parameter.ARRAY)]
 		public uint FromBytes<T>(Buffer buffer, uint start, out T[] array)
 		{
 			uint array_size, read;
@@ -2438,6 +2586,12 @@ namespace CLARTE.Serialization
                 {
                     result = SupportedTypes.BINARY_SERIALIZABLE;
                 }
+#if CSHARP_7_3_OR_NEWER
+                else if(type.IsEnum)
+                {
+                    result = SupportedTypes.ENUM;
+                }
+#endif
                 else if(type.IsArray)
                 {
                     result = SupportedTypes.ARRAY;
@@ -2479,9 +2633,10 @@ namespace CLARTE.Serialization
 		{
 			uint read;
 
-			switch(type)
+            switch(type)
 			{
 				case SupportedTypes.BINARY_SERIALIZABLE: // We cannot call the correct overload directly because the type constraints are not matched
+                case SupportedTypes.ENUM:
                 case SupportedTypes.ARRAY:
                 case SupportedTypes.LIST:
                 case SupportedTypes.HASHSET:
@@ -2521,6 +2676,9 @@ namespace CLARTE.Serialization
 
                         switch(type)
                         {
+                            case SupportedTypes.ENUM:
+                                read += (uint) fromBytesEnum.MakeGenericMethod(complete_type).Invoke(this, parameters);
+                                break;
                             case SupportedTypes.ARRAY:
                                 read += (uint) fromBytesArray.MakeGenericMethod(complete_type.GetElementType()).Invoke(this, parameters);
                                 break;
@@ -2702,9 +2860,10 @@ namespace CLARTE.Serialization
 		{
 			uint written;
 
-			switch(type)
+            switch(type)
 			{
 				case SupportedTypes.BINARY_SERIALIZABLE:
+                case SupportedTypes.ENUM:
                 case SupportedTypes.ARRAY:
                 case SupportedTypes.LIST:
                 case SupportedTypes.HASHSET:
@@ -2732,7 +2891,7 @@ namespace CLARTE.Serialization
                     }
                     else
                     {
-                        object[]  parameters = new object[nbParameters];
+                        object[] parameters = new object[nbParameters];
 
                         parameters[0] = buffer;
                         parameters[1] = start + written;
@@ -2740,6 +2899,9 @@ namespace CLARTE.Serialization
 
                         switch(type)
                         {
+                            case SupportedTypes.ENUM:
+                                written += (uint) toBytesEnum.MakeGenericMethod(value.GetType()).Invoke(this, parameters);
+                                break;
                             case SupportedTypes.ARRAY:
                                 written += (uint) toBytesArray.MakeGenericMethod(value.GetType().GetElementType()).Invoke(this, parameters);
                                 break;
