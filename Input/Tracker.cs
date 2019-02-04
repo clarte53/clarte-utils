@@ -4,18 +4,19 @@ using UnityEngine.XR;
 
 namespace CLARTE.Input
 {
-    public class Tracker : MonoBehaviour
+    public abstract class Tracker : MonoBehaviour
     {
         #region Members
-        public XRNode type;
-        public ulong id;
-
-        protected static Dictionary<ulong, ushort> trackedIds = new Dictionary<ulong, ushort>();
-
         protected List<XRNodeState> nodes;
         protected XRNode currentType;
         protected ulong uniqueID;
         protected bool tracked;
+        #endregion
+
+        #region Abstract methods
+        protected abstract bool IsNode(XRNodeState node);
+        protected abstract void OnNodeAdded(XRNodeState node);
+        protected abstract void OnNodeRemoved();
         #endregion
 
         #region Getter / Setter
@@ -36,7 +37,7 @@ namespace CLARTE.Input
         #endregion
 
         #region MonoBehaviour callbacks
-        protected void Awake()
+        protected virtual void Awake()
         {
             nodes = new List<XRNodeState>();
 
@@ -45,12 +46,12 @@ namespace CLARTE.Input
             Tracked = false;
         }
 
-        protected void OnDisable()
+        protected virtual void OnDisable()
         {
             RemoveNode();
         }
 
-        protected void Update()
+        protected virtual void Update()
         {
             InputTracking.GetNodeStates(nodes);
 
@@ -119,21 +120,14 @@ namespace CLARTE.Input
         {
             foreach(XRNodeState node in nodes)
             {
-                if(uniqueID == 0 && (node.uniqueID == id || (id == 0 && node.nodeType == type && !(trackedIds.ContainsKey(node.uniqueID) && trackedIds[node.uniqueID] > 0))))
+                if(uniqueID == 0 && IsNode(node))
                 {
                     uniqueID = node.uniqueID;
                     currentType = node.nodeType;
 
                     Tracked = node.tracked;
 
-                    if(!trackedIds.ContainsKey(node.uniqueID))
-                    {
-                        trackedIds.Add(uniqueID, 0);
-                    }
-
-                    trackedIds[uniqueID]++;
-
-                    Debug.LogFormat("Tracker '{0}' of type '{1}' is associated to object '{2}'", uniqueID, type, gameObject.name);
+                    OnNodeAdded(node);
 
                     break;
                 }
@@ -144,9 +138,7 @@ namespace CLARTE.Input
         {
             if(uniqueID != 0)
             {
-                Debug.LogFormat("Tracker '{0}' of type '{1}' is removed from object '{2}'", uniqueID, type, gameObject.name);
-
-                trackedIds[uniqueID]--;
+                OnNodeRemoved();
 
                 uniqueID = 0;
 
