@@ -2445,23 +2445,24 @@ namespace CLARTE.Serialization
 
 			return written;
 		}
-		#endregion
+        #endregion
 
-		#region Object dynamic serialization
-		/// <summary>
-		/// Deserialize objects where type is not known at compilation time.
-		/// </summary>
-		/// <remarks>
-		/// However, to avoid the penalty introduced by handling objects of unknown type, as well as keep useful compiler errors,
-		/// the handling of this special case is not merged with the rest of the serialization methods. Instead, the user must
-		/// EXPLICITELY ask for those methods, and they do not allow recursive serialization (i.e.arrays or dictionaries of 'objects').
-		/// </remarks>
-		/// <param name="buffer">The buffer containing the serialized data.</param>
-		/// <param name="start">The start index in the buffer of the serialized object.</param>
-		/// <param name="value">The deserialized object.</param>
-		/// <param name="optional">If true, no error will be raised if the value is missing and null will be returned.</param>
-		/// <returns>The number of deserialized bytes.</returns>
-		public uint FromBytesDynamic(Buffer buffer, uint start, out object value, bool optional = false)
+        #region Object dynamic serialization
+        /// <summary>
+        /// Deserialize objects where type is not known at compilation time.
+        /// </summary>
+        /// <remarks>
+        /// However, to avoid the penalty introduced by handling objects of unknown type, as well as keep useful compiler errors,
+        /// the handling of this special case is not merged with the rest of the serialization methods. Instead, the user must
+        /// EXPLICITELY ask for those methods, and they do not allow recursive serialization (i.e.arrays or dictionaries of 'objects').
+        /// </remarks>
+        /// <typeparam name="T">The type of the object.</typeparam>
+        /// <param name="buffer">The buffer containing the serialized data.</param>
+        /// <param name="start">The start index in the buffer of the serialized object.</param>
+        /// <param name="value">The deserialized object.</param>
+        /// <param name="optional">If true, no error will be raised if the value is missing and null will be returned.</param>
+        /// <returns>The number of deserialized bytes.</returns>
+        public uint FromBytesDynamic<T>(Buffer buffer, uint start, out T value, bool optional = false)
 		{
 			uint read = 0;
 			bool defined = true;
@@ -2483,25 +2484,26 @@ namespace CLARTE.Serialization
 			}
 			else
 			{
-				value = null;
+				value = default(T);
 			}
 
 			return read;
 		}
 
-		/// <summary>
-		/// Serialize objects where type is not known at compilation time.
-		/// </summary>
-		/// <remarks>
-		/// However, to avoid the penalty introduced by handling objects of unknown type, as well as keep useful compiler errors,
-		/// the handling of this special case is not merged with the rest of the serialization methods. Instead, the user must
-		/// EXPLICITELY ask for those methods, and they do not allow recursive serialization (i.e.arrays or dictionaries of 'objects').
-		/// <param name="buffer">The buffer where to serialize the data.</param>
-		/// <param name="start">The start index in the buffer where to serialize the data.</param>
-		/// <param name="value">The serialized object.</param>
-		/// <param name="optional">If true, no error will be raised if the value is null.</param>
-		/// <returns>The number of serialized bytes.</returns>
-		public uint ToBytesDynamic(ref Buffer buffer, uint start, object value, bool optional = false)
+        /// <summary>
+        /// Serialize objects where type is not known at compilation time.
+        /// </summary>
+        /// <remarks>
+        /// However, to avoid the penalty introduced by handling objects of unknown type, as well as keep useful compiler errors,
+        /// the handling of this special case is not merged with the rest of the serialization methods. Instead, the user must
+        /// EXPLICITELY ask for those methods, and they do not allow recursive serialization (i.e.arrays or dictionaries of 'objects').
+        /// <typeparam name="T">The type of the object.</typeparam>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="value">The serialized object.</param>
+        /// <param name="optional">If true, no error will be raised if the value is null.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        public uint ToBytesDynamic<T>(ref Buffer buffer, uint start, T value, bool optional = false)
 		{
 			uint written = 0;
 
