@@ -2,7 +2,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using UnityEngine;
 
 namespace CLARTE.Serialization
@@ -18,22 +17,29 @@ namespace CLARTE.Serialization
 		/// </summary>
 		public enum SupportedTypes
 		{
+            NONE = 0,
 			BINARY_SERIALIZABLE,
-			BYTE,
-			BOOL,
+            BOOL,
+            BYTE,
+            SBYTE,
+            CHAR,
+            SHORT,
+            USHORT,
 			INT,
 			UINT,
 			LONG,
 			ULONG,
 			FLOAT,
 			DOUBLE,
-			STRING,
+            DECIMAL,
+            STRING,
 			VECTOR2,
 			VECTOR3,
 			VECTOR4,
 			QUATERNION,
 			COLOR,
-			ARRAY,
+            ENUM,
+            ARRAY,
             LIST,
             HASHSET,
 			DICTIONARY,
@@ -237,6 +243,7 @@ namespace CLARTE.Serialization
 
 			public enum Parameter
 			{
+                ENUM,
 				ARRAY,
                 LIST,
                 HASHSET,
@@ -257,153 +264,159 @@ namespace CLARTE.Serialization
 			#endregion
 		}
 
-		// Store both int and float values at the same offset. Therefore, both fields share the same bytes
-		[StructLayout(LayoutKind.Explicit)]
-		private struct Converter
-		{
-			[FieldOffset(0)]
-			public float Float1;
-
-			[FieldOffset(sizeof(int))]
-			public float Float2;
-
-			[FieldOffset(0)]
-			public double Double;
-
-			[FieldOffset(0)]
-			public int Int1;
-
-			[FieldOffset(sizeof(int))]
-			public int Int2;
-
-			[FieldOffset(0)]
-			public long Long;
-
-			public Converter(float value1, float value2 = 0f)
-			{
-				Double = 0d;
-				Int1 = 0;
-				Int2 = 0;
-				Long = 0;
-				Float1 = value1;
-				Float2 = value2;
-			}
-
-			public Converter(double value)
-			{
-				Float1 = 0f;
-				Float2 = 0f;
-				Int1 = 0;
-				Int2 = 0;
-				Long = 0;
-				Double = value;
-			}
-
-			public Converter(int value1, int value2 = 0)
-			{
-				Float1 = 0f;
-				Float2 = 0f;
-				Double = 0d;
-				Long = 0;
-				Int1 = value1;
-				Int2 = value2;
-			}
-
-			public Converter(long value)
-			{
-				Float1 = 0f;
-				Float2 = 0f;
-				Double = 0d;
-				Int1 = 0;
-				Int2 = 0;
-				Long = value;
-			}
-		}
-
-		#region Members
-		/// <summary>
-		/// Serialization buffer of 10 Mo by default.
-		/// </summary>
-		public const uint defaultSerializationBufferSize = 1024 * 1024 * 10;
+        #region Members
+        /// <summary>
+        /// Serialization buffer of 10 Mo by default.
+        /// </summary>
+        public const uint defaultSerializationBufferSize = 1024 * 1024 * 10;
 		public const float minResizeOffset = 0.1f;
 
-		protected static readonly TimeSpan progressRefresRate = new TimeSpan(0, 0, 0, 0, 40);
-
 		protected const uint nbParameters = 3;
-		protected const uint mask = 0xFF;
-		protected const uint byteBits = 8;
-		protected const uint byteSize = sizeof(byte);
-		protected const uint intSize = sizeof(int);
+        protected const uint boolSize = sizeof(bool);
+        protected const uint byteSize = sizeof(byte);
+        protected const uint sbyteSize = sizeof(sbyte);
+        protected const uint charSize = sizeof(char);
+        protected const uint shortSize = sizeof(short);
+        protected const uint ushortSize = sizeof(ushort);
+        protected const uint intSize = sizeof(int);
 		protected const uint uintSize = sizeof(uint);
 		protected const uint longSize = sizeof(long);
 		protected const uint ulongSize = sizeof(ulong);
 		protected const uint floatSize = sizeof(float);
 		protected const uint doubleSize = sizeof(double);
+        protected const uint decimalSize = sizeof(decimal);
 
-		private static readonly Dictionary<SupportedTypes, uint> sizes;
-		private static readonly MethodInfo fromBytesArray;
+        private static readonly Dictionary<Type, SupportedTypes> mapping;
+        private static readonly Dictionary<SupportedTypes, uint> sizes;
+        private static readonly TimeSpan progressRefresRate;
+        private static readonly MethodInfo fromBytesEnum;
+        private static readonly MethodInfo fromBytesArray;
         private static readonly MethodInfo fromBytesList;
         private static readonly MethodInfo fromBytesHashSet;
         private static readonly MethodInfo fromBytesDictionary;
-		private static readonly MethodInfo toBytesArray;
+        private static readonly MethodInfo toBytesEnum;
+        private static readonly MethodInfo toBytesArray;
         private static readonly MethodInfo toBytesList;
         private static readonly MethodInfo toBytesHashSet;
         private static readonly MethodInfo toBytesDictionary;
 		private static readonly object[] emptyParameters;
-		private static readonly bool isLittleEndian;
 
 		private LinkedList<byte[]> available;
-		#endregion
+        #endregion
 
-		#region Constructors
-		static Binary()
-		{
+        #region Constructors
+        static Binary()
+        {
 #pragma warning disable 0162
-			if(uintSize != intSize)
-			{
-				throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. ({2} != {3})", "int", "uint", intSize, uintSize));
-			}
+            if(boolSize != byteSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. ({2} != {3})", "byte", "bool", byteSize, boolSize));
+            }
 
-			if(longSize != 2 * intSize)
-			{
-				throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (2 * {2} != {3})", "int", "long", intSize, longSize));
-			}
+            if(sbyteSize != byteSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. ({2} != {3})", "byte", "sbyte", byteSize, sbyteSize));
+            }
 
-			if(ulongSize != 2 * intSize)
-			{
-				throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (2 * {2} != {3})", "int", "ulong", intSize, ulongSize));
-			}
+            if(charSize != 2 * byteSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (2 * {2} != {3})", "byte", "char", byteSize, charSize));
+            }
 
-			if(floatSize != intSize)
-			{
-				throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. ({2} != {3})", "int", "float", intSize, floatSize));
-			}
+            if(shortSize != 2 * byteSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (2 * {2} != {3})", "byte", "short", byteSize, shortSize));
+            }
 
-			if(doubleSize != 2 * intSize)
-			{
-				throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (2 * {2} != {3})", "int", "double", intSize, doubleSize));
-			}
+            if(ushortSize != shortSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. ({2} != {3})", "short", "ushort", shortSize, ushortSize));
+            }
+
+            if(intSize != 4 * byteSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (4 * {2} != {3})", "byte", "int", byteSize, intSize));
+            }
+
+            if(uintSize != intSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. ({2} != {3})", "int", "uint", intSize, uintSize));
+            }
+
+            if(longSize != 2 * intSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (2 * {2} != {3})", "int", "long", intSize, longSize));
+            }
+
+            if(ulongSize != longSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. ({2} != {3})", "long", "ulong", longSize, ulongSize));
+            }
+
+            if(floatSize != intSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. ({2} != {3})", "int", "float", intSize, floatSize));
+            }
+
+            if(doubleSize != 2 * floatSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (2 * {2} != {3})", "float", "double", floatSize, doubleSize));
+            }
+
+            if(decimalSize != 4 * floatSize)
+            {
+                throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (4 * {2} != {3})", "float", "decimal", floatSize, decimalSize));
+            }
 #pragma warning restore 0162
 
-			emptyParameters = new object[] { };
+            emptyParameters = new object[] { };
 
-			isLittleEndian = BitConverter.IsLittleEndian;
+            progressRefresRate = new TimeSpan(0, 0, 0, 0, 40);
 
-			sizes = new Dictionary<SupportedTypes, uint>();
+            mapping = new Dictionary<Type, SupportedTypes>()
+            {
+                {typeof(bool), SupportedTypes.BOOL},
+                {typeof(byte), SupportedTypes.BYTE},
+                {typeof(sbyte), SupportedTypes.SBYTE},
+                {typeof(char), SupportedTypes.CHAR},
+                {typeof(short), SupportedTypes.SHORT},
+                {typeof(ushort), SupportedTypes.USHORT},
+                {typeof(int), SupportedTypes.INT},
+                {typeof(uint), SupportedTypes.UINT},
+                {typeof(long), SupportedTypes.LONG},
+                {typeof(ulong), SupportedTypes.ULONG},
+                {typeof(float), SupportedTypes.FLOAT},
+                {typeof(double), SupportedTypes.DOUBLE},
+                {typeof(decimal), SupportedTypes.DECIMAL},
+                {typeof(string), SupportedTypes.STRING},
+                {typeof(Vector2), SupportedTypes.VECTOR2},
+                {typeof(Vector3), SupportedTypes.VECTOR3},
+                {typeof(Vector4), SupportedTypes.VECTOR4},
+                {typeof(Quaternion), SupportedTypes.QUATERNION},
+                {typeof(Color), SupportedTypes.COLOR}
+            };
 
-			sizes.Add(SupportedTypes.BYTE, byteSize);
-			sizes.Add(SupportedTypes.BOOL, byteSize);
-			sizes.Add(SupportedTypes.INT, intSize);
-			sizes.Add(SupportedTypes.UINT, uintSize);
-			sizes.Add(SupportedTypes.LONG, longSize);
-			sizes.Add(SupportedTypes.ULONG, ulongSize);
-			sizes.Add(SupportedTypes.FLOAT, floatSize);
-			sizes.Add(SupportedTypes.DOUBLE, doubleSize);
-			sizes.Add(SupportedTypes.VECTOR2, 2 * floatSize);
-			sizes.Add(SupportedTypes.VECTOR3, 3 * floatSize);
-			sizes.Add(SupportedTypes.VECTOR4, 4 * floatSize);
-			sizes.Add(SupportedTypes.QUATERNION, 4 * floatSize);
-			sizes.Add(SupportedTypes.COLOR, 4 * byteSize);
+            sizes = new Dictionary<SupportedTypes, uint>()
+            {
+                {SupportedTypes.BOOL, boolSize},
+                {SupportedTypes.BYTE, byteSize},
+                {SupportedTypes.SBYTE, sbyteSize},
+                {SupportedTypes.CHAR, charSize},
+                {SupportedTypes.SHORT, shortSize},
+                {SupportedTypes.USHORT, ushortSize},
+                {SupportedTypes.INT, intSize},
+                {SupportedTypes.UINT, uintSize},
+                {SupportedTypes.LONG, longSize},
+                {SupportedTypes.ULONG, ulongSize},
+                {SupportedTypes.FLOAT, floatSize},
+                {SupportedTypes.DOUBLE, doubleSize},
+                {SupportedTypes.DECIMAL, decimalSize},
+                {SupportedTypes.VECTOR2, 2 * floatSize},
+                {SupportedTypes.VECTOR3, 3 * floatSize},
+                {SupportedTypes.VECTOR4, 4 * floatSize},
+                {SupportedTypes.QUATERNION, 4 * floatSize},
+                {SupportedTypes.COLOR, 4 * byteSize}
+            };
 
 			MethodInfo[] methods = typeof(Binary).GetMethods();
 
@@ -422,6 +435,9 @@ namespace CLARTE.Serialization
 							case MethodLocatorAttribute.Type.FROM_BYTES:
 								switch(locator.parameter)
 								{
+                                    case MethodLocatorAttribute.Parameter.ENUM:
+                                        fromBytesEnum = method;
+                                        break;
 									case MethodLocatorAttribute.Parameter.ARRAY:
 										fromBytesArray = method;
 										break;
@@ -442,7 +458,10 @@ namespace CLARTE.Serialization
 							case MethodLocatorAttribute.Type.TO_BYTES:
 								switch(locator.parameter)
 								{
-									case MethodLocatorAttribute.Parameter.ARRAY:
+                                    case MethodLocatorAttribute.Parameter.ENUM:
+                                        toBytesEnum = method;
+                                        break;
+                                    case MethodLocatorAttribute.Parameter.ARRAY:
 										toBytesArray = method;
 										break;
                                     case MethodLocatorAttribute.Parameter.LIST:
@@ -788,19 +807,48 @@ namespace CLARTE.Serialization
 				}
 			}
 		}
-		#endregion
+        #endregion
 
-		#region Convert from bytes
-		/// <summary>
-		/// Deserialize a IBinarySerializable object.
-		/// </summary>
-		/// <typeparam name="T">The type of the IBinarySerializable object.</typeparam>
-		/// <param name="buffer">The buffer containing the serialized data.</param>
-		/// <param name="start">The start index in the buffer of the serialized object.</param>
-		/// <param name="value">The deserialized object.</param>
-		/// <param name="optional">If true, no error will be raised if the value is missing and null will be returned.</param>
-		/// <returns>The number of deserialized bytes.</returns>
-		public uint FromBytes<T>(Buffer buffer, uint start, out T value, bool optional = false) where T : IBinarySerializable
+        #region Convert from bytes
+        /// <summary>
+        /// Deserialize into an existing IBinarySerializable object.
+        /// </summary>
+        /// <typeparam name="T">The type of the IBinarySerializable object.</typeparam>
+        /// <param name="buffer">The buffer containing the serialized data.</param>
+        /// <param name="start">The start index in the buffer of the serialized object.</param>
+        /// <param name="value">The deserialized object.</param>
+        /// <param name="optional">If true, no error will be raised if the value is missing and null will be returned.</param>
+        /// <returns>The number of deserialized bytes.</returns>
+        public uint FromBytesOverwrite<T>(Buffer buffer, uint start, T value, bool optional = false) where T : IBinarySerializable
+        {
+            uint read = 0;
+            bool defined = true;
+
+            CheckDeserializationParameters(buffer, start);
+
+            if(optional)
+            {
+                read = FromBytes(buffer, start, out defined);
+            }
+
+            if(defined)
+            {
+                read += value.FromBytes(this, buffer, start + read);
+            }
+
+            return read;
+        }
+
+        /// <summary>
+        /// Deserialize a IBinarySerializable object.
+        /// </summary>
+        /// <typeparam name="T">The type of the IBinarySerializable object.</typeparam>
+        /// <param name="buffer">The buffer containing the serialized data.</param>
+        /// <param name="start">The start index in the buffer of the serialized object.</param>
+        /// <param name="value">The deserialized object.</param>
+        /// <param name="optional">If true, no error will be raised if the value is missing and null will be returned.</param>
+        /// <returns>The number of deserialized bytes.</returns>
+        public uint FromBytes<T>(Buffer buffer, uint start, out T value, bool optional = false) where T : IBinarySerializable
 		{
 			IBinarySerializable ret;
 			
@@ -812,7 +860,7 @@ namespace CLARTE.Serialization
 		}
 
 		// Create a wrapper to call from recursive call where generic type constraints can not be matched
-		private uint FromBytes(Buffer buffer, uint start, out IBinarySerializable value, System.Type type, bool optional = false)
+		private uint FromBytes(Buffer buffer, uint start, out IBinarySerializable value, Type type, bool optional = false)
 		{
 			uint read = 0;
 			bool defined = true;
@@ -838,32 +886,87 @@ namespace CLARTE.Serialization
 			return read;
 		}
 
-		/// <summary>
-		/// Deserialize a byte value.
+        /// <summary>
+		/// Deserialize a 16 bits value.
 		/// </summary>
 		/// <param name="buffer">The buffer containing the serialized data.</param>
 		/// <param name="start">The start index in the buffer of the serialized value.</param>
 		/// <param name="value">The deserialized value.</param>
 		/// <returns>The number of deserialized bytes.</returns>
-		public uint FromBytes(Buffer buffer, uint start, out byte value)
-		{
-			CheckDeserializationParameters(buffer, start);
+		protected uint FromBytes(Buffer buffer, uint start, out Converter16 value)
+        {
+            byte b1, b2;
 
-			byte[] data = buffer.Data;
+            uint read = FromBytes(buffer, start, out b1);
+            read += FromBytes(buffer, start + read, out b2);
 
-			if(start + byteSize > data.Length)
-			{
-				throw new ArgumentException(string.Format("Buffer too small. {0} bytes required, only {1} bytes available.", byteSize, data.Length - start));
-			}
+            value = new Converter16(b1, b2);
 
-			value = data[start];
+            return read;
+        }
 
-			buffer.Progress(start + byteSize);
+        /// <summary>
+		/// Deserialize a 32 bits value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
+		protected uint FromBytes(Buffer buffer, uint start, out Converter32 value)
+        {
+            byte b1, b2, b3, b4;
 
-			return byteSize;
-		}
+            uint read = FromBytes(buffer, start, out b1);
+            read += FromBytes(buffer, start + read, out b2);
+            read += FromBytes(buffer, start + read, out b3);
+            read += FromBytes(buffer, start + read, out b4);
 
-		/// <summary>
+            value = new Converter32(b1, b2, b3, b4);
+
+            return read;
+        }
+
+        /// <summary>
+		/// Deserialize a 64 bits value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
+		protected uint FromBytes(Buffer buffer, uint start, out Converter64 value)
+        {
+            Converter32 i1, i2;
+
+            uint read = FromBytes(buffer, start, out i1);
+            read += FromBytes(buffer, start + read, out i2);
+
+            value = new Converter64(i1, i2);
+
+            return read;
+        }
+
+        /// <summary>
+		/// Deserialize a 128 bits value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
+		protected uint FromBytes(Buffer buffer, uint start, out Converter128 value)
+        {
+            Converter32 i1, i2, i3, i4;
+
+            uint read = FromBytes(buffer, start, out i1);
+            read += FromBytes(buffer, start + read, out i2);
+            read += FromBytes(buffer, start + read, out i3);
+            read += FromBytes(buffer, start + read, out i4);
+
+            value = new Converter128(i1, i2, i3, i4);
+
+            return read;
+        }
+
+        /// <summary>
 		/// Deserialize a bool value.
 		/// </summary>
 		/// <param name="buffer">The buffer containing the serialized data.</param>
@@ -871,17 +974,114 @@ namespace CLARTE.Serialization
 		/// <param name="value">The deserialized value.</param>
 		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out bool value)
-		{
-			byte ret;
+        {
+            byte ret;
 
-			uint read = FromBytes(buffer, start, out ret);
+            uint read = FromBytes(buffer, start, out ret);
 
-			value = (ret != 0);
+            value = (ret != 0);
 
-			return read;
-		}
+            return read;
+        }
 
-		/// <summary>
+        /// <summary>
+        /// Deserialize a byte value.
+        /// </summary>
+        /// <param name="buffer">The buffer containing the serialized data.</param>
+        /// <param name="start">The start index in the buffer of the serialized value.</param>
+        /// <param name="value">The deserialized value.</param>
+        /// <returns>The number of deserialized bytes.</returns>
+        public uint FromBytes(Buffer buffer, uint start, out byte value)
+        {
+            CheckDeserializationParameters(buffer, start);
+
+            byte[] data = buffer.Data;
+
+            if(start + byteSize > data.Length)
+            {
+                throw new ArgumentException(string.Format("Buffer too small. {0} bytes required, only {1} bytes available.", byteSize, data.Length - start));
+            }
+
+            value = data[start];
+
+            buffer.Progress(start + byteSize);
+
+            return byteSize;
+        }
+
+        /// <summary>
+		/// Deserialize a sbyte value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
+		public uint FromBytes(Buffer buffer, uint start, out sbyte value)
+        {
+            byte b;
+
+            uint read = FromBytes(buffer, start, out b);
+
+            value = (sbyte) b;
+
+            return read;
+        }
+
+        /// <summary>
+		/// Deserialize a char value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
+		public uint FromBytes(Buffer buffer, uint start, out char value)
+        {
+            Converter16 c;
+
+            uint read = FromBytes(buffer, start, out c);
+
+            value = c;
+
+            return read;
+        }
+
+        /// <summary>
+		/// Deserialize a short value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
+		public uint FromBytes(Buffer buffer, uint start, out short value)
+        {
+            Converter16 c;
+
+            uint read = FromBytes(buffer, start, out c);
+
+            value = c;
+
+            return read;
+        }
+
+        /// <summary>
+		/// Deserialize a ushort value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
+		public uint FromBytes(Buffer buffer, uint start, out ushort value)
+        {
+            Converter16 c;
+
+            uint read = FromBytes(buffer, start, out c);
+
+            value = c;
+
+            return read;
+        }
+
+        /// <summary>
 		/// Deserialize a int value.
 		/// </summary>
 		/// <param name="buffer">The buffer containing the serialized data.</param>
@@ -889,45 +1089,17 @@ namespace CLARTE.Serialization
 		/// <param name="value">The deserialized value.</param>
 		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out int value)
-		{
-			int begin, end, iter;
+        {
+            Converter32 c;
 
-			CheckDeserializationParameters(buffer, start);
+            uint read = FromBytes(buffer, start, out c);
 
-			byte[] data = buffer.Data;
+            value = c;
 
-			if(start + intSize > data.Length)
-			{
-				throw new ArgumentException(string.Format("Buffer too small. {0} bytes required, only {1} bytes available.", intSize, data.Length - start));
-			}
+            return read;
+        }
 
-			// Get in big endian form
-			if(isLittleEndian)
-			{
-				begin = (int) (start + intSize - 1);
-				end = (int) (begin - intSize);
-				iter = -1;
-			}
-			else
-			{
-				begin = (int) start;
-				end = (int) (begin + intSize);
-				iter = 1;
-			}
-
-			value = 0;
-
-			for(int i = begin, offset = 0; i != end; i += iter, offset += (int) byteBits)
-			{
-				value |= data[i] << offset;
-			}
-
-			buffer.Progress(start + intSize);
-
-			return intSize;
-		}
-
-		/// <summary>
+        /// <summary>
 		/// Deserialize a uint value.
 		/// </summary>
 		/// <param name="buffer">The buffer containing the serialized data.</param>
@@ -935,17 +1107,17 @@ namespace CLARTE.Serialization
 		/// <param name="value">The deserialized value.</param>
 		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out uint value)
-		{
-			int ret;
+        {
+            Converter32 c;
 
-			uint read = FromBytes(buffer, start, out ret);
+            uint read = FromBytes(buffer, start, out c);
 
-			value = (uint) ret;
+            value = c;
 
-			return read;
-		}
+            return read;
+        }
 
-		/// <summary>
+        /// <summary>
 		/// Deserialize a long value.
 		/// </summary>
 		/// <param name="buffer">The buffer containing the serialized data.</param>
@@ -953,25 +1125,17 @@ namespace CLARTE.Serialization
 		/// <param name="value">The deserialized value.</param>
 		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out long value)
-		{
-			int i1, i2;
+        {
+            Converter64 c;
 
-			uint read = FromBytes(buffer, start, out i1);
-			read += FromBytes(buffer, start + read, out i2);
+            uint read = FromBytes(buffer, start, out c);
 
-			if(isLittleEndian)
-			{
-				value = new Converter(i2, i1).Long;
-			}
-			else
-			{
-				value = new Converter(i1, i2).Long;
-			}
+            value = c;
 
-			return read;
-		}
+            return read;
+        }
 
-		/// <summary>
+        /// <summary>
 		/// Deserialize a ulong value.
 		/// </summary>
 		/// <param name="buffer">The buffer containing the serialized data.</param>
@@ -979,17 +1143,17 @@ namespace CLARTE.Serialization
 		/// <param name="value">The deserialized value.</param>
 		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out ulong value)
-		{
-			long ret;
+        {
+            Converter64 c;
 
-			uint read = FromBytes(buffer, start, out ret);
+            uint read = FromBytes(buffer, start, out c);
 
-			value = (ulong) ret;
+            value = c;
 
-			return read;
-		}
+            return read;
+        }
 
-		/// <summary>
+        /// <summary>
 		/// Deserialize a float value.
 		/// </summary>
 		/// <param name="buffer">The buffer containing the serialized data.</param>
@@ -997,17 +1161,17 @@ namespace CLARTE.Serialization
 		/// <param name="value">The deserialized value.</param>
 		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out float value)
-		{
-			int ret;
+        {
+            Converter32 c;
 
-			uint read = FromBytes(buffer, start, out ret);
+            uint read = FromBytes(buffer, start, out c);
 
-			value = new Converter(ret).Float1;
+            value = c;
 
-			return read;
-		}
+            return read;
+        }
 
-		/// <summary>
+        /// <summary>
 		/// Deserialize a double value.
 		/// </summary>
 		/// <param name="buffer">The buffer containing the serialized data.</param>
@@ -1015,32 +1179,81 @@ namespace CLARTE.Serialization
 		/// <param name="value">The deserialized value.</param>
 		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out double value)
-		{
-			int i1, i2;
+        {
+            Converter64 c;
 
-			uint read = FromBytes(buffer, start, out i1);
-			read += FromBytes(buffer, start + read, out i2);
+            uint read = FromBytes(buffer, start, out c);
 
-			if(isLittleEndian)
-			{
-				value = new Converter(i2, i1).Double;
-			}
-			else
-			{
-				value = new Converter(i1, i2).Double;
-			}
+            value = c;
 
-			return read;
-		}
+            return read;
+        }
 
-		/// <summary>
-		/// Deserialize a Vector2 value.
+        /// <summary>
+		/// Deserialize a decimal value.
 		/// </summary>
 		/// <param name="buffer">The buffer containing the serialized data.</param>
 		/// <param name="start">The start index in the buffer of the serialized value.</param>
 		/// <param name="value">The deserialized value.</param>
 		/// <returns>The number of deserialized bytes.</returns>
-		public uint FromBytes(Buffer buffer, uint start, out Vector2 value)
+		public uint FromBytes(Buffer buffer, uint start, out decimal value)
+        {
+            Converter128 c;
+
+            uint read = FromBytes(buffer, start, out c);
+
+            value = c;
+
+            return read;
+        }
+
+        /// <summary>
+		/// Deserialize a string value.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized value.</param>
+		/// <param name="value">The deserialized value.</param>
+		/// <returns>The number of deserialized bytes.</returns>
+		public uint FromBytes(Buffer buffer, uint start, out string value)
+        {
+            uint size;
+
+            value = null;
+
+            CheckDeserializationParameters(buffer, start);
+
+            uint read = FromBytes(buffer, start, out size);
+
+            if(read != uintSize)
+            {
+                throw new FormatException(string.Format("The number of read bytes does not match the expected count. Read {0} bytes instead of {1}.", read, uintSize));
+            }
+
+            if(size > 0)
+            {
+                if(start + size > buffer.Data.Length)
+                {
+                    throw new ArgumentException(string.Format("Buffer too small. {0} bytes required, only {1} bytes available.", size, buffer.Data.Length - start));
+                }
+
+                value = System.Text.Encoding.UTF8.GetString(buffer.Data, (int) (start + read), (int) size);
+
+                read += size;
+            }
+
+            buffer.Progress(start + read);
+
+            return read;
+        }
+
+        /// <summary>
+        /// Deserialize a Vector2 value.
+        /// </summary>
+        /// <param name="buffer">The buffer containing the serialized data.</param>
+        /// <param name="start">The start index in the buffer of the serialized value.</param>
+        /// <param name="value">The deserialized value.</param>
+        /// <returns>The number of deserialized bytes.</returns>
+        public uint FromBytes(Buffer buffer, uint start, out Vector2 value)
 		{
 			float x, y;
 
@@ -1134,45 +1347,6 @@ namespace CLARTE.Serialization
 
 			return read;
 		}
-
-		/// <summary>
-		/// Deserialize a string value.
-		/// </summary>
-		/// <param name="buffer">The buffer containing the serialized data.</param>
-		/// <param name="start">The start index in the buffer of the serialized value.</param>
-		/// <param name="value">The deserialized value.</param>
-		/// <returns>The number of deserialized bytes.</returns>
-		public uint FromBytes(Buffer buffer, uint start, out string value)
-		{
-			uint size;
-
-			value = null;
-
-			CheckDeserializationParameters(buffer, start);
-
-			uint read = FromBytes(buffer, start, out size);
-
-			if(read != uintSize)
-			{
-				throw new FormatException(string.Format("The number of read bytes does not match the expected count. Read {0} bytes instead of {1}.", read, uintSize));
-			}
-
-			if(size > 0)
-			{
-				if(start + size > buffer.Data.Length)
-				{
-					throw new ArgumentException(string.Format("Buffer too small. {0} bytes required, only {1} bytes available.", size, buffer.Data.Length - start));
-				}
-
-				value = System.Text.Encoding.UTF8.GetString(buffer.Data, (int) (start + read), (int) size);
-
-				read += size;
-			}
-
-			buffer.Progress(start + read);
-
-			return read;
-		}
 		#endregion
 
 		#region Convert to bytes
@@ -1197,7 +1371,9 @@ namespace CLARTE.Serialization
 
 			if(value != null)
 			{
-				written += value.ToBytes(this, ref buffer, start + written);
+                CheckDefaultConstructor(value.GetType());
+
+                written += value.ToBytes(this, ref buffer, start + written);
 			}
 			else if(! optional)
 			{
@@ -1207,14 +1383,118 @@ namespace CLARTE.Serialization
 			return written;
 		}
 
-		/// <summary>
-		/// Serialize a byte value.
+        /// <summary>
+        /// Serialize a 16 bits value.
+        /// </summary>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="value">The value to serialize.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        public uint ToBytes(ref Buffer buffer, uint start, Converter16 value)
+        {
+            CheckSerializationParameters(buffer, start);
+
+            // Resize buffer if necessary
+            ResizeBuffer(ref buffer, start + shortSize);
+
+            byte[] data = buffer.Data;
+
+            data[start] = value.Byte1;
+            data[start + 1] = value.Byte2;
+
+            buffer.Progress(start + shortSize);
+
+            return shortSize;
+        }
+
+        /// <summary>
+        /// Serialize a 32 bits value.
+        /// </summary>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="value">The value to serialize.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        public uint ToBytes(ref Buffer buffer, uint start, Converter32 value)
+        {
+            CheckSerializationParameters(buffer, start);
+
+            // Resize buffer if necessary
+            ResizeBuffer(ref buffer, start + intSize);
+
+            byte[] data = buffer.Data;
+
+            data[start] = value.Byte1;
+            data[start + 1] = value.Byte2;
+            data[start + 2] = value.Byte3;
+            data[start + 3] = value.Byte4;
+
+            buffer.Progress(start + intSize);
+
+            return intSize;
+        }
+
+        /// <summary>
+        /// Serialize a 64 bits value.
+        /// </summary>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="value">The value to serialize.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        public uint ToBytes(ref Buffer buffer, uint start, Converter64 value)
+        {
+            CheckSerializationParameters(buffer, start);
+
+            // Resize buffer if necessary
+            ResizeBuffer(ref buffer, start + longSize);
+
+            uint written = ToBytes(ref buffer, start, value.Int1);
+            written += ToBytes(ref buffer, start + written, value.Int2);
+
+            return written;
+        }
+
+        /// <summary>
+        /// Serialize a 128 bits value.
+        /// </summary>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="value">The value to serialize.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        public uint ToBytes(ref Buffer buffer, uint start, Converter128 value)
+        {
+            CheckSerializationParameters(buffer, start);
+
+            // Resize buffer if necessary
+            ResizeBuffer(ref buffer, start + decimalSize);
+
+            uint written = ToBytes(ref buffer, start, value.Int1);
+            written += ToBytes(ref buffer, start + written, value.Int2);
+            written += ToBytes(ref buffer, start + written, value.Int3);
+            written += ToBytes(ref buffer, start + written, value.Int4);
+
+            return written;
+        }
+
+        /// <summary>
+		/// Serialize a bool value.
 		/// </summary>
 		/// <param name="buffer">The buffer where to serialize the data.</param>
 		/// <param name="start">The start index in the buffer where to serialize the data.</param>
 		/// <param name="value">The value to serialize.</param>
 		/// <returns>The number of serialized bytes.</returns>
-		public uint ToBytes(ref Buffer buffer, uint start, byte value)
+		public uint ToBytes(ref Buffer buffer, uint start, bool value)
+        {
+            return ToBytes(ref buffer, start, value ? (byte) 0x1 : (byte) 0x0);
+        }
+
+        /// <summary>
+        /// Serialize a byte value.
+        /// </summary>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="value">The value to serialize.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        public uint ToBytes(ref Buffer buffer, uint start, byte value)
 		{
 			CheckSerializationParameters(buffer, start);
 
@@ -1228,59 +1508,65 @@ namespace CLARTE.Serialization
 			return byteSize;
 		}
 
-		/// <summary>
-		/// Serialize a bool value.
+        /// <summary>
+		/// Serialize a sbyte value.
 		/// </summary>
 		/// <param name="buffer">The buffer where to serialize the data.</param>
 		/// <param name="start">The start index in the buffer where to serialize the data.</param>
 		/// <param name="value">The value to serialize.</param>
 		/// <returns>The number of serialized bytes.</returns>
-		public uint ToBytes(ref Buffer buffer, uint start, bool value)
+		public uint ToBytes(ref Buffer buffer, uint start, sbyte value)
+        {
+            return ToBytes(ref buffer, start, (byte) value);
+        }
+
+        /// <summary>
+        /// Serialize a char value.
+        /// </summary>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="value">The value to serialize.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        public uint ToBytes(ref Buffer buffer, uint start, char value)
+        {
+            return ToBytes(ref buffer, start, (Converter16) value);
+        }
+
+        /// <summary>
+        /// Serialize a short value.
+        /// </summary>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="value">The value to serialize.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        public uint ToBytes(ref Buffer buffer, uint start, short value)
+        {
+            return ToBytes(ref buffer, start, (Converter16) value);
+        }
+
+        /// <summary>
+        /// Serialize a ushort value.
+        /// </summary>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="value">The value to serialize.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        public uint ToBytes(ref Buffer buffer, uint start, ushort value)
+        {
+            return ToBytes(ref buffer, start, (Converter16) value);
+        }
+
+        /// <summary>
+        /// Serialize a int value.
+        /// </summary>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="value">The value to serialize.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        public uint ToBytes(ref Buffer buffer, uint start, int value)
 		{
-			return ToBytes(ref buffer, start, value ? (byte) 0x1 : (byte) 0x0);
-		}
-
-		/// <summary>
-		/// Serialize a int value.
-		/// </summary>
-		/// <param name="buffer">The buffer where to serialize the data.</param>
-		/// <param name="start">The start index in the buffer where to serialize the data.</param>
-		/// <param name="value">The value to serialize.</param>
-		/// <returns>The number of serialized bytes.</returns>
-		public uint ToBytes(ref Buffer buffer, uint start, int value)
-		{
-			int begin, end, iter;
-
-			CheckSerializationParameters(buffer, start);
-
-			// Resize buffer if necessary
-			ResizeBuffer(ref buffer, start + intSize);
-
-			byte[] data = buffer.Data;
-
-			// Store in big endian form
-			if(isLittleEndian)
-			{
-				begin = (int) (start + intSize - 1);
-				end = (int) (begin - intSize);
-				iter = -1;
-			}
-			else
-			{
-				begin = (int) start;
-				end = (int) (begin + intSize);
-				iter = 1;
-			}
-
-			for(int i = begin, offset = 0; i != end; i += iter, offset += (int) byteBits)
-			{
-				data[i] = (byte) ((value >> offset) & mask);
-			}
-
-			buffer.Progress(start + intSize);
-
-			return intSize;
-		}
+            return ToBytes(ref buffer, start, (Converter32) value);
+        }
 
 		/// <summary>
 		/// Serialize a uint value.
@@ -1291,8 +1577,8 @@ namespace CLARTE.Serialization
 		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, uint value)
 		{
-			return ToBytes(ref buffer, start, (int) value);
-		}
+            return ToBytes(ref buffer, start, (Converter32) value);
+        }
 
 		/// <summary>
 		/// Serialize a long value.
@@ -1303,26 +1589,8 @@ namespace CLARTE.Serialization
 		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, long value)
 		{
-			int i1, i2;
-
-			Converter c = new Converter(value);
-
-			if(isLittleEndian)
-			{
-				i1 = c.Int2;
-				i2 = c.Int1;
-			}
-			else
-			{
-				i1 = c.Int1;
-				i2 = c.Int2;
-			}
-
-			uint written = ToBytes(ref buffer, start, i1);
-			written += ToBytes(ref buffer, start + written, i2);
-
-			return written;
-		}
+            return ToBytes(ref buffer, start, (Converter64) value);
+        }
 
 		/// <summary>
 		/// Serialize a ulong value.
@@ -1333,8 +1601,8 @@ namespace CLARTE.Serialization
 		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, ulong value)
 		{
-			return ToBytes(ref buffer, start, (long) value);
-		}
+            return ToBytes(ref buffer, start, (Converter64) value);
+        }
 
 		/// <summary>
 		/// Serialize a float value.
@@ -1345,8 +1613,8 @@ namespace CLARTE.Serialization
 		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, float value)
 		{
-			return ToBytes(ref buffer, start, new Converter(value).Int1);
-		}
+            return ToBytes(ref buffer, start, (Converter32) value);
+        }
 
 		/// <summary>
 		/// Serialize a double value.
@@ -1357,35 +1625,76 @@ namespace CLARTE.Serialization
 		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, double value)
 		{
-			int i1, i2;
+            return ToBytes(ref buffer, start, (Converter64) value);
+        }
 
-			Converter c = new Converter(value);
-
-			if(isLittleEndian)
-			{
-				i1 = c.Int2;
-				i2 = c.Int1;
-			}
-			else
-			{
-				i1 = c.Int1;
-				i2 = c.Int2;
-			}
-
-			uint written = ToBytes(ref buffer, start, i1);
-			written += ToBytes(ref buffer, start + written, i2);
-
-			return written;
-		}
-
-		/// <summary>
-		/// Serialize a Vector2 value.
+        /// <summary>
+		/// Serialize a decimal value.
 		/// </summary>
 		/// <param name="buffer">The buffer where to serialize the data.</param>
 		/// <param name="start">The start index in the buffer where to serialize the data.</param>
 		/// <param name="value">The value to serialize.</param>
 		/// <returns>The number of serialized bytes.</returns>
-		public uint ToBytes(ref Buffer buffer, uint start, Vector2 value)
+		public uint ToBytes(ref Buffer buffer, uint start, decimal value)
+        {
+            return ToBytes(ref buffer, start, (Converter128) value);
+        }
+
+        /// <summary>
+		/// Serialize a string value.
+		/// </summary>
+		/// <param name="buffer">The buffer where to serialize the data.</param>
+		/// <param name="start">The start index in the buffer where to serialize the data.</param>
+		/// <param name="value">The value to serialize.</param>
+		/// <returns>The number of serialized bytes.</returns>
+		public uint ToBytes(ref Buffer buffer, uint start, string value)
+        {
+            uint written = 0;
+
+            CheckSerializationParameters(buffer, start);
+
+            if(!string.IsNullOrEmpty(value))
+            {
+                // Get number of required bytes
+                uint size = (uint) System.Text.Encoding.UTF8.GetByteCount(value);
+
+                // Make sure the buffer is large enough
+                ResizeBuffer(ref buffer, start + uintSize + size);
+
+                // Encode the string length first
+                written = ToBytes(ref buffer, start, size);
+
+                if(written != uintSize)
+                {
+                    throw new FormatException(string.Format("The number of written bytes does not match the expected count. Wrote {0} bytes instead of {1}.", written, uintSize));
+                }
+
+                // Add the string bytes to the buffer (in-place)
+                written += (uint) System.Text.Encoding.UTF8.GetBytes(value, 0, value.Length, buffer.Data, (int) (start + uintSize));
+            }
+            else
+            {
+                written = ToBytes(ref buffer, start, 0u);
+
+                if(written != uintSize)
+                {
+                    throw new FormatException(string.Format("The number of written bytes does not match the expected count. Wrote {0} bytes instead of {1}.", written, uintSize));
+                }
+            }
+
+            buffer.Progress(start + written);
+
+            return written;
+        }
+
+        /// <summary>
+        /// Serialize a Vector2 value.
+        /// </summary>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="value">The value to serialize.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        public uint ToBytes(ref Buffer buffer, uint start, Vector2 value)
 		{
 			uint written = ToBytes(ref buffer, start, value.x);
 			written += ToBytes(ref buffer, start + written, value.y);
@@ -1461,65 +1770,156 @@ namespace CLARTE.Serialization
 
 			return written;
 		}
+        #endregion
 
-		/// <summary>
-		/// Serialize a string value.
+        #region Enums
+#if CSHARP_7_3_OR_NEWER
+        /// <summary>
+        /// Deserialize an enum.
+        /// </summary>
+        /// <typeparam name="T">The type of the enum object.</typeparam>
+        /// <param name="buffer">The buffer containing the serialized data.</param>
+        /// <param name="start">The start index in the buffer of the serialized object.</param>
+        /// <param name="array">The deserialized enum.</param>
+        /// <returns>The number of deserialized bytes.</returns>
+        [MethodLocator(MethodLocatorAttribute.Type.FROM_BYTES, MethodLocatorAttribute.Parameter.ENUM)]
+        public uint FromBytes<T>(Buffer buffer, uint start, out T enumerate) where T : Enum
+        {
+            uint read = 0;
+
+            enumerate = default(T);
+
+            switch(enumerate.GetTypeCode())
+            {
+                case TypeCode.Byte:
+                    byte b;
+
+                    read = FromBytes(buffer, start, out b);
+
+                    enumerate = (T) ((object) b);
+
+                    break;
+                case TypeCode.SByte:
+                    sbyte sb;
+
+                    read = FromBytes(buffer, start, out sb);
+
+                    enumerate = (T) ((object) sb);
+
+                    break;
+                case TypeCode.Int16:
+                    short s;
+
+                    read = FromBytes(buffer, start, out s);
+
+                    enumerate = (T) ((object) s);
+
+                    break;
+                case TypeCode.UInt16:
+                    ushort us;
+
+                    read = FromBytes(buffer, start, out us);
+
+                    enumerate = (T) ((object) us);
+
+                    break;
+                case TypeCode.Int32:
+                    int i;
+
+                    read = FromBytes(buffer, start, out i);
+
+                    enumerate = (T) ((object) i);
+
+                    break;
+                case TypeCode.UInt32:
+                    uint ui;
+
+                    read = FromBytes(buffer, start, out ui);
+
+                    enumerate = (T) ((object) ui);
+
+                    break;
+                case TypeCode.Int64:
+                    long l;
+
+                    read = FromBytes(buffer, start, out l);
+
+                    enumerate = (T) ((object) l);
+
+                    break;
+                case TypeCode.UInt64:
+                    ulong ul;
+
+                    read = FromBytes(buffer, start, out ul);
+
+                    enumerate = (T) ((object) ul);
+
+                    break;
+                default:
+                    throw new DeserializationException(string.Format("Unsupported enum underlying type. '{0}' is not a valid integral type for enums.", enumerate.GetTypeCode()), new TypeInitializationException(typeof(T).ToString(), null));
+            }
+
+            return read;
+        }
+
+        /// <summary>
+		/// Serialize an enum.
 		/// </summary>
+		/// <typeparam name="T">The type of the enum objects.</typeparam>
 		/// <param name="buffer">The buffer where to serialize the data.</param>
 		/// <param name="start">The start index in the buffer where to serialize the data.</param>
-		/// <param name="value">The value to serialize.</param>
+		/// <param name="array">The enum to serialize.</param>
 		/// <returns>The number of serialized bytes.</returns>
-		public uint ToBytes(ref Buffer buffer, uint start, string value)
-		{
-			uint written = 0;
+        [MethodLocator(MethodLocatorAttribute.Type.TO_BYTES, MethodLocatorAttribute.Parameter.ENUM)]
+        public uint ToBytes<T>(ref Buffer buffer, uint start, T enumerate) where T : Enum
+        {
+            uint written = 0;
 
-			CheckSerializationParameters(buffer, start);
+            switch(enumerate.GetTypeCode())
+            {
+                case TypeCode.Byte:
+                    written = ToBytes(ref buffer, start, (byte) ((object) enumerate));
+                    break;
+                case TypeCode.SByte:
+                    written = ToBytes(ref buffer, start, (sbyte) ((object) enumerate));
+                    break;
+                case TypeCode.Int16:
+                    written = ToBytes(ref buffer, start, (short) ((object) enumerate));
+                    break;
+                case TypeCode.UInt16:
+                    written = ToBytes(ref buffer, start, (ushort) ((object) enumerate));
+                    break;
+                case TypeCode.Int32:
+                    written = ToBytes(ref buffer, start, (int) ((object) enumerate));
+                    break;
+                case TypeCode.UInt32:
+                    written = ToBytes(ref buffer, start, (uint) ((object) enumerate));
+                    break;
+                case TypeCode.Int64:
+                    written = ToBytes(ref buffer, start, (long) ((object) enumerate));
+                    break;
+                case TypeCode.UInt64:
+                    written = ToBytes(ref buffer, start, (ulong) ((object) enumerate));
+                    break;
+                default:
+                    throw new SerializationException(string.Format("Unsupported enum underlying type. '{0}' is not a valid integral type for enums.", enumerate.GetTypeCode()), new TypeInitializationException(typeof(T).ToString(), null));
+            }
 
-			if(!string.IsNullOrEmpty(value))
-			{
-				// Get number of required bytes
-				uint size = (uint) System.Text.Encoding.UTF8.GetByteCount(value);
+            return written;
+        }
+#endif
+        #endregion
 
-				// Make sure the buffer is large enough
-				ResizeBuffer(ref buffer, start + uintSize + size);
-
-				// Encode the string length first
-				written = ToBytes(ref buffer, start, size);
-
-				if(written != uintSize)
-				{
-					throw new FormatException(string.Format("The number of written bytes does not match the expected count. Wrote {0} bytes instead of {1}.", written, uintSize));
-				}
-
-				// Add the string bytes to the buffer (in-place)
-				written += (uint) System.Text.Encoding.UTF8.GetBytes(value, 0, value.Length, buffer.Data, (int) (start + uintSize));
-			}
-			else
-			{
-				written = ToBytes(ref buffer, start, 0u);
-
-				if(written != uintSize)
-				{
-					throw new FormatException(string.Format("The number of written bytes does not match the expected count. Wrote {0} bytes instead of {1}.", written, uintSize));
-				}
-			}
-
-			buffer.Progress(start + written);
-
-			return written;
-		}
-		#endregion
-
-		#region Arrays
-		/// <summary>
-		/// Deserialize an array of supported objects.
-		/// </summary>
-		/// <typeparam name="T">The type of objects in the array.</typeparam>
-		/// <param name="buffer">The buffer containing the serialized data.</param>
-		/// <param name="start">The start index in the buffer of the serialized object.</param>
-		/// <param name="array">The deserialized array.</param>
-		/// <returns>The number of deserialized bytes.</returns>
-		[MethodLocator(MethodLocatorAttribute.Type.FROM_BYTES, MethodLocatorAttribute.Parameter.ARRAY)]
+        #region Arrays
+        /// <summary>
+        /// Deserialize an array of supported objects.
+        /// </summary>
+        /// <typeparam name="T">The type of objects in the array.</typeparam>
+        /// <param name="buffer">The buffer containing the serialized data.</param>
+        /// <param name="start">The start index in the buffer of the serialized object.</param>
+        /// <param name="array">The deserialized array.</param>
+        /// <returns>The number of deserialized bytes.</returns>
+        [MethodLocator(MethodLocatorAttribute.Type.FROM_BYTES, MethodLocatorAttribute.Parameter.ARRAY)]
 		public uint FromBytes<T>(Buffer buffer, uint start, out T[] array)
 		{
 			uint array_size, read;
@@ -2045,23 +2445,24 @@ namespace CLARTE.Serialization
 
 			return written;
 		}
-		#endregion
+        #endregion
 
-		#region Object dynamic serialization
-		/// <summary>
-		/// Deserialize objects where type is not known at compilation time.
-		/// </summary>
-		/// <remarks>
-		/// However, to avoid the penalty introduced by handling objects of unknown type, as well as keep useful compiler errors,
-		/// the handling of this special case is not merged with the rest of the serialization methods. Instead, the user must
-		/// EXPLICITELY ask for those methods, and they do not allow recursive serialization (i.e.arrays or dictionaries of 'objects').
-		/// </remarks>
-		/// <param name="buffer">The buffer containing the serialized data.</param>
-		/// <param name="start">The start index in the buffer of the serialized object.</param>
-		/// <param name="value">The deserialized object.</param>
-		/// <param name="optional">If true, no error will be raised if the value is missing and null will be returned.</param>
-		/// <returns>The number of deserialized bytes.</returns>
-		public uint FromBytesDynamic(Buffer buffer, uint start, out object value, bool optional = false)
+        #region Object dynamic serialization
+        /// <summary>
+        /// Deserialize objects where type is not known at compilation time.
+        /// </summary>
+        /// <remarks>
+        /// However, to avoid the penalty introduced by handling objects of unknown type, as well as keep useful compiler errors,
+        /// the handling of this special case is not merged with the rest of the serialization methods. Instead, the user must
+        /// EXPLICITELY ask for those methods, and they do not allow recursive serialization (i.e.arrays or dictionaries of 'objects').
+        /// </remarks>
+        /// <typeparam name="T">The type of the object.</typeparam>
+        /// <param name="buffer">The buffer containing the serialized data.</param>
+        /// <param name="start">The start index in the buffer of the serialized object.</param>
+        /// <param name="value">The deserialized object.</param>
+        /// <param name="optional">If true, no error will be raised if the value is missing and null will be returned.</param>
+        /// <returns>The number of deserialized bytes.</returns>
+        public uint FromBytesDynamic<T>(Buffer buffer, uint start, out T value, bool optional = false)
 		{
 			uint read = 0;
 			bool defined = true;
@@ -2083,25 +2484,26 @@ namespace CLARTE.Serialization
 			}
 			else
 			{
-				value = null;
+				value = default(T);
 			}
 
 			return read;
 		}
 
-		/// <summary>
-		/// Serialize objects where type is not known at compilation time.
-		/// </summary>
-		/// <remarks>
-		/// However, to avoid the penalty introduced by handling objects of unknown type, as well as keep useful compiler errors,
-		/// the handling of this special case is not merged with the rest of the serialization methods. Instead, the user must
-		/// EXPLICITELY ask for those methods, and they do not allow recursive serialization (i.e.arrays or dictionaries of 'objects').
-		/// <param name="buffer">The buffer where to serialize the data.</param>
-		/// <param name="start">The start index in the buffer where to serialize the data.</param>
-		/// <param name="value">The serialized object.</param>
-		/// <param name="optional">If true, no error will be raised if the value is null.</param>
-		/// <returns>The number of serialized bytes.</returns>
-		public uint ToBytesDynamic(ref Buffer buffer, uint start, object value, bool optional = false)
+        /// <summary>
+        /// Serialize objects where type is not known at compilation time.
+        /// </summary>
+        /// <remarks>
+        /// However, to avoid the penalty introduced by handling objects of unknown type, as well as keep useful compiler errors,
+        /// the handling of this special case is not merged with the rest of the serialization methods. Instead, the user must
+        /// EXPLICITELY ask for those methods, and they do not allow recursive serialization (i.e.arrays or dictionaries of 'objects').
+        /// <typeparam name="T">The type of the object.</typeparam>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="value">The serialized object.</param>
+        /// <param name="optional">If true, no error will be raised if the value is null.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        public uint ToBytesDynamic<T>(ref Buffer buffer, uint start, T value, bool optional = false)
 		{
 			uint written = 0;
 
@@ -2127,116 +2529,103 @@ namespace CLARTE.Serialization
 
 			return written;
 		}
-		#endregion
+        #endregion
 
-		#region Generics to type overloads casts
-		protected void CallDefaultConstructor(System.Type type, out IBinarySerializable value)
+        #region Generics to type overloads casts
+        protected static ConstructorInfo CheckDefaultConstructor(Type type)
+        {
+            ConstructorInfo constructor = type.GetConstructor(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null);
+
+            if(constructor == null)
+            {
+                throw new ArgumentException(string.Format("Invalid deserialization of object of type '{0}'. No default constructor defined.", type.FullName));
+            }
+
+            return constructor;
+        }
+
+        protected static void CallDefaultConstructor(Type type, out IBinarySerializable value)
 		{
-			ConstructorInfo constructor = type.GetConstructor(System.Type.EmptyTypes);
-
-			if(constructor == null)
-			{
-				throw new ArgumentException(string.Format("Invalid deserialization of object of type '{0}'. No default constructor defined.", type.FullName));
-			}
-
-			value = (IBinarySerializable) constructor.Invoke(emptyParameters);
+			value = (IBinarySerializable) CheckDefaultConstructor(type).Invoke(emptyParameters);
 		}
 
-		protected SupportedTypes GetSupportedType(System.Type type)
+        protected static bool CheckGenericDefinition(Type type, Type generic_definition)
+        {
+#if NETFX_CORE
+			return type.GetTypeInfo().IsGenericType && type.GetTypeInfo().GetGenericTypeDefinition() == generic_definition;
+#else
+            return type.IsGenericType && type.GetGenericTypeDefinition() == generic_definition;
+#endif
+        }
+
+        protected static void CheckGenericParametersTypes(Type type, uint nb_expected_types)
+        {
+#if NETFX_CORE
+            Type[] element_types = type.GetTypeInfo().GetGenericArguments();
+#else
+            Type[] element_types = type.GetGenericArguments();
+#endif
+
+            if(element_types == null || element_types.Length < nb_expected_types)
+            {
+                throw new ArgumentException(string.Format("The type '{0}' is not supported.", type));
+            }
+
+            for(uint i = 0; i < nb_expected_types; i++)
+            {
+                // Check if we get an exception or not
+                GetSupportedType(element_types[i]);
+            }
+        }
+
+		public static SupportedTypes GetSupportedType(Type type)
 		{
 			SupportedTypes result;
 
-            if(type == typeof(byte))
+            if(!mapping.TryGetValue(type, out result))
             {
-                result = SupportedTypes.BYTE;
-            }
-            else if(type == typeof(bool))
-            {
-                result = SupportedTypes.BOOL;
-            }
-            else if(type == typeof(int))
-            {
-                result = SupportedTypes.INT;
-            }
-            else if(type == typeof(uint))
-            {
-                result = SupportedTypes.UINT;
-            }
-            else if(type == typeof(long))
-            {
-                result = SupportedTypes.LONG;
-            }
-            else if(type == typeof(ulong))
-            {
-                result = SupportedTypes.ULONG;
-            }
-            else if(type == typeof(float))
-            {
-                result = SupportedTypes.FLOAT;
-            }
-            else if(type == typeof(double))
-            {
-                result = SupportedTypes.DOUBLE;
-            }
-            else if(type == typeof(string))
-            {
-                result = SupportedTypes.STRING;
-            }
-            else if(type == typeof(Vector2))
-            {
-                result = SupportedTypes.VECTOR2;
-            }
-            else if(type == typeof(Vector3))
-            {
-                result = SupportedTypes.VECTOR3;
-            }
-            else if(type == typeof(Vector4))
-            {
-                result = SupportedTypes.VECTOR4;
-            }
-            else if(type == typeof(Quaternion))
-            {
-                result = SupportedTypes.QUATERNION;
-            }
-            else if(type == typeof(Color))
-            {
-                result = SupportedTypes.COLOR;
-            }
-            else if(typeof(IBinarySerializable).IsAssignableFrom(type))
-            {
-                result = SupportedTypes.BINARY_SERIALIZABLE;
-            }
-            else if(type.IsArray)
-            {
-                result = SupportedTypes.ARRAY;
-            }
-#if NETFX_CORE
-			else if(type.GetTypeInfo().IsGenericType && type.GetTypeInfo().GetGenericTypeDefinition() == typeof(List<>))
-#else
-            else if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>))
+                if(typeof(IBinarySerializable).IsAssignableFrom(type))
+                {
+                    result = SupportedTypes.BINARY_SERIALIZABLE;
+                }
+#if CSHARP_7_3_OR_NEWER
+                else if(type.IsEnum)
+                {
+                    result = SupportedTypes.ENUM;
+                }
 #endif
-            {
-                result = SupportedTypes.LIST;
-            }
-#if NETFX_CORE
-			else if(type.GetTypeInfo().IsGenericType && type.GetTypeInfo().GetGenericTypeDefinition() == typeof(HashSet<>))
-#else
-            else if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(HashSet<>))
-#endif
-            {
-                result = SupportedTypes.HASHSET;
-            }
-#if NETFX_CORE
-			else if(type.GetTypeInfo().IsGenericType && type.GetTypeInfo().GetGenericTypeDefinition() == typeof(Dictionary<,>))
-#else
-            else if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<,>))
-#endif
-            {
-                result = SupportedTypes.DICTIONARY;
-            }
-            else
-            {
-                throw new ArgumentException(string.Format("The type '{0}' is not supported.", type));
+                else if(type.IsArray)
+                {
+                    result = SupportedTypes.ARRAY;
+
+                    // Check inner type support
+                    GetSupportedType(type.GetElementType());
+                }
+                else if(CheckGenericDefinition(type, typeof(List<>)))
+                {
+                    result = SupportedTypes.LIST;
+
+                    // Check inner type support
+                    CheckGenericParametersTypes(type, 1);
+                }
+                else if(CheckGenericDefinition(type, typeof(HashSet<>)))
+                {
+                    result = SupportedTypes.HASHSET;
+
+                    // Check inner type support
+                    CheckGenericParametersTypes(type, 1);
+                }
+                else if(CheckGenericDefinition(type, typeof(Dictionary<,>)))
+                {
+                    result = SupportedTypes.DICTIONARY;
+
+                    // Check inner type support
+                    CheckGenericParametersTypes(type, 2);
+                }
+                else
+                {
+                    throw new ArgumentException(string.Format("The type '{0}' is not supported.", type));
+                }
             }
 
 			return result;
@@ -2246,13 +2635,14 @@ namespace CLARTE.Serialization
 		{
 			uint read;
 
-			object[] parameters;
-
-			switch(type)
+            switch(type)
 			{
 				case SupportedTypes.BINARY_SERIALIZABLE: // We cannot call the correct overload directly because the type constraints are not matched
-					IBinarySerializable ret;
-
+                case SupportedTypes.ENUM:
+                case SupportedTypes.ARRAY:
+                case SupportedTypes.LIST:
+                case SupportedTypes.HASHSET:
+                case SupportedTypes.DICTIONARY:
                     string raw_complete_type;
 
                     Type complete_type = typeof(T);
@@ -2266,62 +2656,58 @@ namespace CLARTE.Serialization
                         complete_type = Type.GetType(raw_complete_type);
                     }
 
-                    // Optional parameter useless here: arrays and dictionnaries does call this wrapper only when strictly necessary,
-                    // i.e. when the value is defined. Moreover, the call of this wrapper from the Deserialize method also imply
-                    // that the value is mandatory. By forcing the optional parameter to false, we avoid allocating 1 more byte for
-                    // each value.
-                    read += FromBytes(buffer, start + read, out ret, complete_type, false);
-                    
-					value = (T) ret;
+                    if(type == SupportedTypes.BINARY_SERIALIZABLE)
+                    {
+                        IBinarySerializable ret;
+
+                        // Optional parameter useless here: arrays and dictionnaries does call this wrapper only when strictly necessary,
+                        // i.e. when the value is defined. Moreover, the call of this wrapper from the Deserialize method also imply
+                        // that the value is mandatory. By forcing the optional parameter to false, we avoid allocating 1 more byte for
+                        // each value.
+                        read += FromBytes(buffer, start + read, out ret, complete_type, false);
+
+                        value = (T) ret;
+                    }
+                    else
+                    {
+                        object[] parameters = new object[nbParameters];
+
+                        parameters[0] = buffer;
+                        parameters[1] = start + read;
+                        parameters[2] = null;
+
+                        switch(type)
+                        {
+                            case SupportedTypes.ENUM:
+                                read += (uint) fromBytesEnum.MakeGenericMethod(complete_type).Invoke(this, parameters);
+                                break;
+                            case SupportedTypes.ARRAY:
+                                read += (uint) fromBytesArray.MakeGenericMethod(complete_type.GetElementType()).Invoke(this, parameters);
+                                break;
+                            case SupportedTypes.LIST:
+                                read += (uint) fromBytesList.MakeGenericMethod(complete_type.GetGenericArguments()).Invoke(this, parameters);
+                                break;
+                            case SupportedTypes.HASHSET:
+                                read += (uint) fromBytesHashSet.MakeGenericMethod(complete_type.GetGenericArguments()).Invoke(this, parameters);
+                                break;
+                            case SupportedTypes.DICTIONARY:
+                                read += (uint) fromBytesDictionary.MakeGenericMethod(complete_type.GetGenericArguments()).Invoke(this, parameters);
+                                break;
+                        }
+
+                        value = (T) parameters[2];
+                    }
 
 					break;
-				case SupportedTypes.ARRAY:
-					parameters = new object[nbParameters];
+                case SupportedTypes.BOOL:
+                    bool o;
 
-					parameters[0] = buffer;
-					parameters[1] = start;
-					parameters[2] = null;
+                    read = FromBytes(buffer, start, out o);
 
-					read = (uint) fromBytesArray.MakeGenericMethod(typeof(T).GetElementType()).Invoke(this, parameters);
+                    value = (T) ((object) o);
 
-					value = (T) parameters[2];
-
-					break;
-                case SupportedTypes.LIST:
-                    parameters = new object[nbParameters];
-
-                    parameters[0] = buffer;
-                    parameters[1] = start;
-                    parameters[2] = null;
-
-                    read = (uint) fromBytesList.MakeGenericMethod(typeof(T).GetGenericArguments()).Invoke(this, parameters);
-
-                    value = (T) parameters[2];
                     break;
-                case SupportedTypes.HASHSET:
-                    parameters = new object[nbParameters];
-
-                    parameters[0] = buffer;
-                    parameters[1] = start;
-                    parameters[2] = null;
-
-                    read = (uint) fromBytesHashSet.MakeGenericMethod(typeof(T).GetGenericArguments()).Invoke(this, parameters);
-
-                    value = (T) parameters[2];
-                    break;
-                case SupportedTypes.DICTIONARY:
-					parameters = new object[nbParameters];
-
-					parameters[0] = buffer;
-					parameters[1] = start;
-					parameters[2] = null;
-
-					read = (uint) fromBytesDictionary.MakeGenericMethod(typeof(T).GetGenericArguments()).Invoke(this, parameters);
-
-					value = (T) parameters[2];
-
-					break;
-				case SupportedTypes.BYTE:
+                case SupportedTypes.BYTE:
 					byte b;
 
 					read = FromBytes(buffer, start, out b);
@@ -2329,15 +2715,39 @@ namespace CLARTE.Serialization
 					value = (T) ((object) b);
 
 					break;
-				case SupportedTypes.BOOL:
-					bool o;
+                case SupportedTypes.SBYTE:
+                    sbyte sb;
 
-					read = FromBytes(buffer, start, out o);
+                    read = FromBytes(buffer, start, out sb);
 
-					value = (T) ((object) o);
+                    value = (T) ((object) sb);
 
-					break;
-				case SupportedTypes.INT:
+                    break;
+                case SupportedTypes.CHAR:
+                    char c;
+
+                    read = FromBytes(buffer, start, out c);
+
+                    value = (T) ((object) c);
+
+                    break;
+                case SupportedTypes.SHORT:
+                    short s;
+
+                    read = FromBytes(buffer, start, out s);
+
+                    value = (T) ((object) s);
+
+                    break;
+                case SupportedTypes.USHORT:
+                    ushort us;
+
+                    read = FromBytes(buffer, start, out us);
+
+                    value = (T) ((object) us);
+
+                    break;
+                case SupportedTypes.INT:
 					int i;
 
 					read = FromBytes(buffer, start, out i);
@@ -2385,12 +2795,20 @@ namespace CLARTE.Serialization
 					value = (T) ((object) d);
 
 					break;
-				case SupportedTypes.STRING:
-					string s;
+                case SupportedTypes.DECIMAL:
+                    decimal dec;
 
-					read = FromBytes(buffer, start, out s);
+                    read = FromBytes(buffer, start, out dec);
 
-					value = (T) ((object) s);
+                    value = (T) ((object) dec);
+
+                    break;
+                case SupportedTypes.STRING:
+					string str;
+
+					read = FromBytes(buffer, start, out str);
+
+					value = (T) ((object) str);
 
 					break;
 				case SupportedTypes.VECTOR2:
@@ -2426,11 +2844,11 @@ namespace CLARTE.Serialization
 
 					break;
 				case SupportedTypes.COLOR:
-					Color c;
+					Color col;
 
-					read = FromBytes(buffer, start, out c);
+					read = FromBytes(buffer, start, out col);
 
-					value = (T) ((object) c);
+					value = (T) ((object) col);
 
 					break;
 				default:
@@ -2444,11 +2862,14 @@ namespace CLARTE.Serialization
 		{
 			uint written;
 
-			object[] parameters;
-
-			switch(type)
+            switch(type)
 			{
 				case SupportedTypes.BINARY_SERIALIZABLE:
+                case SupportedTypes.ENUM:
+                case SupportedTypes.ARRAY:
+                case SupportedTypes.LIST:
+                case SupportedTypes.HASHSET:
+                case SupportedTypes.DICTIONARY:
                     string complete_type = null;
 
                     if(value.GetType() != typeof(T))
@@ -2456,73 +2877,70 @@ namespace CLARTE.Serialization
                         // We do not have enough static type info to recreate automatically the object.
                         // It can happen when serializing something only typed as "object" which contains some IBinarySerializable data.
                         // Threfore, i this case the "type" parameter does not hold enough info for deserialization and we must be more explicit.
-                        complete_type = value.GetType().ToString();
+                        complete_type = string.Format("{0}, {1}", value.GetType().ToString(), value.GetType().Assembly.GetName().Name);
                     }
 
                     // Usually only 4 bytes used for null types when we have enough static info.
                     written = ToBytes(ref buffer, start, complete_type);
 
-                    // Optional parameter useless here: arrays and dictionnaries does call this wrapper only when strictly necessary,
-                    // i.e. when the value is defined. Moreover, the call of this wrapper from the Serialize method also imply
-                    // that the value is mandatory. By forcing the optional parameter to false, we avoid allocating 1 more byte for
-                    // each value.
-                    written += ToBytes(ref buffer, start + written, (IBinarySerializable) ((object) value), false);
+                    if(type == SupportedTypes.BINARY_SERIALIZABLE)
+                    {
+                        // Optional parameter useless here: arrays and dictionnaries does call this wrapper only when strictly necessary,
+                        // i.e. when the value is defined. Moreover, the call of this wrapper from the Serialize method also imply
+                        // that the value is mandatory. By forcing the optional parameter to false, we avoid allocating 1 more byte for
+                        // each value.
+                        written += ToBytes(ref buffer, start + written, (IBinarySerializable) ((object) value), false);
+                    }
+                    else
+                    {
+                        object[] parameters = new object[nbParameters];
+
+                        parameters[0] = buffer;
+                        parameters[1] = start + written;
+                        parameters[2] = value;
+
+                        switch(type)
+                        {
+                            case SupportedTypes.ENUM:
+                                written += (uint) toBytesEnum.MakeGenericMethod(value.GetType()).Invoke(this, parameters);
+                                break;
+                            case SupportedTypes.ARRAY:
+                                written += (uint) toBytesArray.MakeGenericMethod(value.GetType().GetElementType()).Invoke(this, parameters);
+                                break;
+                            case SupportedTypes.LIST:
+                                written += (uint) toBytesList.MakeGenericMethod(value.GetType().GetGenericArguments()).Invoke(this, parameters);
+                                break;
+                            case SupportedTypes.HASHSET:
+                                written += (uint) toBytesHashSet.MakeGenericMethod(value.GetType().GetGenericArguments()).Invoke(this, parameters);
+                                break;
+                            case SupportedTypes.DICTIONARY:
+                                written += (uint) toBytesDictionary.MakeGenericMethod(value.GetType().GetGenericArguments()).Invoke(this, parameters);
+                                break;
+                        }
+
+                        buffer = (Buffer) parameters[0];
+                    }
+
 					break;
-				case SupportedTypes.ARRAY:
-					parameters = new object[nbParameters];
-
-					parameters[0] = buffer;
-					parameters[1] = start;
-					parameters[2] = value;
-
-					written = (uint) toBytesArray.MakeGenericMethod(typeof(T).GetElementType()).Invoke(this, parameters);
-
-					buffer = (Buffer) parameters[0];
-
-					break;
-                case SupportedTypes.LIST:
-                    parameters = new object[nbParameters];
-
-                    parameters[0] = buffer;
-                    parameters[1] = start;
-                    parameters[2] = value;
-
-                    written = (uint) toBytesList.MakeGenericMethod(typeof(T).GetGenericArguments()).Invoke(this, parameters);
-
-                    buffer = (Buffer) parameters[0];
-
+                case SupportedTypes.BOOL:
+                    written = ToBytes(ref buffer, start, (bool) ((object) value));
                     break;
-                case SupportedTypes.HASHSET:
-                    parameters = new object[nbParameters];
-
-                    parameters[0] = buffer;
-                    parameters[1] = start;
-                    parameters[2] = value;
-
-                    written = (uint) toBytesHashSet.MakeGenericMethod(typeof(T).GetGenericArguments()).Invoke(this, parameters);
-
-                    buffer = (Buffer) parameters[0];
-
-                    break;
-                case SupportedTypes.DICTIONARY:
-					parameters = new object[nbParameters];
-
-					parameters[0] = buffer;
-					parameters[1] = start;
-					parameters[2] = value;
-
-					written = (uint) toBytesDictionary.MakeGenericMethod(typeof(T).GetGenericArguments()).Invoke(this, parameters);
-
-					buffer = (Buffer) parameters[0];
-
-					break;
-				case SupportedTypes.BYTE:
+                case SupportedTypes.BYTE:
 					written = ToBytes(ref buffer, start, (byte) ((object) value));
 					break;
-				case SupportedTypes.BOOL:
-					written = ToBytes(ref buffer, start, (bool) ((object) value));
-					break;
-				case SupportedTypes.INT:
+                case SupportedTypes.SBYTE:
+                    written = ToBytes(ref buffer, start, (sbyte) ((object) value));
+                    break;
+                case SupportedTypes.CHAR:
+                    written = ToBytes(ref buffer, start, (char) ((object) value));
+                    break;
+                case SupportedTypes.SHORT:
+                    written = ToBytes(ref buffer, start, (short) ((object) value));
+                    break;
+                case SupportedTypes.USHORT:
+                    written = ToBytes(ref buffer, start, (ushort) ((object) value));
+                    break;
+                case SupportedTypes.INT:
 					written = ToBytes(ref buffer, start, (int) ((object) value));
 					break;
 				case SupportedTypes.UINT:
@@ -2540,7 +2958,10 @@ namespace CLARTE.Serialization
 				case SupportedTypes.DOUBLE:
 					written = ToBytes(ref buffer, start, (double) ((object) value));
 					break;
-				case SupportedTypes.STRING:
+                case SupportedTypes.DECIMAL:
+                    written = ToBytes(ref buffer, start, (decimal) ((object) value));
+                    break;
+                case SupportedTypes.STRING:
 					written = ToBytes(ref buffer, start, (string) ((object) value));
 					break;
 				case SupportedTypes.VECTOR2:

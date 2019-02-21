@@ -122,7 +122,14 @@ namespace CLARTE.Threads
 
                     if(stopEvent != null && threads != null && threads.Count > 0)
                     {
-                        stopEvent.Set();
+                        try
+                        {
+                            stopEvent.Set();
+                        }
+                        catch(ObjectDisposedException)
+                        {
+                            // Fixed errors in Unity editor
+                        }
 
                         foreach(Thread thread in threads)
                         {
@@ -131,11 +138,18 @@ namespace CLARTE.Threads
 
                         threads.Clear();
 
+                        try
+                        {
 #if NETFX_CORE
-                        stopEvent.Dispose();
+                            stopEvent.Dispose();
 #else
-                        stopEvent.Close();
+                            stopEvent.Close();
 #endif
+                        }
+                        catch(ObjectDisposedException)
+                        {
+                            // Fixed errors in Unity editor
+                        }
                     }
                 }
 
