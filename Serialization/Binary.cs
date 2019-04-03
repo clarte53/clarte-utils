@@ -413,7 +413,19 @@ namespace CLARTE.Serialization
                 // If an explicit type is defined, use it.
                 if(! string.IsNullOrEmpty(raw_complete_type))
                 {
-                    value = Type.GetType(raw_complete_type);
+                    try
+                    {
+                        value = Type.GetType(raw_complete_type);
+
+                        if(value == null)
+                        {
+                            throw new TypeLoadException();
+                        }
+                    }
+                    catch(Exception)
+                    {
+                        throw new SerializationException(string.Format("Missing type '{0}'. Use 'link.xml' files to include missing type in build.", raw_complete_type), new TypeLoadException(string.Format("Missing type '{0}'.", raw_complete_type)));
+                    }
                 }
                 else
                 {
