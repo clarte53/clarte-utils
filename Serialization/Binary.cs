@@ -897,25 +897,6 @@ namespace CLARTE.Serialization
         /// <summary>
         /// Deserialize a IBinarySerializable object.
         /// </summary>
-        /// <typeparam name="T">The type of the IBinarySerializable object.</typeparam>
-        /// <param name="buffer">The buffer containing the serialized data.</param>
-        /// <param name="start">The start index in the buffer of the serialized object.</param>
-        /// <param name="value">The deserialized object.</param>
-        /// <returns>The number of deserialized bytes.</returns>
-        public uint FromBytes<T>(Buffer buffer, uint start, out T value) where T : IBinarySerializable
-        {
-            IBinarySerializable v;
-
-            uint read = FromBytes(buffer, start, out v);
-
-            value = (T) v;
-
-            return read;
-        }
-
-        /// <summary>
-        /// Deserialize a IBinarySerializable object.
-        /// </summary>
         /// <param name="buffer">The buffer containing the serialized data.</param>
         /// <param name="start">The start index in the buffer of the serialized object.</param>
         /// <param name="value">The deserialized object.</param>
@@ -1885,25 +1866,6 @@ namespace CLARTE.Serialization
         #endregion
 
         #region Enums
-#if CSHARP_7_3_OR_NEWER
-        /// <summary>
-        /// Deserialize an enum.
-        /// </summary>
-        /// <typeparam name="T">The type of enum to deserialize.</typeparam>
-        /// <param name="buffer">The buffer containing the serialized data.</param>
-        /// <param name="start">The start index in the buffer of the serialized object.</param>
-        /// <param name="enumerate">The deserialized enum.</param>
-        /// <returns>The number of deserialized bytes.</returns>
-        public uint FromBytes<T>(Buffer buffer, uint start, out T enumerate) where T : Enum
-        {
-            uint read = FromBytes(buffer, start, out Enum e);
-
-            enumerate = (T) e;
-
-            return read;
-        }
-#endif
-
         /// <summary>
         /// Deserialize an enum.
         /// </summary>
