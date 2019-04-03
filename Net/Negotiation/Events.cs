@@ -1,4 +1,6 @@
-﻿using System;
+﻿#if !NETFX_CORE
+
+using System;
 using System.Net;
 using UnityEngine.Events;
 using CLARTE.Serialization;
@@ -38,3 +40,5 @@ namespace CLARTE.Net.Negotiation
         }
     }
 }
+
+#endif // !NETFX_CORE

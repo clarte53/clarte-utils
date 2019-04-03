@@ -1,4 +1,6 @@
-﻿using System;
+﻿#if !NETFX_CORE
+
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Net;
@@ -75,9 +77,9 @@ namespace CLARTE.Net.Negotiation
             #endregion
 
             #region Public methods
-            public void SaveResult(IBinarySerializable data)
+            public void SaveResult(object data)
             {
-                this.data = data;
+                this.data = (IBinarySerializable) data;
             }
             #endregion
         }
@@ -146,7 +148,7 @@ namespace CLARTE.Net.Negotiation
             {
                 DeserializationContext context = new DeserializationContext(r => onReceive.Invoke(remote, id, channel, r));
 
-                context.task = serializer.Deserialize<IBinarySerializable>(data, context.SaveResult);
+                context.task = serializer.Deserialize(data, context.SaveResult);
 
                 deserializationTasks.Enqueue(context);
             }
@@ -234,3 +236,5 @@ namespace CLARTE.Net.Negotiation
         #endregion
     }
 }
+
+#endif // !NETFX_CORE

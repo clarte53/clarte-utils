@@ -177,4 +177,5 @@ namespace CLARTE.Net.HTTP.Example
         #endregion
     }
 }
-#endif // UNITY_EDITOR
+
+#endif // UNITY_EDITOR && !NETFX_CORE

@@ -1,4 +1,6 @@
-﻿using System;
+﻿#if !NETFX_CORE
+
+using System;
 using UnityEngine;
 
 namespace CLARTE.Net.Negotiation
@@ -30,3 +32,5 @@ namespace CLARTE.Net.Negotiation
         #endregion
     }
 }
+
+#endif // !NETFX_CORE

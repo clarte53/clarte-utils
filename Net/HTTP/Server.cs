@@ -260,4 +260,5 @@ namespace CLARTE.Net.HTTP
         #endregion
     }
 }
-#endif
+
+#endif // !NETFX_CORE

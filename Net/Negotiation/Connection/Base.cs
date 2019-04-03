@@ -1,4 +1,6 @@
-﻿using System;
+﻿#if !NETFX_CORE
+
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading;
@@ -282,3 +284,5 @@ namespace CLARTE.Net.Negotiation.Connection
         #endregion
     }
 }
+
+#endif // !NETFX_CORE

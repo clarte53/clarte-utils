@@ -1,4 +1,6 @@
-﻿using System;
+﻿#if !NETFX_CORE
+
+using System;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
@@ -339,3 +341,5 @@ namespace CLARTE.Net.Negotiation
         #endregion
     }
 }
+
+#endif // !NETFX_CORE

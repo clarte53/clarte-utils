@@ -1,4 +1,6 @@
-﻿using System;
+﻿#if !NETFX_CORE
+
+using System;
 using System.Net;
 using System.Net.Sockets;
 
@@ -145,3 +147,5 @@ namespace CLARTE.Net.Negotiation.Connection
         #endregion
     }
 }
+
+#endif // !NETFX_CORE

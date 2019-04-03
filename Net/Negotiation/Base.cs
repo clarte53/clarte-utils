@@ -1,4 +1,6 @@
-﻿using System;
+﻿#if !NETFX_CORE
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -331,7 +333,7 @@ namespace CLARTE.Net.Negotiation
         {
             get
             {
-                return channels;
+                return (IEnumerable<Channel>) channels;
             }
         }
         #endregion
@@ -464,3 +466,5 @@ namespace CLARTE.Net.Negotiation
         #endregion
     }
 }
+
+#endif //!NETFX_CORE

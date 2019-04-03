@@ -87,4 +87,5 @@ namespace CLARTE.Net.HTTP
         }
     }
 }
-#endif
+
+#endif // !NETFX_CORE
