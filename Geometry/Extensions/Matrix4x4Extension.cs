@@ -4,6 +4,11 @@ namespace CLARTE.Geometry.Extensions
 {
 	public static class Matrix4x4Extension
 	{
+		/// <summary>
+		/// Extract the rotation part of a Matrix4x4 and returns it as a quaternion
+		/// </summary>
+		/// <param name="m"></param>
+		/// <returns></returns>
 		public static Quaternion ExtractRotationQuaternion(this Matrix4x4 matrix)
 		{
 			if(!IsOrthogonal(matrix))
@@ -13,7 +18,12 @@ namespace CLARTE.Geometry.Extensions
 
 			return Quaternion.LookRotation(matrix.GetColumn(2), matrix.GetColumn(1));
 		}
-		
+
+		/// <summary>
+		/// Extract the rotation part of a Matrix4x4 and returns it as a Matrix3x3
+		/// </summary>
+		/// <param name="m"></param>
+		/// <returns></returns>
 		public static Matrix3x3 ExtractRotationMatrix(this Matrix4x4 matrix)
 		{
 			Matrix3x3 rot = new Matrix3x3();
@@ -28,12 +38,22 @@ namespace CLARTE.Geometry.Extensions
 
 			return rot;
 		}
-		
+
+		/// <summary>
+		/// Extract the rotation part of a Matrix4x4 and returns it as a quaternion
+		/// </summary>
+		/// <param name="m"></param>
+		/// <returns></returns>
 		public static Vector3 ExtractTranslation(this Matrix4x4 matrix)
 		{
 			return new Vector3(matrix.m03, matrix.m13, matrix.m23);
 		}
 
+		/// <summary>
+		/// Extract the scale part of a Matrix4x4
+		/// </summary>
+		/// <param name="m"></param>
+		/// <returns></returns>
 		public static Vector3 ExtractScale(this Matrix4x4 matrix)
 		{
 			Vector3 ret = new Vector3();
@@ -45,6 +65,11 @@ namespace CLARTE.Geometry.Extensions
 			return ret;
 		}
 
+		/// <summary>
+		/// Checks whether a Matrix4x4 is orthogonal
+		/// </summary>
+		/// <param name="m"></param>
+		/// <returns></returns>
 		public static bool IsOrthogonal(this Matrix4x4 matrix)
 		{
 			bool ret = false;
