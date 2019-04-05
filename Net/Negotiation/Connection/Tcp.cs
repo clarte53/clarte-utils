@@ -85,7 +85,7 @@ namespace CLARTE.Net.Negotiation.Connection
         #region Members
         protected static readonly bool isLittleEndian;
 
-        public Threads.Result initialization;
+        public Threads.IResult initialization;
         public TcpClient client;
         public Stream stream;
         public uint version;

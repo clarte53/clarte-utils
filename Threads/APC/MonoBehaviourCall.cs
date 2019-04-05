@@ -58,7 +58,7 @@ namespace CLARTE.Threads.APC
 
             reactor.Add(task, false);
 
-            return task.result;
+            return (Result) task.result;
 		}
         #endregion
     }

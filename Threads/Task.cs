@@ -6,11 +6,11 @@ namespace CLARTE.Threads
     {
         #region Members
         public Action callback;
-        public Result result;
+        public IResult result;
         #endregion
 
         #region Constructors
-        public Task(Action func, Result res)
+        public Task(Action func, IResult res)
         {
             callback = func;
             result = res;
@@ -55,18 +55,19 @@ namespace CLARTE.Threads
 
             return new Task(() =>
             {
+				T value = default(T);
                 Exception exception = null;
 
                 try
                 {
-                    result.Value = callback();
+                    value = callback();
                 }
                 catch(Exception e)
                 {
                     exception = e;
                 }
 
-                result.Complete(exception);
+                result.Complete(value, exception);
             }, result);
         }
         #endregion

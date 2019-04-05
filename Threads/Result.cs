@@ -5,13 +5,24 @@ using UnityEngine;
 namespace CLARTE.Threads
 {
 	/// <summary>
+	/// Bse interface for result objects
+	/// </summary>
+	public interface IResult : IDisposable
+	{
+		bool Done { get; }
+		bool Success { get; }
+		Exception Exception { get; }
+		void Wait();
+	}
+
+	/// <summary>
 	/// Async future result. Results provide feeback of async task completion and access to eventualy raised exceptions.
 	/// </summary>
-	public class Result : IDisposable
+	public class Result : IResult
 	{
         #region Members
         protected ManualResetEvent waitHandle = new ManualResetEvent(false);
-        protected Action callback;
+        protected Action<Exception> callback;
         protected Exception exception;
         protected bool exceptionChecked;
         protected bool disposed;
@@ -22,7 +33,7 @@ namespace CLARTE.Threads
         /// Create a new future result.
         /// </summary>
         /// <param name="callback">An optional callback to call when result is completed.</param>
-        public Result(Action callback = null)
+        public Result(Action<Exception> callback = null)
         {
             this.callback = callback;
         }
@@ -121,21 +132,6 @@ namespace CLARTE.Threads
 				return exception;
 			}
 		}
-
-		/// <summary>
-		/// Mark the task as completed. Never call this method yourself!
-		/// </summary>
-		public void Complete(Exception raised = null)
-		{
-			exception = raised;
-
-            waitHandle.Set();
-
-            if(callback != null)
-            {
-                callback();
-            }
-		}
 		#endregion
 
 		#region Utility methods
@@ -147,6 +143,21 @@ namespace CLARTE.Threads
 		{
             waitHandle.WaitOne();
 		}
+
+		/// <summary>
+		/// Mark the task as completed. Never call this method yourself!
+		/// </summary>
+		public void Complete(Exception raised = null)
+		{
+			exception = raised;
+
+			waitHandle.Set();
+
+			if(callback != null)
+			{
+				callback(exception);
+			}
+		}
 		#endregion
 	}
 
@@ -154,42 +165,116 @@ namespace CLARTE.Threads
     /// Specialized async result to get the return value of an async task.
     /// </summary>
     /// <typeparam name="T">The type of the return value.</typeparam>
-    public class Result<T> : Result
+    public class Result<T> : IResult
     {
         #region Members
-        protected T result;
-        #endregion
+        protected T value;
+		protected Result result;
+		protected Action<T, Exception> callback;
+		#endregion
 
-        #region Constructors
-        /// <summary>
-        /// Create a new future result.
-        /// </summary>
-        /// <param name="callback">An optional callback to call when result is completed.</param>
-        public Result(Action callback = null) : base(callback)
+		#region Constructors
+		/// <summary>
+		/// Create a new future result.
+		/// </summary>
+		/// <param name="callback">An optional callback to call when result is completed.</param>
+		public Result(Action<T, Exception> callback = null)
         {
+			this.callback = callback;
 
-        }
-        #endregion
+			result = new Result();
+		}
+		#endregion
 
-        #region Getter / Setter
-        /// <summary>
-        /// Get or set the return value of the task. The value is automatically set when the task is complete.
-        /// </summary>
-        /// <remarks>The call to this property is blocking until the task is complete.</remarks>
-        /// <returns>The return value of the task.</returns>
-        public T Value
+		#region IDisposable implementation
+		/// <summary>
+		/// Dispose of the Result. Handle ignored exceptions.
+		/// </summary>
+		public void Dispose()
+		{
+			result.Dispose();
+		}
+		#endregion
+
+		#region Getter / Setter
+		/// <summary>
+		/// Check whether the task is done or not.
+		/// </summary>
+		/// <remarks>The call to this property is NOT blocking. Therefore it can be used to check periodically for the task completion.</remarks>
+		/// <returns>True if the task is done, false otherwise.</returns>
+		public bool Done
+		{
+			get
+			{
+				return result.Done;
+			}
+		}
+
+		/// <summary>
+		/// Check whether the task raised an uncatched exception or not.
+		/// </summary>
+		/// <remarks>The call to this property is blocking until the task is complete.</remarks>
+		/// <returns>True if no exception where raised, false otherwise.</returns>
+		public bool Success
+		{
+			get
+			{
+				return result.Success;
+			}
+		}
+
+		/// <summary>
+		/// Get any uncatched exception raised by the task.
+		/// </summary>
+		/// <remarks>The call to this property is blocking until the task is complete.</remarks>
+		/// <returns>The uncatched exception raised by the task, or null otherwise.</returns>
+		public Exception Exception
+		{
+			get
+			{
+				return result.Exception;
+			}
+		}
+
+		/// <summary>
+		/// Get or set the return value of the task. The value is automatically set when the task is complete.
+		/// </summary>
+		/// <remarks>The call to this property is blocking until the task is complete.</remarks>
+		/// <returns>The return value of the task.</returns>
+		public T Value
 		{
 			get
 			{
 				// Block until a value gets available
 				Wait();
 
-				return result;
+				return value;
 			}
+		}
+		#endregion
 
-			set
+		#region Utility methods
+		/// <summary>
+		/// Wait for the task to complete.
+		/// </summary>
+		/// <remarks>The call to this property is blocking until the task is complete.</remarks>
+		public void Wait()
+		{
+			result.Wait();
+		}
+
+		/// <summary>
+		/// Mark the task as completed. Never call this method yourself!
+		/// </summary>
+		public void Complete(T value, Exception raised = null)
+		{
+			this.value = value;
+
+			result.Complete(raised);
+
+			if(callback != null)
 			{
-				result = value;
+				callback(value, raised);
 			}
 		}
 		#endregion

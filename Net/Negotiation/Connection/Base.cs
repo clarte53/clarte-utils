@@ -56,7 +56,7 @@ namespace CLARTE.Net.Negotiation.Connection
         protected ManualResetEvent stopEvent;
         protected ManualResetEvent addEvent;
         protected Threads.Thread worker;
-        protected Threads.Result sendResult;
+        protected Threads.IResult sendResult;
         protected Queue<Threads.Task> sendQueue;
         protected bool listen;
         private bool disposed;
@@ -192,7 +192,7 @@ namespace CLARTE.Net.Negotiation.Connection
         {
             lock(sendQueue)
             {
-                Threads.Result result = new Threads.Result(() =>
+                Threads.Result result = new Threads.Result(e =>
                 {
                     lock(addEvent)
                     {

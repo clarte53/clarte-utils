@@ -104,7 +104,7 @@ namespace CLARTE.Threads
 			{
 				AddTask(t);
 
-				return t.result;
+				return (Result) t.result;
 			}
 
 			return null;
@@ -195,7 +195,7 @@ namespace CLARTE.Threads
 		/// <param name="array">The array where to store the result.</param>
 		/// <param name="index">The index at which store the result.</param>
 		/// <param name="callback">The task to execute.</param>
-		public Result ExecAndSaveToArray<T>(T[] array, int index, Func<T> callback)
+		public IResult ExecAndSaveToArray<T>(T[] array, int index, Func<T> callback)
 		{
 			if(index >= 0 && index < array.Length)
 			{
