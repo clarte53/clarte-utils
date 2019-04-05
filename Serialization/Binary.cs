@@ -18,7 +18,6 @@ namespace CLARTE.Serialization
 		public enum SupportedTypes : byte
 		{
             NONE = 0,
-			BINARY_SERIALIZABLE,
             BOOL,
             BYTE,
             SBYTE,
@@ -39,11 +38,13 @@ namespace CLARTE.Serialization
 			VECTOR4,
 			QUATERNION,
 			COLOR,
+            OBJECT,
             ENUM,
             ARRAY,
             LIST,
 			DICTIONARY,
-		}
+            BINARY_SERIALIZABLE,
+        }
 
 		/// <summary>
 		/// Exception raised when an error happens during serialization.
@@ -543,8 +544,9 @@ namespace CLARTE.Serialization
             progressRefresRate = new TimeSpan(0, 0, 0, 0, 40);
 
             mapping = new Dictionary<Type, SupportedTypes>()
-            {
-                {typeof(bool), SupportedTypes.BOOL},
+			{
+				{typeof(object), SupportedTypes.OBJECT},
+				{typeof(bool), SupportedTypes.BOOL},
                 {typeof(byte), SupportedTypes.BYTE},
                 {typeof(sbyte), SupportedTypes.SBYTE},
                 {typeof(char), SupportedTypes.CHAR},
@@ -906,69 +908,6 @@ namespace CLARTE.Serialization
         #endregion
 
         #region Convert from bytes
-        /// <summary>
-        /// Deserialize a IBinarySerializable object.
-        /// </summary>
-        /// <param name="buffer">The buffer containing the serialized data.</param>
-        /// <param name="start">The start index in the buffer of the serialized object.</param>
-        /// <param name="value">The deserialized object.</param>
-        /// <returns>The number of deserialized bytes.</returns>
-        public uint FromBytes(Buffer buffer, uint start, out IBinarySerializable value)
-		{
-            Type type;
-
-            CheckDeserializationParameters(buffer, start);
-
-            uint read = FromBytes(buffer, start, out type);
-
-            if(type != null)
-			{
-                CallDefaultConstructor(type, out value);
-
-				read += value.FromBytes(this, buffer, start + read);
-			}
-			else
-			{
-				value = null;
-			}
-
-			return read;
-		}
-
-        /// <summary>
-        /// Deserialize into an existing IBinarySerializable object.
-        /// </summary>
-        /// <param name="buffer">The buffer containing the serialized data.</param>
-        /// <param name="start">The start index in the buffer of the serialized object.</param>
-        /// <param name="value">The deserialized object.</param>
-        /// <returns>The number of deserialized bytes.</returns>
-        public uint FromBytesOverwrite(Buffer buffer, uint start, IBinarySerializable value)
-        {
-            Type type;
-
-            CheckDeserializationParameters(buffer, start);
-
-            uint read = FromBytes(buffer, start, out type);
-
-            if(type != null)
-            {
-                if(! type.IsAssignableFrom(value.GetType()))
-                {
-                    throw new FormatException("The type of IBynarySerializable object does not match the provided object.");
-                }
-
-                read += value.FromBytes(this, buffer, start + read);
-            }
-            else
-            {
-                // Nothing to do: we got nothing to deserialize and the value already exists, so returning null is not an option.
-                // It would be great to notify the user, but we do have a mecanism for that, and raising an exception would stop
-                // the deserialization, but this should just be a warning.
-            }
-
-            return read;
-        }
-
         /// <summary>
 		/// Deserialize a 16 bits value.
 		/// </summary>
@@ -1445,37 +1384,6 @@ namespace CLARTE.Serialization
 		#endregion
 
 		#region Convert to bytes
-		/// <summary>
-		/// Serialize a IBinarySerializable object.
-		/// </summary>
-		/// <param name="buffer">The buffer where to serialize the data.</param>
-		/// <param name="start">The start index in the buffer where to serialize the data.</param>
-		/// <param name="value">The object to serialize.</param>
-		/// <returns>The number of serialized bytes.</returns>
-		public uint ToBytes(ref Buffer buffer, uint start, IBinarySerializable value)
-		{
-            uint written;
-
-            CheckSerializationParameters(buffer, start);
-
-			if(value != null)
-			{
-                Type type = value.GetType();
-
-                CheckDefaultConstructor(type);
-
-                written = ToBytes(ref buffer, start, type);
-
-                written += value.ToBytes(this, ref buffer, start + written);
-			}
-			else
-			{
-                written = ToBytes(ref buffer, start, (Type) null);
-            }
-
-			return written;
-		}
-
         /// <summary>
         /// Serialize a 16 bits value.
         /// </summary>
@@ -1875,6 +1783,63 @@ namespace CLARTE.Serialization
 
 			return written;
 		}
+        #endregion
+
+        #region Object dynamic serialization
+        /// <summary>
+        /// Deserialize objects where type is not known at compilation time.
+        /// </summary>
+        /// <param name="buffer">The buffer containing the serialized data.</param>
+        /// <param name="start">The start index in the buffer of the serialized object.</param>
+        /// <param name="value">The deserialized object.</param>
+        /// <returns>The number of deserialized bytes.</returns>
+        public uint FromBytes(Buffer buffer, uint start, out object value)
+        {
+            byte type;
+
+            CheckDeserializationParameters(buffer, start);
+
+            uint read = FromBytes(buffer, start, out type);
+
+            if((SupportedTypes) type != SupportedTypes.NONE)
+            {
+                read += FromBytesWrapper(buffer, start + read, out value, (SupportedTypes) type);
+            }
+            else
+            {
+                value = null;
+            }
+
+            return read;
+        }
+
+        /// <summary>
+        /// Serialize objects where type is not known at compilation time.
+        /// </summary>
+        /// <param name="buffer">The buffer where to serialize the data.</param>
+        /// <param name="start">The start index in the buffer where to serialize the data.</param>
+        /// <param name="value">The serialized object.</param>
+        /// <returns>The number of serialized bytes.</returns>
+        public uint ToBytes(ref Buffer buffer, uint start, object value)
+        {
+            CheckSerializationParameters(buffer, start);
+
+            SupportedTypes type = GetSupportedType(value.GetType());
+
+			if(type == SupportedTypes.OBJECT)
+			{
+				throw new ArgumentException("Can not serialize object of unspecialized type.", "value");
+			}
+
+            uint written = ToBytes(ref buffer, start, (byte) type);
+
+            if(type != SupportedTypes.NONE)
+            {
+                written += ToBytesWrapper(ref buffer, start + written, value, type);
+            }
+
+            return written;
+        }
         #endregion
 
         #region Enums
@@ -2564,61 +2529,100 @@ namespace CLARTE.Serialization
 		}
         #endregion
 
-        #region Object dynamic serialization
+        #region IBinarySerializable serialization
         /// <summary>
-        /// Deserialize objects where type is not known at compilation time.
+        /// Deserialize a IBinarySerializable object.
         /// </summary>
         /// <param name="buffer">The buffer containing the serialized data.</param>
         /// <param name="start">The start index in the buffer of the serialized object.</param>
         /// <param name="value">The deserialized object.</param>
         /// <returns>The number of deserialized bytes.</returns>
-        public uint FromBytes(Buffer buffer, uint start, out object value)
-		{
-            Enum type;
+        public uint FromBytes(Buffer buffer, uint start, out IBinarySerializable value)
+        {
+            Type type;
 
             CheckDeserializationParameters(buffer, start);
 
-			uint read = FromBytes(buffer, start, out type);
+            uint read = FromBytes(buffer, start, out type);
 
-			if((SupportedTypes) type != SupportedTypes.NONE)
-			{
-				read += FromBytesWrapper(buffer, start + read, out value, (SupportedTypes) type);
-			}
-			else
-			{
-				value = null;
-			}
+            if(type != null)
+            {
+                CallDefaultConstructor(type, out value);
 
-			return read;
-		}
+                read += value.FromBytes(this, buffer, start + read);
+            }
+            else
+            {
+                value = null;
+            }
+
+            return read;
+        }
 
         /// <summary>
-        /// Serialize objects where type is not known at compilation time.
+        /// Deserialize into an existing IBinarySerializable object.
         /// </summary>
-        /// <remarks>
-        /// However, to avoid the penalty introduced by handling objects of unknown type, as well as keep useful compiler errors,
-        /// the handling of this special case is not merged with the rest of the serialization methods. Instead, the user must
-        /// EXPLICITELY ask for those methods, and they do not allow recursive serialization (i.e.arrays or dictionaries of 'objects').
-        /// </remarks>
-        /// <param name="buffer">The buffer where to serialize the data.</param>
-        /// <param name="start">The start index in the buffer where to serialize the data.</param>
-        /// <param name="value">The serialized object.</param>
-        /// <returns>The number of serialized bytes.</returns>
-        public uint ToBytes(ref Buffer buffer, uint start, object value)
-		{
-			CheckSerializationParameters(buffer, start);
+        /// <param name="buffer">The buffer containing the serialized data.</param>
+        /// <param name="start">The start index in the buffer of the serialized object.</param>
+        /// <param name="value">The deserialized object.</param>
+        /// <returns>The number of deserialized bytes.</returns>
+        public uint FromBytesOverwrite(Buffer buffer, uint start, IBinarySerializable value)
+        {
+            Type type;
 
-            SupportedTypes type = GetSupportedType(value.GetType());
+            CheckDeserializationParameters(buffer, start);
 
-            uint written = ToBytes(ref buffer, start, type);
+            uint read = FromBytes(buffer, start, out type);
 
-			if(type != SupportedTypes.NONE)
-			{
-				written += ToBytesWrapper(ref buffer, start + written, value, type);
-			}
+            if(type != null)
+            {
+                if(!type.IsAssignableFrom(value.GetType()))
+                {
+                    throw new FormatException("The type of IBynarySerializable object does not match the provided object.");
+                }
 
-			return written;
-		}
+                read += value.FromBytes(this, buffer, start + read);
+            }
+            else
+            {
+                // Nothing to do: we got nothing to deserialize and the value already exists, so returning null is not an option.
+                // It would be great to notify the user, but we do have a mecanism for that, and raising an exception would stop
+                // the deserialization, but this should just be a warning.
+            }
+
+            return read;
+        }
+
+        /// <summary>
+		/// Serialize a IBinarySerializable object.
+		/// </summary>
+		/// <param name="buffer">The buffer where to serialize the data.</param>
+		/// <param name="start">The start index in the buffer where to serialize the data.</param>
+		/// <param name="value">The object to serialize.</param>
+		/// <returns>The number of serialized bytes.</returns>
+		public uint ToBytes(ref Buffer buffer, uint start, IBinarySerializable value)
+        {
+            uint written;
+
+            CheckSerializationParameters(buffer, start);
+
+            if(value != null)
+            {
+                Type type = value.GetType();
+
+                CheckDefaultConstructor(type);
+
+                written = ToBytes(ref buffer, start, type);
+
+                written += value.ToBytes(this, ref buffer, start + written);
+            }
+            else
+            {
+                written = ToBytes(ref buffer, start, (Type) null);
+            }
+
+            return written;
+        }
         #endregion
 
         #region Generics to type overloads casts
@@ -2689,14 +2693,6 @@ namespace CLARTE.Serialization
 
             switch(type)
 			{
-				case SupportedTypes.BINARY_SERIALIZABLE:
-                    IBinarySerializable ibs;
-
-                    read = FromBytes(buffer, start, out ibs);
-
-                    value = ibs;
-
-                    break;
                 case SupportedTypes.BOOL:
                     bool o;
 
@@ -2857,7 +2853,11 @@ namespace CLARTE.Serialization
 					value = col;
 
 					break;
-                case SupportedTypes.ENUM:
+				case SupportedTypes.OBJECT:
+					read = FromBytes(buffer, start, out value);
+
+					break;
+				case SupportedTypes.ENUM:
                     Enum e;
 
                     read = FromBytes(buffer, start, out e);
@@ -2889,7 +2889,15 @@ namespace CLARTE.Serialization
                     value = dic;
 
                     break;
-                default:
+				case SupportedTypes.BINARY_SERIALIZABLE:
+					IBinarySerializable ibs;
+
+					read = FromBytes(buffer, start, out ibs);
+
+					value = ibs;
+
+					break;
+				default:
 					throw new ArgumentException(string.Format("Unsupported Deserialization of type '{0}'.", type));
 			}
 
@@ -2902,9 +2910,6 @@ namespace CLARTE.Serialization
 
             switch(type)
 			{
-				case SupportedTypes.BINARY_SERIALIZABLE:
-                    written = ToBytes(ref buffer, start, (IBinarySerializable) value);
-                    break;
                 case SupportedTypes.BOOL:
                     written = ToBytes(ref buffer, start, (bool) value);
                     break;
@@ -2965,7 +2970,10 @@ namespace CLARTE.Serialization
 				case SupportedTypes.COLOR:
 					written = ToBytes(ref buffer, start, (Color) value);
 					break;
-                case SupportedTypes.ENUM:
+				case SupportedTypes.OBJECT:
+					written = ToBytes(ref buffer, start, value);
+					break;
+				case SupportedTypes.ENUM:
                     written = ToBytes(ref buffer, start, (Enum) value);
                     break;
                 case SupportedTypes.ARRAY:
@@ -2977,7 +2985,10 @@ namespace CLARTE.Serialization
                 case SupportedTypes.DICTIONARY:
                     written = ToBytes(ref buffer, start, (IDictionary) value);
                     break;
-                default:
+				case SupportedTypes.BINARY_SERIALIZABLE:
+					written = ToBytes(ref buffer, start, (IBinarySerializable) value);
+					break;
+				default:
 					throw new ArgumentException(string.Format("Unsupported serialization of type '{0}' with object of type '{1}'.", type, value.GetType()));
 			}
 
