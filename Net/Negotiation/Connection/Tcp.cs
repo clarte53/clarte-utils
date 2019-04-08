@@ -196,28 +196,35 @@ namespace CLARTE.Net.Negotiation.Connection
 
         protected override void ReceiveAsync()
         {
-            if(client != null)
-            {
-                if(remote != Guid.Empty)
-                {
-                    IPEndPoint ip = (IPEndPoint) client.Client.RemoteEndPoint;
+			try
+			{
+				if(client != null)
+				{
+					if(remote != Guid.Empty)
+					{
+						IPEndPoint ip = (IPEndPoint) client.Client.RemoteEndPoint;
 
-                    ReceiveState state = new ReceiveState(ip);
+						ReceiveState state = new ReceiveState(ip);
 
-                    state.Set(readBuffer);
+						state.Set(readBuffer);
 
-                    stream.BeginRead(state.data, state.offset, state.MissingDataLength, FinalizeReceiveLength, state);
-                }
-                else
-                {
-                    throw new ArgumentNullException("remote", "The connection remote and channel are not defined.");
-                }
-            }
-            else
-            {
-                throw new ArgumentNullException("client", "The connection tcpClient is not defined.");
-            }
-        }
+						stream.BeginRead(state.data, state.offset, state.MissingDataLength, FinalizeReceiveLength, state);
+					}
+					else
+					{
+						throw new ArgumentNullException("remote", "The connection remote and channel are not defined.");
+					}
+				}
+				else
+				{
+					throw new ArgumentNullException("client", "The connection tcpClient is not defined.");
+				}
+			}
+			catch(Exception e)
+			{
+				HandleException(e);
+			}
+		}
         #endregion
 
         #region Helper serialization functions
@@ -483,36 +490,43 @@ namespace CLARTE.Net.Negotiation.Connection
 
         protected void FinalizeReceive(IAsyncResult async_result, Action<ReceiveState> callback)
         {
-            ReceiveState state = (ReceiveState) async_result.AsyncState;
+			try
+			{
+				ReceiveState state = (ReceiveState) async_result.AsyncState;
 
-            int read_length = stream.EndRead(async_result);
+				int read_length = stream.EndRead(async_result);
 
-            int missing = state.MissingDataLength;
+				int missing = state.MissingDataLength;
 
-            state.offset += read_length;
+				state.offset += read_length;
 
-            if(read_length == missing)
-            {
-                // We got all the data: pass it back to the application
-                callback(state);
-            }
-            else if(read_length == 0)
-            {
-                // Connection is closed. Dispose of resources
-                Threads.APC.MonoBehaviourCall.Instance.Call(Close);
-            }
-            else if(read_length < missing)
-            {
-                Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceiveProgress.Invoke(GetRemoteAddress(), remote, channel, ((float) state.offset) / ((float) state.data.Length)));
+				if(read_length == missing)
+				{
+					// We got all the data: pass it back to the application
+					callback(state);
+				}
+				else if(read_length == 0)
+				{
+					// Connection is closed. Dispose of resources
+					Threads.APC.MonoBehaviourCall.Instance.Call(Close);
+				}
+				else if(read_length < missing)
+				{
+					Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceiveProgress.Invoke(GetRemoteAddress(), remote, channel, ((float) state.offset) / ((float) state.data.Length)));
 
-                // Get the remaining data
-                stream.BeginRead(state.data, state.offset, state.MissingDataLength, FinalizeReceiveData, state);
-            }
-            else
-            {
-                throw new ProtocolViolationException(string.Format("Received too much bytes from message. Received {0} bytes instead of {1}.", state.offset + read_length, state.data.Length));
-            }
-        }
+					// Get the remaining data
+					stream.BeginRead(state.data, state.offset, state.MissingDataLength, FinalizeReceiveData, state);
+				}
+				else
+				{
+					throw new ProtocolViolationException(string.Format("Received too much bytes from message. Received {0} bytes instead of {1}.", state.offset + read_length, state.data.Length));
+				}
+			}
+			catch(Exception e)
+			{
+				HandleException(e);
+			}
+		}
 
         protected void FinalizeReceiveLength(IAsyncResult async_result)
         {

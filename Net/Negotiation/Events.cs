@@ -21,7 +21,13 @@ namespace CLARTE.Net.Negotiation
 
         }
 
-        [Serializable]
+		[Serializable]
+		public class ExceptionCallback : UnityEvent<IPAddress, Guid, ushort, Exception>
+		{
+
+		}
+
+		[Serializable]
         public class ReceiveCallback : UnityEvent<IPAddress, Guid, ushort, byte[]>
         {
 

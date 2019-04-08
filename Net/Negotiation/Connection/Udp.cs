@@ -89,24 +89,31 @@ namespace CLARTE.Net.Negotiation.Connection
 
         protected override void ReceiveAsync()
         {
-            if(client != null)
-            {
-                if(remote != Guid.Empty)
-                {
-                    IPEndPoint ip = (IPEndPoint) client.Client.RemoteEndPoint;
+			try
+			{
+				if(client != null)
+				{
+					if(remote != Guid.Empty)
+					{
+						IPEndPoint ip = (IPEndPoint) client.Client.RemoteEndPoint;
 
-                    client.BeginReceive(FinalizeReceive, new ReceiveState(ip));
-                }
-                else
-                {
-                    throw new ArgumentNullException("remote", "The connection remote and channel are not defined.");
-                }
-            }
-            else
-            {
-                throw new ArgumentNullException("client", "The connection UdpClient is not defined.");
-            }
-        }
+						client.BeginReceive(FinalizeReceive, new ReceiveState(ip));
+					}
+					else
+					{
+						throw new ArgumentNullException("remote", "The connection remote and channel are not defined.");
+					}
+				}
+				else
+				{
+					throw new ArgumentNullException("client", "The connection UdpClient is not defined.");
+				}
+			}
+			catch(Exception e)
+			{
+				HandleException(e);
+			}
+		}
         #endregion
 
         #region Internal methods
@@ -135,15 +142,22 @@ namespace CLARTE.Net.Negotiation.Connection
 
         protected void FinalizeReceive(IAsyncResult async_result)
         {
-            ReceiveState state = (ReceiveState) async_result.AsyncState;
+			try
+			{
+				ReceiveState state = (ReceiveState) async_result.AsyncState;
 
-            byte[] data = client.EndReceive(async_result, ref state.ip);
+				byte[] data = client.EndReceive(async_result, ref state.ip);
 
-            Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceive.Invoke(state.ip.Address, remote, channel, data));
+				Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceive.Invoke(state.ip.Address, remote, channel, data));
 
-            // Wait for next data to receive
-            client.BeginReceive(FinalizeReceive, state);
-        }
+				// Wait for next data to receive
+				client.BeginReceive(FinalizeReceive, state);
+			}
+			catch(Exception e)
+			{
+				HandleException(e);
+			}
+		}
         #endregion
     }
 }

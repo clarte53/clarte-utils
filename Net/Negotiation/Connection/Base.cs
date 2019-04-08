@@ -51,6 +51,7 @@ namespace CLARTE.Net.Negotiation.Connection
         protected TimeSpan heartbeat;
         protected Events.ConnectionCallback onConnected;
         protected Events.DisconnectionCallback onDisconnected;
+		protected Events.ExceptionCallback onException;
         protected Events.ReceiveCallback onReceive;
         protected Events.ReceiveProgressCallback onReceiveProgress;
         protected ManualResetEvent stopEvent;
@@ -161,10 +162,11 @@ namespace CLARTE.Net.Negotiation.Connection
             this.heartbeat = heartbeat;
         }
 
-        public void SetEvents(Events.ConnectionCallback on_connected, Events.DisconnectionCallback on_disconnected, Events.ReceiveCallback on_receive, Events.ReceiveProgressCallback on_receive_progress)
+        public void SetEvents(Events.ConnectionCallback on_connected, Events.DisconnectionCallback on_disconnected, Events.ExceptionCallback on_exception, Events.ReceiveCallback on_receive, Events.ReceiveProgressCallback on_receive_progress)
         {
             onConnected = on_connected;
             onDisconnected = on_disconnected;
+			onException = on_exception;
             onReceive = on_receive;
             onReceiveProgress = on_receive_progress;
         }
@@ -198,7 +200,9 @@ namespace CLARTE.Net.Negotiation.Connection
                     {
                         addEvent.Set();
                     }
-                });
+
+					HandleException(e);
+				});
 
                 sendQueue.Enqueue(new Threads.Task(() => SendAsync(result, data), result));
             }
@@ -225,6 +229,19 @@ namespace CLARTE.Net.Negotiation.Connection
                 // Already done
             }
         }
+
+		protected void HandleException(Exception e)
+		{
+			if(e != null)
+			{
+				if(typeof(System.IO.IOException).IsAssignableFrom(e.GetType()))
+				{
+					Close();
+				}
+
+				Threads.APC.MonoBehaviourCall.Instance.Call(() => onException.Invoke(GetRemoteAddress(), remote, channel, e));
+			}
+		}
         #endregion
 
         #region Thread background worker
