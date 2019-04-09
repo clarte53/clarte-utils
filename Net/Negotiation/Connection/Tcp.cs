@@ -460,9 +460,16 @@ namespace CLARTE.Net.Negotiation.Connection
 
             try
             {
-                stream.EndWrite(async_result);
+				if(state.data.Length > 0)
+				{
+					stream.EndWrite(async_result);
 
-                stream.BeginWrite(state.data, 0, state.data.Length, FinalizeSendData, state);
+					stream.BeginWrite(state.data, 0, state.data.Length, FinalizeSendData, state);
+				}
+				else
+				{
+					FinalizeSendData(async_result);
+				}
             }
             catch(Exception e)
             {
@@ -551,9 +558,19 @@ namespace CLARTE.Net.Negotiation.Connection
 
                 Converter c = new Converter(b1, b2, b3, b4);
 
-                state.Set(new byte[c.Int]);
+				if(c.Int > 0)
+				{
+					state.Set(new byte[c.Int]);
 
-                stream.BeginRead(state.data, state.offset, state.MissingDataLength, FinalizeReceiveData, state);
+					stream.BeginRead(state.data, state.offset, state.MissingDataLength, FinalizeReceiveData, state);
+				}
+				else // Notning to read anymore
+				{
+					state.Set(readBuffer);
+
+					// Wait for next message
+					stream.BeginRead(state.data, state.offset, state.MissingDataLength, FinalizeReceiveLength, state);
+				}
             });
         }
 

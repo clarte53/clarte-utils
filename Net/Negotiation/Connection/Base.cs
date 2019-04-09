@@ -57,7 +57,7 @@ namespace CLARTE.Net.Negotiation.Connection
         protected ManualResetEvent stopEvent;
         protected ManualResetEvent addEvent;
         protected Threads.Thread worker;
-        protected Threads.IResult sendResult;
+        protected Threads.Result sendResult;
         protected Queue<Threads.Task> sendQueue;
         protected bool listen;
         private bool disposed;
@@ -192,15 +192,7 @@ namespace CLARTE.Net.Negotiation.Connection
         {
             lock(sendQueue)
             {
-                Threads.Result result = new Threads.Result(e =>
-                {
-                    lock(addEvent)
-                    {
-                        addEvent.Set();
-                    }
-
-					HandleException(e);
-				});
+                Threads.Result result = CreateResult();
 
                 sendQueue.Enqueue(new Threads.Task(() => SendAsync(result, data), result));
             }
@@ -228,6 +220,19 @@ namespace CLARTE.Net.Negotiation.Connection
             }
         }
 
+		protected Threads.Result CreateResult()
+		{
+			return new Threads.Result(e =>
+			{
+				lock(addEvent)
+				{
+					addEvent.Set();
+				}
+
+				HandleException(e);
+			});
+		}
+
 		protected void HandleException(Exception e)
 		{
 			if(e != null)
@@ -247,16 +252,22 @@ namespace CLARTE.Net.Negotiation.Connection
         {
             WaitHandle[] wait = new WaitHandle[] { stopEvent, addEvent };
 
-            int event_idx = 0;
+			byte[] heartbeat_data = new byte[0];
+
+			int event_idx = 0;
 
             while((event_idx = WaitHandle.WaitAny(wait, heartbeat)) != 0)
             {
                 if(event_idx == WaitHandle.WaitTimeout)
                 {
-                    // Handle heartbeat
+					// Handle heartbeat
+					if(sendResult == null || sendResult.Done)
+					{
+						sendResult = CreateResult();
 
-                    //TODO
-                }
+						SendAsync(sendResult, heartbeat_data);
+					}
+				}
                 else
                 {
                     Threads.Task task = null;
@@ -289,7 +300,7 @@ namespace CLARTE.Net.Negotiation.Connection
 
                     if(task != null)
                     {
-                        sendResult = task.result;
+                        sendResult = (Threads.Result) task.result;
 
                         task.callback();
                     }
