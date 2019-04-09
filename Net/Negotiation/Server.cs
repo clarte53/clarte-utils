@@ -326,9 +326,13 @@ namespace CLARTE.Net.Negotiation
                     {
                         if(connection.Receive(out channel))
                         {
-                            ushort heartbeat = (ushort) (channels[channel].heartbeat * 10f);
+							TimeSpan heartbeat = (
+								channels[channel].heartbeat >= 0.1f ?
+								new TimeSpan(((ushort) (channels[channel].heartbeat * 10f)) * 100 * TimeSpan.TicksPerMillisecond) :
+								new TimeSpan(0, 0, 0, 0, -1)
+							);
 
-                            connection.SetConfig(new Guid(remote), channel, new TimeSpan(heartbeat * 100 * TimeSpan.TicksPerMillisecond));
+							connection.SetConfig(new Guid(remote), channel, heartbeat);
 
                             SaveChannel(connection);
                         }
