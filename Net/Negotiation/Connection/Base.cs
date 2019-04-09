@@ -74,9 +74,7 @@ namespace CLARTE.Net.Negotiation.Connection
         #region Constructors
         public Base(Guid remote, ushort channel, TimeSpan heartbeat)
         {
-            this.remote = remote;
-            this.channel = channel;
-            this.heartbeat = heartbeat;
+			SetConfig(remote, channel, heartbeat);
 
             sendResult = null;
 
