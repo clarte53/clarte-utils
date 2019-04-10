@@ -45,8 +45,9 @@ namespace CLARTE.Net.Negotiation.Connection
             }
         }
 
-        #region Members
-        protected Guid remote;
+		#region Members
+		protected IPAddress address;
+		protected Guid remote;
         protected ushort channel;
         protected TimeSpan heartbeat;
         protected Events.ConnectionCallback onConnected;
@@ -110,7 +111,13 @@ namespace CLARTE.Net.Negotiation.Connection
         {
             if(!disposed)
             {
-                Threads.APC.MonoBehaviourCall.Instance.Call(() => onDisconnected.Invoke(GetRemoteAddress(), remote, channel));
+                Threads.APC.MonoBehaviourCall.Instance.Call(() =>
+				{
+					if(onDisconnected != null)
+					{
+						onDisconnected.Invoke(address, remote, channel);
+					}
+				});
 
                 DisposeInternal(disposing);
 
@@ -180,12 +187,14 @@ namespace CLARTE.Net.Negotiation.Connection
             {
                 listen = true;
 
-                ReceiveAsync();
+				address = GetRemoteAddress();
+
+				ReceiveAsync();
 
                 worker.Start();
             }
 
-            Threads.APC.MonoBehaviourCall.Instance.Call(() => onConnected.Invoke(GetRemoteAddress(), remote, channel));
+            Threads.APC.MonoBehaviourCall.Instance.Call(() => onConnected.Invoke(address, remote, channel));
         }
 
         public void SendAsync(byte[] data)
@@ -237,12 +246,20 @@ namespace CLARTE.Net.Negotiation.Connection
 		{
 			if(e != null)
 			{
-				if(typeof(System.IO.IOException).IsAssignableFrom(e.GetType()))
+				Type type = e.GetType();
+
+				if(typeof(System.IO.IOException).IsAssignableFrom(type) || typeof(System.Net.Sockets.SocketException).IsAssignableFrom(type))
 				{
 					Close();
 				}
-
-				Threads.APC.MonoBehaviourCall.Instance.Call(() => onException.Invoke(GetRemoteAddress(), remote, channel, e));
+				else if(typeof(ObjectDisposedException).IsAssignableFrom(type))
+				{
+					// Nothing to do, the connection was closed and the receiving methods are shutting down
+				}
+				else
+				{
+					Threads.APC.MonoBehaviourCall.Instance.Call(() => onException.Invoke(address, remote, channel, e));
+				}
 			}
 		}
         #endregion

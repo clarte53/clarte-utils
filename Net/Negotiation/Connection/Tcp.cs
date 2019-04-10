@@ -519,7 +519,7 @@ namespace CLARTE.Net.Negotiation.Connection
 				}
 				else if(read_length < missing)
 				{
-					Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceiveProgress.Invoke(GetRemoteAddress(), remote, channel, ((float) state.offset) / ((float) state.data.Length)));
+					Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceiveProgress.Invoke(address, remote, channel, ((float) state.offset) / ((float) state.data.Length)));
 
 					// Get the remaining data
 					stream.BeginRead(state.data, state.offset, state.MissingDataLength, FinalizeReceiveData, state);
