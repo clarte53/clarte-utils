@@ -4,6 +4,40 @@ namespace CLARTE.Geometry.Extensions
 {
 	public static class GameObjectExtension
 	{
+		/// <summary>
+		/// Return the component of Type T if the game object has one attached, or add it and return it otherwise
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="go"></param>
+		/// <returns></returns>
+		public static T GetOrAddComponent<T>(this GameObject go) where T : Component
+		{
+			return (T)go.GetOrAddComponent(typeof(T));
+		}
+
+		/// <summary>
+		/// Return the component of Type type if the game object has one attached, or add it and return it otherwise
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="go"></param>
+		/// <returns></returns>
+		public static Component GetOrAddComponent(this GameObject go, System.Type type)
+		{
+			Component result = go.GetComponent(type);
+
+			if(result == null)
+			{
+				result = go.AddComponent(type);
+			}
+
+			return result;
+		}
+
+		/// <summary>
+		/// Get the size of a GameObject
+		/// </summary>
+		/// <param name="go"></param>
+		/// <returns></returns>
 		public static Vector3 GetSize(this GameObject go)
 		{
 			MeshFilter mesh_filter = go.GetComponent<MeshFilter>();
@@ -27,6 +61,11 @@ namespace CLARTE.Geometry.Extensions
 			return object_size;
 		}
 
+		/// <summary>
+		/// Change pivot point of a mesh
+		/// </summary>
+		/// <param name="obj"></param>
+		/// <param name="newReferential">Location of the new pivot point</param>
 		public static void ChangeReferential(this GameObject go, Transform new_referential)
 		{
 			Matrix4x4 matrix;
