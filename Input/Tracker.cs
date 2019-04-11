@@ -15,6 +15,7 @@ namespace CLARTE.Input
 
         #region Abstract methods
         protected abstract bool IsNode(XRNodeState node);
+        protected abstract bool IsSameNode(XRNodeState node);
         protected abstract void OnNodeAdded(XRNodeState node);
         protected abstract void OnNodeRemoved();
         #endregion
@@ -107,7 +108,7 @@ namespace CLARTE.Input
             {
                 if(node.uniqueID == uniqueID)
                 {
-                    found = (node.nodeType == currentType);
+                    found = (node.nodeType == currentType) && IsSameNode(node);
 
                     break;
                 }
