@@ -6,6 +6,8 @@ namespace CLARTE.Input
 {
     public abstract class Tracker : MonoBehaviour
     {
+        [SerializeField] bool ShowNodes = false;
+
         #region Members
         protected List<XRNodeState> nodes;
         protected XRNode currentType;
@@ -56,7 +58,16 @@ namespace CLARTE.Input
         {
             InputTracking.GetNodeStates(nodes);
 
-            if(uniqueID == 0)
+            if (ShowNodes) {
+                string log = "Devices:";
+                foreach (XRNodeState nd in nodes) {
+                    log += "\n" + nd.nodeType + " " + nd.uniqueID;
+                }
+                Debug.Log(log);
+                ShowNodes = false;
+            }
+
+            if (uniqueID == 0)
             {
                 SearchValidNode(nodes);
             }
