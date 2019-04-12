@@ -64,7 +64,8 @@ namespace CLARTE.Net.Negotiation
 
         #region Abstract methods
         protected abstract void Dispose(bool disposing);
-        public abstract ushort NbChannels { get; }
+		protected abstract void Reconnect(Connection.Base connection);
+		public abstract ushort NbChannels { get; }
         public abstract IEnumerable<Channel> Channels { get; }
         #endregion
 
@@ -75,12 +76,15 @@ namespace CLARTE.Net.Negotiation
             {
                 foreach(Connection.Tcp connection in initializedConnections)
                 {
-                    if(connection.initialization != null)
-                    {
-                        connection.initialization.Wait();
-                    }
+					if(connection != null)
+					{
+						if(connection.initialization != null)
+						{
+							connection.initialization.Wait();
+						}
 
-                    connection.Close();
+						connection.Close();
+					}
                 }
 
                 initializedConnections.Clear();
@@ -95,7 +99,10 @@ namespace CLARTE.Net.Negotiation
                 {
                     foreach(Connection.Base connection in pair.Value)
                     {
-                        connection.Close();
+						if(connection != null)
+						{
+							connection.Close();
+						}
                     }
                 }
 
@@ -103,20 +110,43 @@ namespace CLARTE.Net.Negotiation
             }
         }
 
-        protected void Close(Connection.Tcp connection)
+        protected void Close(Connection.Base connection)
         {
             if(connection != null)
             {
-                lock(initializedConnections)
-                {
-                    initializedConnections.Remove(connection);
-                }
+				if(connection is Connection.Tcp)
+				{
+					lock(initializedConnections)
+					{
+						initializedConnections.Remove(connection as Connection.Tcp);
+					}
+				}
+
+				lock(openedChannels)
+				{
+					Connection.Base[] connections;
+
+					if(openedChannels.TryGetValue(connection.Remote, out connections))
+					{
+						connections[connection.Channel] = null;
+					}
+				}
 
                 connection.Close();
             }
         }
 
-        protected void Drop(Connection.Tcp connection, string message, params object[] values)
+		protected void DisconnectionHandler(Connection.Base connection)
+		{
+			Close(connection);
+
+			if(state == State.RUNNING)
+			{
+				Reconnect(connection);
+			}
+		}
+
+		protected void Drop(Connection.Tcp connection, string message, params object[] values)
         {
             string error_message = string.Format(message, values);
 
@@ -303,7 +333,15 @@ namespace CLARTE.Net.Negotiation
             Dispose(true);
         }
 
-        public void ReleasePort(ushort port)
+		public void ReservePort(ushort port)
+		{
+			lock(availablePorts)
+			{
+				availablePorts.Remove(port);
+			}
+		}
+
+		public void ReleasePort(ushort port)
         {
             lock(availablePorts)
             {
@@ -339,7 +377,7 @@ namespace CLARTE.Net.Negotiation
         #endregion
 
         #region Shared network methods
-        protected void ConnectUdp(Connection.Tcp connection, Guid remote, ushort channel, TimeSpan heartbeat)
+        protected void ConnectUdp(Connection.Tcp connection, Guid remote, ushort channel, TimeSpan heartbeat, bool auto_reconnect)
         {
             UdpClient udp = null;
 
@@ -398,9 +436,7 @@ namespace CLARTE.Net.Negotiation
                 {
                     if(remote_port > 0)
                     {
-                        udp.Connect(((IPEndPoint) connection.client.Client.RemoteEndPoint).Address, remote_port);
-
-                        SaveChannel(new Connection.Udp(this, udp, remote, channel, heartbeat));
+                        SaveChannel(new Connection.Udp(this, udp, remote, channel, heartbeat, auto_reconnect, DisconnectionHandler, ((IPEndPoint) connection.client.Client.RemoteEndPoint).Address, local_port, remote_port));
                     }
                     else
                     {

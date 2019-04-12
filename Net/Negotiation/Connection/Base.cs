@@ -50,6 +50,8 @@ namespace CLARTE.Net.Negotiation.Connection
 		protected Guid remote;
         protected ushort channel;
         protected TimeSpan heartbeat;
+		protected bool autoReconnect;
+		protected Action<Base> disconnectionHandler;
         protected Events.ConnectionCallback onConnected;
         protected Events.DisconnectionCallback onDisconnected;
 		protected Events.ExceptionCallback onException;
@@ -73,11 +75,14 @@ namespace CLARTE.Net.Negotiation.Connection
         #endregion
 
         #region Constructors
-        public Base(Guid remote, ushort channel, TimeSpan heartbeat)
+        public Base(Guid remote, ushort channel, TimeSpan heartbeat, bool auto_reconnect, Action<Base> disconnection_handler)
         {
 			SetConfig(remote, channel, heartbeat);
 
-            sendResult = null;
+			autoReconnect = auto_reconnect;
+			disconnectionHandler = disconnection_handler;
+
+			sendResult = null;
 
             sendQueue = new Queue<Threads.Task>();
 
@@ -86,10 +91,18 @@ namespace CLARTE.Net.Negotiation.Connection
 
             worker = new Threads.Thread(Worker);
         }
-        #endregion
+		#endregion
 
-        #region Getter / Setter
-        public Guid Remote
+		#region Getter / Setter
+		public IPAddress Address
+		{
+			get
+			{
+				return address;
+			}
+		}
+
+		public Guid Remote
         {
             get
             {
@@ -104,21 +117,29 @@ namespace CLARTE.Net.Negotiation.Connection
                 return channel;
             }
         }
-        #endregion
 
-        #region IDisposable implementation
-        protected void Dispose(bool disposing)
+		public TimeSpan Heartbeat
+		{
+			get
+			{
+				return heartbeat;
+			}
+		}
+
+		public bool AutoReconnect
+		{
+			get
+			{
+				return autoReconnect;
+			}
+		}
+		#endregion
+
+		#region IDisposable implementation
+		protected void Dispose(bool disposing)
         {
             if(!disposed)
             {
-                Threads.APC.MonoBehaviourCall.Instance.Call(() =>
-				{
-					if(onDisconnected != null)
-					{
-						onDisconnected.Invoke(address, remote, channel);
-					}
-				});
-
                 DisposeInternal(disposing);
 
                 if(disposing)
@@ -136,7 +157,20 @@ namespace CLARTE.Net.Negotiation.Connection
                 // TODO: set fields of large size with null value.
 
                 disposed = true;
-            }
+
+				Threads.APC.MonoBehaviourCall.Instance.Call(() =>
+				{
+					if(disconnectionHandler != null)
+					{
+						disconnectionHandler(this);
+					}
+
+					if(onDisconnected != null)
+					{
+						onDisconnected.Invoke(address, remote, channel);
+					}
+				});
+			}
         }
 
         // TODO: replace finalizer only if the above Dispose(bool disposing) function as code to free unmanaged resources.
@@ -165,7 +199,7 @@ namespace CLARTE.Net.Negotiation.Connection
             this.remote = remote;
             this.channel = channel;
             this.heartbeat = heartbeat;
-        }
+		}
 
         public void SetEvents(Events.ConnectionCallback on_connected, Events.DisconnectionCallback on_disconnected, Events.ExceptionCallback on_exception, Events.ReceiveCallback on_receive, Events.ReceiveProgressCallback on_receive_progress)
         {
@@ -178,7 +212,10 @@ namespace CLARTE.Net.Negotiation.Connection
 
         public void Close()
         {
-            Dispose();
+			if(!disposed)
+			{
+				Dispose();
+			}
         }
 
         public void Listen()

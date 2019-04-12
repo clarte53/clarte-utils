@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace CLARTE.Net.Negotiation
 {
-    public class Client : Base<Channel>
+    public class Client : Base<ClientChannel>
     {
         [Serializable]
         public class CertificateValidation
@@ -47,10 +47,33 @@ namespace CLARTE.Net.Negotiation
                 state = State.DISPOSED;
             }
         }
-        #endregion
+		#endregion
 
-        #region Public methods
-        public void Connect()
+		#region Base implementation
+		protected override void Reconnect(Connection.Base connection)
+		{
+			if(state == State.RUNNING && connection != null && connection.AutoReconnect)
+			{
+				Type type = connection.GetType();
+
+				if(typeof(Connection.Tcp).IsAssignableFrom(type))
+				{
+					ConnectTcp(connection.Remote, connection.Channel, connection.Heartbeat);
+				}
+				else if(typeof(Connection.Udp).IsAssignableFrom(type))
+				{
+					Connection.Udp c = (Connection.Udp) connection;
+
+					UdpClient udp = new UdpClient(c.LocalPort, AddressFamily.InterNetwork);
+
+					SaveChannel(new Connection.Udp(this, udp, connection.Remote, connection.Channel, connection.Heartbeat, connection.AutoReconnect, DisconnectionHandler, connection.Address, c.LocalPort, c.RemotePort));
+				}
+			}
+		}
+		#endregion
+
+		#region Public methods
+		public void Connect()
         {
             if(state == State.STARTED)
             {
@@ -70,8 +93,10 @@ namespace CLARTE.Net.Negotiation
         #region Connection methods
         protected void ConnectTcp(Guid remote, ushort channel, TimeSpan heartbeat)
         {
+			bool auto_reconnect = (channels != null && channels.Count > channel ? !channels[channel].disableAutoReconnect : true);
+
             // Create a new TCP client
-            Connection.Tcp connection = new Connection.Tcp(new TcpClient(), remote, channel, heartbeat);
+            Connection.Tcp connection = new Connection.Tcp(new TcpClient(), remote, channel, heartbeat, auto_reconnect, DisconnectionHandler);
 
             lock(initializedConnections)
             {
@@ -241,7 +266,11 @@ namespace CLARTE.Net.Negotiation
                                                 ConnectTcp(remote, i, heartbeat);
                                                 break;
                                             case Channel.Type.UDP:
-                                                ConnectUdp(connection, remote, i, heartbeat);
+												bool auto_reconnect = !channels[i].disableAutoReconnect;
+
+												connection.Send(auto_reconnect);
+
+                                                ConnectUdp(connection, remote, i, heartbeat, auto_reconnect);
                                                 break;
                                         }
                                     }

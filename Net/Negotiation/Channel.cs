@@ -6,7 +6,7 @@ using UnityEngine;
 namespace CLARTE.Net.Negotiation
 {
     [Serializable]
-    public class Channel
+    public abstract class Channel
     {
         public enum Type : ushort
         {
@@ -25,13 +25,22 @@ namespace CLARTE.Net.Negotiation
 
     [Serializable]
     public class ServerChannel : Channel
-    {
+	{
         #region Members
         public Type type;
         [Range(0.1f, 300f)]
         public float heartbeat; // In seconds
-        #endregion
-    }
+		public bool disableHeartbeat;
+		#endregion
+	}
+
+	[Serializable]
+	public class ClientChannel : Channel
+	{
+		#region Members
+		public bool disableAutoReconnect;
+		#endregion
+	}
 }
 
 #endif // !NETFX_CORE

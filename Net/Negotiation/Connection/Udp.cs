@@ -6,23 +6,54 @@ using System.Net.Sockets;
 
 namespace CLARTE.Net.Negotiation.Connection
 {
-    public class Udp : Base
-    {
-        #region Members
-        protected UdpClient client;
-        protected Negotiation.Base parent;
-        #endregion
+	public class Udp : Base
+	{
+		#region Members
+		protected UdpClient client;
+		protected Negotiation.Base parent;
+		protected ushort localPort;
+		protected ushort remotePort;
+		#endregion
 
-        #region Constructors
-        public Udp(Negotiation.Base parent, UdpClient client, Guid remote, ushort channel, TimeSpan heartbeat) : base(remote, channel, heartbeat)
-        {
-            this.parent = parent;
-            this.client = client;
-        }
-        #endregion
+		#region Constructors
+		public Udp(Negotiation.Base parent, UdpClient client, Guid remote, ushort channel, TimeSpan heartbeat, bool auto_reconnect, Action<Base> disconnection_handler, IPAddress address, ushort local_port, ushort remote_port) : base(remote, channel, heartbeat, auto_reconnect, disconnection_handler)
+		{
+			this.parent = parent;
+			this.client = client;
 
-        #region IDisposable implementation
-        protected override void DisposeInternal(bool disposing)
+			localPort = local_port;
+			remotePort = remote_port;
+			autoReconnect = auto_reconnect;
+
+			if(parent != null && localPort != 0)
+			{
+				parent.ReservePort(localPort);
+			}
+
+			this.client.Connect(address, remotePort);
+		}
+		#endregion
+
+		#region Getter / Setter
+		public ushort LocalPort
+		{
+			get
+			{
+				return localPort;
+			}
+		}
+
+		public ushort RemotePort
+		{
+			get
+			{
+				return remotePort;
+			}
+		}
+		#endregion
+
+		#region IDisposable implementation
+		protected override void DisposeInternal(bool disposing)
         {
             if(disposing)
             {

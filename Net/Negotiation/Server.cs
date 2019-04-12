@@ -55,10 +55,27 @@ namespace CLARTE.Net.Negotiation
                 state = State.DISPOSED;
             }
         }
-        #endregion
+		#endregion
 
-        #region MonoBehaviour callbacks
-        protected override void Awake()
+		#region Base implementation
+		protected override void Reconnect(Connection.Base connection)
+		{
+			if(state == State.RUNNING && connection != null && connection.AutoReconnect)
+			{
+				if(typeof(Connection.Udp).IsAssignableFrom(connection.GetType()))
+				{
+					Connection.Udp c = (Connection.Udp) connection;
+
+					UdpClient udp = new UdpClient(c.LocalPort, AddressFamily.InterNetwork);
+
+					SaveChannel(new Connection.Udp(this, udp, connection.Remote, connection.Channel, connection.Heartbeat, connection.AutoReconnect, DisconnectionHandler, connection.Address, c.LocalPort, c.RemotePort));
+				}
+			}
+		}
+		#endregion
+
+		#region MonoBehaviour callbacks
+		protected override void Awake()
         {
             base.Awake();
 
@@ -115,7 +132,7 @@ namespace CLARTE.Net.Negotiation
             {
                 foreach(ServerChannel channel in channels)
                 {
-                    if(channel.heartbeat == 0)
+                    if(!channel.disableHeartbeat && channel.heartbeat == 0)
                     {
                         channel.type = Channel.Type.TCP;
                         channel.heartbeat = 2f;
@@ -148,7 +165,7 @@ namespace CLARTE.Net.Negotiation
                 if(state == State.RUNNING)
                 {
                     // Get the new connection
-                    Connection.Tcp connection = new Connection.Tcp(listener.EndAcceptTcpClient(async_result), Guid.Empty, 0, defaultHeartbeat);
+                    Connection.Tcp connection = new Connection.Tcp(listener.EndAcceptTcpClient(async_result), Guid.Empty, 0, defaultHeartbeat, false, DisconnectionHandler);
 
                     lock(initializedConnections)
                     {
@@ -306,15 +323,24 @@ namespace CLARTE.Net.Negotiation
 
                     for(ushort i = 0; i < nb_channels; i++)
                     {
-                        ushort heartbeat = (ushort) (channels[i].heartbeat * 10f);
+						ushort heartbeat = (ushort) (channels[i].disableHeartbeat ? 0 : channels[i].heartbeat * 10f);
 
                         connection.Send((ushort) channels[i].type);
                         connection.Send(heartbeat);
 
                         if(channels[i].type == Channel.Type.UDP)
                         {
-                            ConnectUdp(connection, remote, i, new TimeSpan(heartbeat * 100 * TimeSpan.TicksPerMillisecond));
-                        }
+							bool auto_reconnect;
+
+							if(connection.Receive(out auto_reconnect))
+							{
+								ConnectUdp(connection, remote, i, new TimeSpan(heartbeat * 100 * TimeSpan.TicksPerMillisecond), auto_reconnect);
+							}
+							else
+							{
+								Drop(connection, "Expected to receive channel auto reconnect parameter for channel {0}.", i);
+							}
+						}
                     }
                 }
                 else
@@ -327,7 +353,7 @@ namespace CLARTE.Net.Negotiation
                         if(connection.Receive(out channel))
                         {
 							TimeSpan heartbeat = (
-								channels[channel].heartbeat >= 0.1f ?
+								!channels[channel].disableHeartbeat && channels[channel].heartbeat >= 0.1f ?
 								new TimeSpan(((ushort) (channels[channel].heartbeat * 10f)) * 100 * TimeSpan.TicksPerMillisecond) :
 								new TimeSpan(0, 0, 0, 0, -1)
 							);

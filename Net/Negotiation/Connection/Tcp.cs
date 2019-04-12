@@ -100,7 +100,7 @@ namespace CLARTE.Net.Negotiation.Connection
             isLittleEndian = BitConverter.IsLittleEndian;
         }
 
-        public Tcp(TcpClient client, Guid remote, ushort channel, TimeSpan heartbeat) : base(remote, channel, heartbeat)
+        public Tcp(TcpClient client, Guid remote, ushort channel, TimeSpan heartbeat, bool auto_reconnect, Action<Base> disconnection_handler) : base(remote, channel, heartbeat, auto_reconnect, disconnection_handler)
         {
             this.client = client;
             stream = null;
