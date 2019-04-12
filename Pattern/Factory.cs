@@ -42,7 +42,7 @@ public class Factory<T, U>
 				foreach(Type type in types)
 				{
 					// Get the md5 hash of the fully qualified type name and convert it into an id value
-					U type_id = converter(md5.ComputeHash(Encoding.ASCII.GetBytes(type.ToString())));
+					U type_id = converter(md5.ComputeHash(Encoding.UTF8.GetBytes(type.ToString())));
 
 					// Register the association between the type and the computed id
 					id2type.Add(type_id, type);
