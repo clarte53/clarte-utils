@@ -8,7 +8,7 @@ namespace CLARTE.Net.Negotiation.Message.Connection
 	{
 		#region Members
 		public uint version;
-		public string user;
+		public string username;
 		public string password;
 		#endregion
 
@@ -18,7 +18,7 @@ namespace CLARTE.Net.Negotiation.Message.Connection
 			uint read = 0;
 
 			read += serializer.FromBytes(buffer, start + read, out version);
-			read += serializer.FromBytes(buffer, start + read, out user);
+			read += serializer.FromBytes(buffer, start + read, out username);
 			read += serializer.FromBytes(buffer, start + read, out password);
 
 			return read;
@@ -28,12 +28,12 @@ namespace CLARTE.Net.Negotiation.Message.Connection
 		{
 			uint written = 0;
 
-			uint message_size = (uint) (3 * sizeof(uint) + user.Length + password.Length);
+			uint message_size = (uint) (3 * sizeof(uint) + username.Length + password.Length);
 
 			serializer.ResizeBuffer(ref buffer, start + message_size);
 
 			written += serializer.ToBytes(ref buffer, start + written, version);
-			written += serializer.ToBytes(ref buffer, start + written, user);
+			written += serializer.ToBytes(ref buffer, start + written, username);
 			written += serializer.ToBytes(ref buffer, start + written, password);
 
 			return written;

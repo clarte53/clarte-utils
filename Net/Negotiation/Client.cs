@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace CLARTE.Net.Negotiation
 {
-    public class Client : Base<ClientChannel>
+    public class Client : Base<Channel>
     {
         [Serializable]
         public class CertificateValidation
@@ -58,7 +58,7 @@ namespace CLARTE.Net.Negotiation
 
 				if(typeof(Connection.Tcp).IsAssignableFrom(type))
 				{
-					ConnectTcp(connection.Remote, connection.Channel, connection.Heartbeat);
+					ConnectTcp(connection.Parameters);
 				}
 				else if(typeof(Connection.Udp).IsAssignableFrom(type))
 				{
@@ -66,7 +66,7 @@ namespace CLARTE.Net.Negotiation
 
 					UdpClient udp = new UdpClient(c.LocalPort, AddressFamily.InterNetwork);
 
-					SaveChannel(new Connection.Udp(this, udp, connection.Remote, connection.Channel, connection.Heartbeat, connection.AutoReconnect, DisconnectionHandler, connection.Address, c.LocalPort, c.RemotePort));
+					SaveChannel(new Connection.Udp(this, connection.Parameters, DisconnectionHandler, udp, c.LocalPort, c.RemotePort));
 				}
 			}
 		}
@@ -81,7 +81,13 @@ namespace CLARTE.Net.Negotiation
 
                 state = State.INITIALIZING;
 
-                ConnectTcp(Guid.Empty, 0, defaultHeartbeat);
+				ConnectTcp(new Message.Negotiation.Parameters
+				{
+					guid = Guid.Empty,
+					channel = 0,
+					heartbeat = defaultHeartbeat,
+					autoReconnect = false
+				});
             }
             else
             {
@@ -91,12 +97,10 @@ namespace CLARTE.Net.Negotiation
         #endregion
 
         #region Connection methods
-        protected void ConnectTcp(Guid remote, ushort channel, TimeSpan heartbeat)
+        protected void ConnectTcp(Message.Negotiation.Parameters param)
         {
-			bool auto_reconnect = (channels != null && channels.Count > channel ? !channels[channel].disableAutoReconnect : true);
-
             // Create a new TCP client
-            Connection.Tcp connection = new Connection.Tcp(new TcpClient(), remote, channel, heartbeat, auto_reconnect, DisconnectionHandler);
+            Connection.Tcp connection = new Connection.Tcp(this, param, DisconnectionHandler, new TcpClient());
 
             lock(initializedConnections)
             {
@@ -124,48 +128,40 @@ namespace CLARTE.Net.Negotiation
                     // Get the stream associated with this connection
                     connection.stream = connection.client.GetStream();
 
-                    // Get the protocol version
-                    if(connection.Receive(out connection.version))
-                    {
-                        if(connection.version > maxSupportedVersion)
-                        {
-                            Debug.LogWarningFormat("Usupported protocol version '{0}'. Using version '{1}' instead.", connection.version, maxSupportedVersion);
+					Message.Base h;
 
-                            connection.version = maxSupportedVersion;
-                        }
+					if(connection.Receive(out h) && h.IsType<Message.Connection.Parameters>())
+					{
+						Message.Connection.Parameters header = (Message.Connection.Parameters) h;
 
-                        // Send the agreed protocol version
-                        connection.Send(connection.version);
+						connection.version = header.version;
 
-                        bool encrypted;
+						if(connection.version > maxSupportedVersion)
+						{
+							Debug.LogWarningFormat("Usupported protocol version '{0}'. Using version '{1}' instead.", connection.version, maxSupportedVersion);
 
-                        // Check if we must wrap the stream in an encrypted SSL channel
-                        if(connection.Receive(out encrypted))
-                        {
-                            if(encrypted)
-                            {
-                                // Create the SSL wraping stream
-                                connection.stream = new SslStream(connection.stream, false, new RemoteCertificateValidationCallback(ValidateServerCertificate));
+							connection.version = maxSupportedVersion;
+						}
 
-                                // Authenticate with the server
-                                ((SslStream) connection.stream).BeginAuthenticateAsClient(hostname, Authenticated, connection);
-                            }
-                            else
-                            {
-                                // No encryption, the channel stay as is
-                                ValidateCredentials(connection);
-                            }
-                        }
-                        else
-                        {
-                            Drop(connection, "Expected to receive encryption status.");
-                        }
-                    }
-                    else
-                    {
-                        Drop(connection, "Expected to receive protocol version.");
-                    }
-                }
+						if(header.encrypted)
+						{
+							// Create the SSL wraping stream
+							connection.stream = new SslStream(connection.stream, false, new RemoteCertificateValidationCallback(ValidateServerCertificate));
+
+							// Authenticate with the server
+							((SslStream) connection.stream).BeginAuthenticateAsClient(hostname, Authenticated, connection);
+						}
+						else
+						{
+							// No encryption, the channel stay as is
+							ValidateCredentials(connection);
+						}
+					}
+					else
+					{
+						Drop(connection, "Expected to receive connection greetings and parameters.");
+					}
+				}
                 else
                 {
                     Drop(connection, "The connection to {0}:{1} failed.", hostname, port);
@@ -202,112 +198,100 @@ namespace CLARTE.Net.Negotiation
             }
         }
 
-        protected void ValidateCredentials(Connection.Tcp connection)
-        {
-            connection.Send(credentials.username);
-            connection.Send(credentials.password);
+		protected void ValidateCredentials(Connection.Tcp connection)
+		{
+			Message.Connection.Request request = new Message.Connection.Request
+			{
+				version = connection.version,
+				username = credentials.username,
+				password = credentials.password
+			};
 
-            bool credentials_ok;
+			connection.Send(request);
 
-            // Check if the sent credentials are OK
-            if(connection.Receive(out credentials_ok))
-            {
-                if(credentials_ok)
-                {
-                    NegotiateChannels(connection);
-                }
-                else
-                {
-                    Drop(connection, "Invalid credentials.");
-                }
-            }
-            else
-            {
-                Drop(connection, "Expected to receive credentials validation.");
-            }
+			Message.Base v;
+
+			if(connection.Receive(out v) && v.IsType<Message.Connection.Validation>())
+			{
+				Message.Connection.Validation validation = (Message.Connection.Validation) v;
+
+				// Check if the sent credentials are OK
+				if(validation.accepted)
+				{
+					NegotiateChannels(connection);
+				}
+				else
+				{
+					Drop(connection, "Invalid credentials.");
+				}
+			}
+			else
+			{
+				Drop(connection, "Expected to receive credentials validation.");
+			}
         }
 
         protected void NegotiateChannels(Connection.Tcp connection)
         {
-            // Send channel negotiation flag
-            connection.Send(connection.Remote == Guid.Empty);
-
             // Check if we must negotiate other channel or just open the current one
             if(connection.Remote == Guid.Empty)
             {
-                // Receive the connection identifier
-                byte[] raw_remote;
+				connection.Send(new Message.Negotiation.Start());
 
-                if(connection.Receive(out raw_remote))
-                {
-                    Guid remote = new Guid(raw_remote);
+				Message.Base msg;
 
-                    // Receive the channels descriptions
-                    ushort nb_channels;
+				if(connection.Receive(out msg) && msg.IsType<Message.Negotiation.New>())
+				{
+					Message.Negotiation.New n = (Message.Negotiation.New) msg;
 
-                    if(connection.Receive(out nb_channels))
-                    {
-                        if(nb_channels > 0)
-                        {
-                            for(ushort i = 0; i < nb_channels; i++)
-                            {
-                                ushort raw_channel_type;
-                                ushort raw_heartbeat;
+					Guid remote = n.guid;
+					ushort nb_channels = n.nbChannels;
 
-                                if(connection.Receive(out raw_channel_type))
-                                {
-                                    if(connection.Receive(out raw_heartbeat))
-                                    {
-                                        TimeSpan heartbeat = new TimeSpan(raw_heartbeat * 100 * TimeSpan.TicksPerMillisecond);
+					if(nb_channels > 0)
+					{
+						for(ushort i = 0; i < nb_channels; i++)
+						{
+							if(connection.Receive(out msg) && msg.IsType<Message.Negotiation.Parameters>())
+							{
+								Message.Negotiation.Parameters param = (Message.Negotiation.Parameters) msg;
 
-                                        switch((Channel.Type) raw_channel_type)
-                                        {
-                                            case Channel.Type.TCP:
-                                                ConnectTcp(remote, i, heartbeat);
-                                                break;
-                                            case Channel.Type.UDP:
-												bool auto_reconnect = !channels[i].disableAutoReconnect;
+								switch(param.type)
+								{
+									case Channel.Type.TCP:
+										ConnectTcp(param);
+										break;
+									case Channel.Type.UDP:
+										ConnectUdp(connection, param);
+										break;
+								}
+							}
+							else
+							{
+								Drop(connection, "Expected to receive channel parameterts for channel {0}.", i);
+							}
+						}
 
-												connection.Send(auto_reconnect);
-
-                                                ConnectUdp(connection, remote, i, heartbeat, auto_reconnect);
-                                                break;
-                                        }
-                                    }
-                                    else
-                                    {
-                                        Drop(connection, "Expected to receive channel heartbeat for channel {0}.", i);
-                                    }
-                                }
-                                else
-                                {
-                                    Drop(connection, "Expected to receive channel type for channel {0}.", i);
-                                }
-                            }
-
-                            state = State.RUNNING;
-                        }
-                        else
-                        {
-                            Drop(connection, "No channels configured.");
-                        }
-                    }
-                    else
-                    {
-                        Drop(connection, "Expected to receive the number of channels.");
-
-                    }
-                }
-                else
-                {
-                    Drop(connection, "Expected to receive the connection identifier.");
-
-                }
+						state = State.RUNNING;
+					}
+					else
+					{
+						Drop(connection, "No channels configured.");
+					}
+				}
+				else
+				{
+					Drop(connection, "Expected to receive the new connection negotiation parameters.");
+				}
             }
             else
             {
-                connection.Send(connection.Remote.ToByteArray());
-                connection.Send(connection.Channel);
+				Message.Negotiation.Channel.TCP tcp = new Message.Negotiation.Channel.TCP
+				{
+					guid = connection.Remote,
+					channel = connection.Channel
+				};
+
+				connection.Send(tcp);
 
                 SaveChannel(connection);
             }

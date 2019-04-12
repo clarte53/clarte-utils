@@ -2,11 +2,12 @@
 
 using System;
 using UnityEngine;
+using UnityEngine.Events;
 
 namespace CLARTE.Net.Negotiation
 {
     [Serializable]
-    public abstract class Channel
+    public class Channel
     {
         public enum Type : ushort
         {
@@ -31,14 +32,24 @@ namespace CLARTE.Net.Negotiation
         [Range(0.1f, 300f)]
         public float heartbeat; // In seconds
 		public bool disableHeartbeat;
-		#endregion
-	}
-
-	[Serializable]
-	public class ClientChannel : Channel
-	{
-		#region Members
 		public bool disableAutoReconnect;
+		#endregion
+
+		#region Public methods
+		public TimeSpan Heartbeat
+		{
+			get
+			{
+				if(disableHeartbeat || heartbeat < 0.1f)
+				{
+					return new TimeSpan(0, 0, 0, 0, -1);
+				}
+				else
+				{
+					return new TimeSpan(((long) (heartbeat * 10)) * 100 * TimeSpan.TicksPerMillisecond);
+				}
+			}
+		}
 		#endregion
 	}
 }

@@ -4,87 +4,15 @@ using System;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.InteropServices;
 using System.Text;
+using UnityEngine.Events;
+using CLARTE.Serialization;
 
 namespace CLARTE.Net.Negotiation.Connection
 {
     public class Tcp : Base
     {
-        [StructLayout(LayoutKind.Explicit)]
-        protected struct Converter
-        {
-            public const byte bytesSize = 4;
-
-            [FieldOffset(0)]
-            public byte Byte1;
-
-            [FieldOffset(1)]
-            public byte Byte2;
-
-            [FieldOffset(2)]
-            public byte Byte3;
-
-            [FieldOffset(3)]
-            public byte Byte4;
-
-            [FieldOffset(0)]
-            public int Int;
-
-            [FieldOffset(0)]
-            public uint UInt;
-
-            [FieldOffset(0)]
-            public ushort UShort;
-
-            public Converter(byte b1, byte b2, byte b3, byte b4)
-            {
-                Int = 0;
-                UInt = 0;
-                UShort = 0;
-                Byte1 = b1;
-                Byte2 = b2;
-                Byte3 = b3;
-                Byte4 = b4;
-            }
-
-            public Converter(int value)
-            {
-                Byte1 = 0;
-                Byte2 = 0;
-                Byte3 = 0;
-                Byte4 = 0;
-                UInt = 0;
-                UShort = 0;
-                Int = value;
-            }
-
-            public Converter(uint value)
-            {
-                Byte1 = 0;
-                Byte2 = 0;
-                Byte3 = 0;
-                Byte4 = 0;
-                Int = 0;
-                UShort = 0;
-                UInt = value;
-            }
-
-            public Converter(ushort value)
-            {
-                Byte1 = 0;
-                Byte2 = 0;
-                Byte3 = 0;
-                Byte4 = 0;
-                Int = 0;
-                UInt = 0;
-                UShort = value;
-            }
-        }
-
         #region Members
-        protected static readonly bool isLittleEndian;
-
         public Threads.IResult initialization;
         public TcpClient client;
         public Stream stream;
@@ -95,18 +23,14 @@ namespace CLARTE.Net.Negotiation.Connection
         #endregion
 
         #region Constructors
-        static Tcp()
-        {
-            isLittleEndian = BitConverter.IsLittleEndian;
-        }
-
-        public Tcp(TcpClient client, Guid remote, ushort channel, TimeSpan heartbeat, bool auto_reconnect, Action<Base> disconnection_handler) : base(remote, channel, heartbeat, auto_reconnect, disconnection_handler)
+        public Tcp(Negotiation.Base parent, Message.Negotiation.Parameters parameters, UnityAction<Base> disconnection_handler, TcpClient client) : base(parent, parameters, disconnection_handler)
         {
             this.client = client;
+
             stream = null;
 
-            readBuffer = new byte[Converter.bytesSize];
-            writeBuffer = new byte[Converter.bytesSize];
+            readBuffer = new byte[sizeof(int)];
+            writeBuffer = new byte[sizeof(int)];
         }
         #endregion
 
@@ -164,22 +88,12 @@ namespace CLARTE.Net.Negotiation.Connection
             {
                 if(client != null)
                 {
-                    Converter c = new Converter(data.Length);
+                    Converter32 c = new Converter32(data.Length);
 
-                    if(isLittleEndian)
-                    {
-                        writeBuffer[0] = c.Byte4;
-                        writeBuffer[1] = c.Byte3;
-                        writeBuffer[2] = c.Byte2;
-                        writeBuffer[3] = c.Byte1;
-                    }
-                    else
-                    {
-                        writeBuffer[0] = c.Byte1;
-                        writeBuffer[1] = c.Byte2;
-                        writeBuffer[2] = c.Byte3;
-                        writeBuffer[3] = c.Byte4;
-                    }
+                    writeBuffer[0] = c.Byte4;
+                    writeBuffer[1] = c.Byte3;
+                    writeBuffer[2] = c.Byte2;
+                    writeBuffer[3] = c.Byte1;
 
                     stream.BeginWrite(writeBuffer, 0, writeBuffer.Length, FinalizeSendLength, new SendState { result = result, data = data });
                 }
@@ -200,7 +114,7 @@ namespace CLARTE.Net.Negotiation.Connection
 			{
 				if(client != null)
 				{
-					if(remote != Guid.Empty)
+					if(parameters.guid != Guid.Empty)
 					{
 						IPEndPoint ip = (IPEndPoint) client.Client.RemoteEndPoint;
 
@@ -228,229 +142,52 @@ namespace CLARTE.Net.Negotiation.Connection
         #endregion
 
         #region Helper serialization functions
-        public void Send(bool value)
-        {
-            if(stream != null)
-            {
-                stream.WriteByte(value ? (byte) 1 : (byte) 0);
-            }
-        }
+		public void Send(Message.Base message)
+		{
+			if(stream != null && parent != null)
+			{
+				Binary.Buffer buffer = parent.Serializer.GetBuffer(256);
 
-        public void Send(ushort value)
-        {
-            if(stream != null)
-            {
-                Converter c = new Converter(value);
+				uint written = parent.Serializer.ToBytes(ref buffer, 0, message);
 
-                if(isLittleEndian)
-                {
-                    stream.WriteByte(c.Byte2);
-                    stream.WriteByte(c.Byte1);
-                }
-                else
-                {
-                    stream.WriteByte(c.Byte1);
-                    stream.WriteByte(c.Byte2);
-                }
-            }
-        }
+				Converter32 converter = new Converter32(written);
 
-        public void Send(int value)
-        {
-            if(stream != null)
-            {
-                Converter c = new Converter(value);
+				stream.WriteByte(Pattern.Factory<Message.Base, byte>.Get(message.GetType()));
+				stream.WriteByte(converter.Byte1);
+				stream.WriteByte(converter.Byte2);
+				stream.WriteByte(converter.Byte3);
+				stream.WriteByte(converter.Byte4);
+				stream.Write(buffer.Data, 0, (int) written);
+			}
+		}
 
-                if(isLittleEndian)
-                {
-                    stream.WriteByte(c.Byte4);
-                    stream.WriteByte(c.Byte3);
-                    stream.WriteByte(c.Byte2);
-                    stream.WriteByte(c.Byte1);
-                }
-                else
-                {
-                    stream.WriteByte(c.Byte1);
-                    stream.WriteByte(c.Byte2);
-                    stream.WriteByte(c.Byte3);
-                    stream.WriteByte(c.Byte4);
-                }
-            }
-        }
+		public bool Receive(out Message.Base message)
+		{
+			uint read = 0;
+			uint size = 0;
 
-        public void Send(uint value)
-        {
-            Send(new Converter(value).Int);
-        }
+			message = null;
 
-        public void Send(byte[] data)
-        {
-            if(stream != null)
-            {
-                Send(data.Length);
+			if(stream != null && parent != null)
+			{
+				message = Pattern.Factory<Message.Base, byte>.CreateInstance((byte) stream.ReadByte());
 
-                stream.Write(data, 0, data.Length);
-            }
-        }
+				size = new Converter32((byte) stream.ReadByte(), (byte) stream.ReadByte(), (byte) stream.ReadByte(), (byte) stream.ReadByte());
 
-        public void Send(string data)
-        {
-            Send(Encoding.UTF8.GetBytes(data));
-        }
+				Binary.Buffer buffer = parent.Serializer.GetBuffer(size);
 
-        public bool Receive(out bool value)
-        {
-            value = false;
+				int received = 0;
 
-            if(stream != null)
-            {
-                int val = stream.ReadByte();
+				while(received < size)
+				{
+					received += stream.Read(buffer.Data, received, (int) (size - received));
+				}
 
-                if(val >= 0)
-                {
-                    value = (val > 0);
+				read = parent.Serializer.FromBytesOverwrite(buffer, 0, message);
+			}
 
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        public bool Receive(out ushort value)
-        {
-            int v1, v2;
-
-            value = 0;
-
-            if(stream != null)
-            {
-                if(isLittleEndian)
-                {
-                    v2 = stream.ReadByte();
-                    v1 = stream.ReadByte();
-                }
-                else
-                {
-                    v1 = stream.ReadByte();
-                    v2 = stream.ReadByte();
-                }
-
-                if(v1 >= 0 && v2 >= 0)
-                {
-                    Converter c = new Converter((byte) v1, (byte) v2, 0, 0);
-
-                    value = c.UShort;
-
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        public bool Receive(out int value)
-        {
-            int v1, v2, v3, v4;
-
-            value = 0;
-
-            if(stream != null)
-            {
-                if(isLittleEndian)
-                {
-                    v4 = stream.ReadByte();
-                    v3 = stream.ReadByte();
-                    v2 = stream.ReadByte();
-                    v1 = stream.ReadByte();
-                }
-                else
-                {
-                    v1 = stream.ReadByte();
-                    v2 = stream.ReadByte();
-                    v3 = stream.ReadByte();
-                    v4 = stream.ReadByte();
-                }
-
-                if(v1 >= 0 && v2 >= 0 && v3 >= 0 && v4 >= 0)
-                {
-                    Converter c = new Converter((byte) v1, (byte) v2, (byte) v3, (byte) v4);
-
-                    value = c.Int;
-
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        public bool Receive(out uint value)
-        {
-            int val;
-
-            bool result = Receive(out val);
-
-            value = new Converter(val).UInt;
-
-            return result;
-        }
-
-        public bool Receive(out byte[] data)
-        {
-            int size;
-
-            data = null;
-
-            if(stream != null)
-            {
-                if(Receive(out size))
-                {
-                    data = new byte[size];
-
-                    int read;
-                    int required;
-                    int offset = 0;
-
-                    do
-                    {
-                        required = size - offset;
-
-                        read = stream.Read(data, offset, required);
-
-                        offset += read;
-                    }
-                    while(read != 0 && read < required);
-
-                    if(read != 0 && offset == size)
-                    {
-                        return true;
-                    }
-                    else
-                    {
-                        data = null;
-                    }
-                }
-            }
-
-            return false;
-        }
-
-        public bool Receive(out string data)
-        {
-            byte[] raw_data;
-
-            data = null;
-
-            if(Receive(out raw_data))
-            {
-                data = Encoding.UTF8.GetString(raw_data);
-
-                return true;
-            }
-
-            return false;
-        }
+			return (message != null && read == size);
+		}
         #endregion
 
         #region Internal methods
@@ -519,7 +256,7 @@ namespace CLARTE.Net.Negotiation.Connection
 				}
 				else if(read_length < missing)
 				{
-					Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceiveProgress.Invoke(address, remote, channel, ((float) state.offset) / ((float) state.data.Length)));
+					Threads.APC.MonoBehaviourCall.Instance.Call(() => events.onReceiveProgress.Invoke(address, parameters.guid, parameters.channel, ((float) state.offset) / ((float) state.data.Length)));
 
 					// Get the remaining data
 					stream.BeginRead(state.data, state.offset, state.MissingDataLength, FinalizeReceiveData, state);
@@ -539,24 +276,7 @@ namespace CLARTE.Net.Negotiation.Connection
         {
             FinalizeReceive(async_result, state =>
             {
-                byte b1, b2, b3, b4;
-
-                if(isLittleEndian)
-                {
-                    b4 = state.data[0];
-                    b3 = state.data[1];
-                    b2 = state.data[2];
-                    b1 = state.data[3];
-                }
-                else
-                {
-                    b1 = state.data[0];
-                    b2 = state.data[1];
-                    b3 = state.data[2];
-                    b4 = state.data[3];
-                }
-
-                Converter c = new Converter(b1, b2, b3, b4);
+                Converter32 c = new Converter32(state.data[0], state.data[1], state.data[2], state.data[3]);
 
 				if(c.Int > 0)
 				{
@@ -580,7 +300,7 @@ namespace CLARTE.Net.Negotiation.Connection
             {
                 byte[] data = state.data; // Otherwise the call to state.data in unity thread will be evaluated to null, because of the weird catching of parameters of lambdas
 
-                Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceive.Invoke(state.ip.Address, remote, channel, data));
+                Threads.APC.MonoBehaviourCall.Instance.Call(() => events.onReceive.Invoke(state.ip.Address, parameters.guid, parameters.channel, data));
 
                 state.Set(readBuffer);
 

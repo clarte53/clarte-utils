@@ -3,6 +3,7 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using UnityEngine.Events;
 
 namespace CLARTE.Net.Negotiation.Connection
 {
@@ -10,20 +11,17 @@ namespace CLARTE.Net.Negotiation.Connection
 	{
 		#region Members
 		protected UdpClient client;
-		protected Negotiation.Base parent;
 		protected ushort localPort;
 		protected ushort remotePort;
 		#endregion
 
 		#region Constructors
-		public Udp(Negotiation.Base parent, UdpClient client, Guid remote, ushort channel, TimeSpan heartbeat, bool auto_reconnect, Action<Base> disconnection_handler, IPAddress address, ushort local_port, ushort remote_port) : base(remote, channel, heartbeat, auto_reconnect, disconnection_handler)
+		public Udp(Negotiation.Base parent, Message.Negotiation.Parameters parameters, UnityAction<Base> disconnection_handler, UdpClient client, ushort local_port, ushort remote_port) : base(parent, parameters, disconnection_handler)
 		{
-			this.parent = parent;
 			this.client = client;
 
 			localPort = local_port;
 			remotePort = remote_port;
-			autoReconnect = auto_reconnect;
 
 			if(parent != null && localPort != 0)
 			{
@@ -124,7 +122,7 @@ namespace CLARTE.Net.Negotiation.Connection
 			{
 				if(client != null)
 				{
-					if(remote != Guid.Empty)
+					if(parameters.guid != Guid.Empty)
 					{
 						IPEndPoint ip = (IPEndPoint) client.Client.RemoteEndPoint;
 
@@ -181,7 +179,7 @@ namespace CLARTE.Net.Negotiation.Connection
 
 				if(data.Length > 0)
 				{
-					Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceive.Invoke(state.ip.Address, remote, channel, data));
+					Threads.APC.MonoBehaviourCall.Instance.Call(() => events.onReceive.Invoke(state.ip.Address, parameters.guid, parameters.channel, data));
 				}
 
 				// Wait for next data to receive

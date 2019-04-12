@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using UnityEngine;
+using CLARTE.Serialization;
 
 namespace CLARTE.Net.Negotiation
 {
@@ -56,6 +57,7 @@ namespace CLARTE.Net.Negotiation
 
         public List<PortRange> openPorts;
 
+		protected Binary serializer;
         protected Dictionary<Guid, Connection.Base[]> openedChannels;
         protected HashSet<Connection.Tcp> initializedConnections;
         protected HashSet<ushort> availablePorts;
@@ -67,10 +69,10 @@ namespace CLARTE.Net.Negotiation
 		protected abstract void Reconnect(Connection.Base connection);
 		public abstract ushort NbChannels { get; }
         public abstract IEnumerable<Channel> Channels { get; }
-        #endregion
+		#endregion
 
-        #region Clean-up helpers
-        protected void CloseInitializedConnections()
+		#region Clean-up helpers
+		protected void CloseInitializedConnections()
         {
             lock(initializedConnections)
             {
@@ -172,6 +174,9 @@ namespace CLARTE.Net.Negotiation
 
             // Initialize singletons while in unity thread, if necessary
             Threads.APC.MonoBehaviourCall.Instance.GetType();
+			Pattern.Factory<Message.Base, byte>.Initialize(Pattern.Factory.ByteConverter);
+
+			serializer = new Binary();
 
             openedChannels = new Dictionary<Guid, Connection.Base[]>();
 
@@ -229,6 +234,14 @@ namespace CLARTE.Net.Negotiation
         #endregion
 
         #region Public methods
+		public Binary Serializer
+		{
+			get
+			{
+				return serializer;
+			}
+		}
+
         public bool Ready(Guid remote, ushort channel)
         {
             Connection.Base[] channels;
@@ -377,16 +390,21 @@ namespace CLARTE.Net.Negotiation
         #endregion
 
         #region Shared network methods
-        protected void ConnectUdp(Connection.Tcp connection, Guid remote, ushort channel, TimeSpan heartbeat, bool auto_reconnect)
+        protected void ConnectUdp(Connection.Tcp connection, Message.Negotiation.Parameters param)
         {
             UdpClient udp = null;
 
-            ushort local_port = 0;
-            ushort remote_port;
+			bool success = false;
 
-            bool success = false;
+			Message.Negotiation.Channel.UDP msg = new Message.Negotiation.Channel.UDP
+			{
+				guid = param.guid,
+				channel = param.channel,
+				port = 0
+			};
 
-            if(channels != null && channel < channels.Count)
+
+            if(channels != null && param.channel < channels.Count)
             {
                 while(!success)
                 {
@@ -396,23 +414,23 @@ namespace CLARTE.Net.Negotiation
 
                         if(it.MoveNext())
                         {
-                            local_port = it.Current;
+                            msg.port = it.Current;
 
-                            availablePorts.Remove(local_port);
+                            availablePorts.Remove(msg.port);
                         }
                         else
                         {
-                            local_port = 0;
+							msg.port = 0;
 
                             success = true;
                         }
                     }
 
-                    if(local_port > 0)
+                    if(msg.port > 0)
                     {
                         try
                         {
-                            udp = new UdpClient(local_port, AddressFamily.InterNetwork);
+                            udp = new UdpClient(msg.port, AddressFamily.InterNetwork);
 
                             success = true;
                         }
@@ -427,31 +445,35 @@ namespace CLARTE.Net.Negotiation
                 }
             }
 
-            // Send the selected port. A value of 0 means that no port are available.
-            connection.Send(local_port);
+			// Send the selected port. A value of 0 means that no port are available.
+			connection.Send(msg);
 
-            if(connection.Receive(out remote_port))
-            {
-                if(udp != null && local_port > 0)
-                {
-                    if(remote_port > 0)
-                    {
-                        SaveChannel(new Connection.Udp(this, udp, remote, channel, heartbeat, auto_reconnect, DisconnectionHandler, ((IPEndPoint) connection.client.Client.RemoteEndPoint).Address, local_port, remote_port));
-                    }
-                    else
-                    {
-                        Debug.LogError("No available remote port for UDP connection.");
-                    }
-                }
-                else
-                {
-                    Debug.LogError("No available local port for UDP connection.");
-                }
-            }
-            else
-            {
-                Drop(connection, "Expected to receive remote UDP port.");
-            }
+			Message.Base resp;
+
+			if(connection.Receive(out resp) && resp.IsType<Message.Negotiation.Channel.UDP>())
+			{
+				Message.Negotiation.Channel.UDP response = (Message.Negotiation.Channel.UDP) resp;
+
+				if(udp != null && msg.port > 0)
+				{
+					if(response.port > 0)
+					{
+						SaveChannel(new Connection.Udp(this, param, DisconnectionHandler, udp, msg.port, response.port));
+					}
+					else
+					{
+						Debug.LogError("No available remote port for UDP connection.");
+					}
+				}
+				else
+				{
+					Debug.LogError("No available local port for UDP connection.");
+				}
+			}
+			else
+			{
+				Drop(connection, "Expected to receive remote UDP parameters.");
+			}
         }
 
         protected void SaveChannel(Connection.Base connection)
@@ -470,7 +492,7 @@ namespace CLARTE.Net.Negotiation
                 Channel channel = channels[connection.Channel];
 
                 // Save callbacks for the connection
-                connection.SetEvents(channel.onConnected, channel.onDisconnected, channel.onException, channel.onReceive, channel.onReceiveProgress);
+                connection.SetEvents(channel);
 
                 // Save the connection
                 lock(openedChannels)

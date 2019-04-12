@@ -4,12 +4,25 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading;
+using UnityEngine.Events;
 
 namespace CLARTE.Net.Negotiation.Connection
 {
     public abstract class Base : IDisposable
     {
-        protected struct SendState
+		protected class ChannelEvents : Channel
+		{
+			public class DisonnectionHandlerCallback : UnityEvent<Connection.Base>
+			{
+
+			}
+
+			#region Members
+			public DisonnectionHandlerCallback onDisconnectedHandler;
+			#endregion
+		}
+
+		protected struct SendState
         {
             public Threads.Result result;
             public byte[] data;
@@ -46,17 +59,10 @@ namespace CLARTE.Net.Negotiation.Connection
         }
 
 		#region Members
+		protected Negotiation.Base parent;
+		protected Message.Negotiation.Parameters parameters;
 		protected IPAddress address;
-		protected Guid remote;
-        protected ushort channel;
-        protected TimeSpan heartbeat;
-		protected bool autoReconnect;
-		protected Action<Base> disconnectionHandler;
-        protected Events.ConnectionCallback onConnected;
-        protected Events.DisconnectionCallback onDisconnected;
-		protected Events.ExceptionCallback onException;
-        protected Events.ReceiveCallback onReceive;
-        protected Events.ReceiveProgressCallback onReceiveProgress;
+		protected ChannelEvents events;
         protected ManualResetEvent stopEvent;
         protected ManualResetEvent addEvent;
         protected Threads.Thread worker;
@@ -72,15 +78,17 @@ namespace CLARTE.Net.Negotiation.Connection
         public abstract bool Connected();
         protected abstract void SendAsync(Threads.Result result, byte[] data);
         protected abstract void ReceiveAsync();
-        #endregion
+		#endregion
 
-        #region Constructors
-        public Base(Guid remote, ushort channel, TimeSpan heartbeat, bool auto_reconnect, Action<Base> disconnection_handler)
+		#region Constructors
+		public Base(Negotiation.Base parent, Message.Negotiation.Parameters parameters, UnityAction<Base> disconnection_handler)
         {
-			SetConfig(remote, channel, heartbeat);
+			this.parent = parent;
+			this.parameters = parameters;
 
-			autoReconnect = auto_reconnect;
-			disconnectionHandler = disconnection_handler;
+			events = new ChannelEvents();
+			events.onDisconnectedHandler = new ChannelEvents.DisonnectionHandlerCallback();
+			events.onDisconnectedHandler.AddListener(disconnection_handler);
 
 			sendResult = null;
 
@@ -94,6 +102,14 @@ namespace CLARTE.Net.Negotiation.Connection
 		#endregion
 
 		#region Getter / Setter
+		public Message.Negotiation.Parameters Parameters
+		{
+			get
+			{
+				return parameters;
+			}
+		}
+
 		public IPAddress Address
 		{
 			get
@@ -106,7 +122,7 @@ namespace CLARTE.Net.Negotiation.Connection
         {
             get
             {
-                return remote;
+                return parameters.guid;
             }
         }
 
@@ -114,7 +130,7 @@ namespace CLARTE.Net.Negotiation.Connection
         {
             get
             {
-                return channel;
+                return parameters.channel;
             }
         }
 
@@ -122,7 +138,7 @@ namespace CLARTE.Net.Negotiation.Connection
 		{
 			get
 			{
-				return heartbeat;
+				return parameters.heartbeat;
 			}
 		}
 
@@ -130,7 +146,7 @@ namespace CLARTE.Net.Negotiation.Connection
 		{
 			get
 			{
-				return autoReconnect;
+				return parameters.autoReconnect;
 			}
 		}
 		#endregion
@@ -160,14 +176,14 @@ namespace CLARTE.Net.Negotiation.Connection
 
 				Threads.APC.MonoBehaviourCall.Instance.Call(() =>
 				{
-					if(disconnectionHandler != null)
+					if(events.onDisconnectedHandler != null)
 					{
-						disconnectionHandler(this);
+						events.onDisconnectedHandler.Invoke(this);
 					}
 
-					if(onDisconnected != null)
+					if(events.onDisconnected != null)
 					{
-						onDisconnected.Invoke(address, remote, channel);
+						events.onDisconnected.Invoke(address, parameters.guid, parameters.channel);
 					}
 				});
 			}
@@ -196,18 +212,18 @@ namespace CLARTE.Net.Negotiation.Connection
         #region Public methods
         public void SetConfig(Guid remote, ushort channel, TimeSpan heartbeat)
         {
-            this.remote = remote;
-            this.channel = channel;
-            this.heartbeat = heartbeat;
+            parameters.guid = remote;
+			parameters.channel = channel;
+			parameters.heartbeat = heartbeat;
 		}
 
-        public void SetEvents(Events.ConnectionCallback on_connected, Events.DisconnectionCallback on_disconnected, Events.ExceptionCallback on_exception, Events.ReceiveCallback on_receive, Events.ReceiveProgressCallback on_receive_progress)
+        public void SetEvents(Channel channel)
         {
-            onConnected = on_connected;
-            onDisconnected = on_disconnected;
-			onException = on_exception;
-            onReceive = on_receive;
-            onReceiveProgress = on_receive_progress;
+            events.onConnected = channel.onConnected;
+			events.onDisconnected = channel.onDisconnected;
+			events.onException = channel.onException;
+			events.onReceive = channel.onReceive;
+			events.onReceiveProgress = channel.onReceiveProgress;
         }
 
         public void Close()
@@ -231,7 +247,7 @@ namespace CLARTE.Net.Negotiation.Connection
                 worker.Start();
             }
 
-            Threads.APC.MonoBehaviourCall.Instance.Call(() => onConnected.Invoke(address, remote, channel));
+            Threads.APC.MonoBehaviourCall.Instance.Call(() => events.onConnected.Invoke(address, parameters.guid, parameters.channel));
         }
 
         public void SendAsync(byte[] data)
@@ -295,7 +311,7 @@ namespace CLARTE.Net.Negotiation.Connection
 				}
 				else
 				{
-					Threads.APC.MonoBehaviourCall.Instance.Call(() => onException.Invoke(address, remote, channel, e));
+					Threads.APC.MonoBehaviourCall.Instance.Call(() => events.onException.Invoke(address, parameters.guid, parameters.channel, e));
 				}
 			}
 		}
@@ -310,7 +326,7 @@ namespace CLARTE.Net.Negotiation.Connection
 
 			int event_idx = 0;
 
-            while((event_idx = WaitHandle.WaitAny(wait, heartbeat)) != 0)
+            while((event_idx = WaitHandle.WaitAny(wait, parameters.heartbeat)) != 0)
             {
                 if(event_idx == WaitHandle.WaitTimeout)
                 {
