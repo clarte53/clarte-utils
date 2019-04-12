@@ -1,32 +1,91 @@
-﻿using System.Runtime.InteropServices;
+﻿using System;
+using System.Runtime.InteropServices;
 
 namespace CLARTE.Serialization
 {
-    // C# implementations are always little endian. Therefore, we will not waste resources to do
-    // endianness conversions as it is probably always useless. Fix it if you have to use
-    // big endian architecture.
+	// Store different types values at the same offset. Therefore, all fields share the same bytes
+	// Values are stored in little endian form.
 
-    // Store different types values at the same offset. Therefore, all fields share the same bytes
+	public static class Converter
+	{
+		public static readonly bool isLittleEndian;
 
-    [StructLayout(LayoutKind.Explicit)]
+		static Converter()
+		{
+			isLittleEndian = BitConverter.IsLittleEndian;
+		}
+
+		public static void Swap<T>(ref T b1, ref T b2)
+		{
+			T b = b1;
+
+			b1 = b2;
+
+			b2 = b;
+		}
+	}
+
+	[StructLayout(LayoutKind.Explicit)]
     public struct Converter16
     {
         [FieldOffset(0)]
-        public byte Byte1;
+		public byte Byte1;
 
         [FieldOffset(sizeof(byte))]
         public byte Byte2;
 
         [FieldOffset(0)]
-        public char Char;
+        public char _char;
 
         [FieldOffset(0)]
-        public short Short;
+        public short _short;
 
-        public Converter16(byte value1, byte value2)
+		public char Char
+		{
+			get
+			{
+				if(Converter.isLittleEndian)
+				{
+					return _char;
+				}
+				else
+				{
+					Converter.Swap(ref Byte1, ref Byte2);
+
+					char result = _char;
+
+					Converter.Swap(ref Byte1, ref Byte2);
+
+					return result;
+				}
+			}
+		}
+
+		public short Short
+		{
+			get
+			{
+				if(Converter.isLittleEndian)
+				{
+					return _short;
+				}
+				else
+				{
+					Converter.Swap(ref Byte1, ref Byte2);
+
+					short result = _short;
+
+					Converter.Swap(ref Byte1, ref Byte2);
+
+					return result;
+				}
+			}
+		}
+
+		public Converter16(byte value1, byte value2)
         {
-            Short = 0;
-            Char = (char) 0;
+            _short = 0;
+            _char = (char) 0;
             Byte1 = value1;
             Byte2 = value2;
         }
@@ -35,17 +94,27 @@ namespace CLARTE.Serialization
         {
             Byte1 = 0;
             Byte2 = 0;
-            Short = 0;
-            Char = value;
+            _short = 0;
+            _char = value;
+
+			if(!Converter.isLittleEndian)
+			{
+				Converter.Swap(ref Byte1, ref Byte2);
+			}
         }
 
         public Converter16(short value)
         {
             Byte1 = 0;
             Byte2 = 0;
-            Char = (char) 0;
-            Short = value;
-        }
+            _char = (char) 0;
+            _short = value;
+
+			if(!Converter.isLittleEndian)
+			{
+				Converter.Swap(ref Byte1, ref Byte2);
+			}
+		}
 
         public static implicit operator char(Converter16 c)
         {
@@ -94,15 +163,61 @@ namespace CLARTE.Serialization
         public byte Byte4;
 
         [FieldOffset(0)]
-        public int Int;
+        public int _int;
 
         [FieldOffset(0)]
-        public float Float;
+        public float _float;
 
-        public Converter32(byte value1, byte value2, byte value3, byte value4)
+		public int Int
+		{
+			get
+			{
+				if(Converter.isLittleEndian)
+				{
+					return _int;
+				}
+				else
+				{
+					Converter.Swap(ref Byte1, ref Byte4);
+					Converter.Swap(ref Byte2, ref Byte3);
+
+					int result = _int;
+
+					Converter.Swap(ref Byte1, ref Byte4);
+					Converter.Swap(ref Byte2, ref Byte3);
+
+					return result;
+				}
+			}
+		}
+
+		public float Float
+		{
+			get
+			{
+				if(Converter.isLittleEndian)
+				{
+					return _float;
+				}
+				else
+				{
+					Converter.Swap(ref Byte1, ref Byte4);
+					Converter.Swap(ref Byte2, ref Byte3);
+
+					float result = _float;
+
+					Converter.Swap(ref Byte1, ref Byte4);
+					Converter.Swap(ref Byte2, ref Byte3);
+
+					return result;
+				}
+			}
+		}
+
+		public Converter32(byte value1, byte value2, byte value3, byte value4)
         {
-            Int = 0;
-            Float = 0;
+            _int = 0;
+            _float = 0;
             Byte1 = value1;
             Byte2 = value2;
             Byte3 = value3;
@@ -115,9 +230,15 @@ namespace CLARTE.Serialization
             Byte2 = 0;
             Byte3 = 0;
             Byte4 = 0;
-            Float = 0;
-            Int = value;
-        }
+            _float = 0;
+            _int = value;
+
+			if(!Converter.isLittleEndian)
+			{
+				Converter.Swap(ref Byte1, ref Byte4);
+				Converter.Swap(ref Byte2, ref Byte3);
+			}
+		}
 
         public Converter32(float value)
         {
@@ -125,9 +246,15 @@ namespace CLARTE.Serialization
             Byte2 = 0;
             Byte3 = 0;
             Byte4 = 0;
-            Int = 0;
-            Float = value;
-        }
+            _int = 0;
+            _float = value;
+
+			if(!Converter.isLittleEndian)
+			{
+				Converter.Swap(ref Byte1, ref Byte4);
+				Converter.Swap(ref Byte2, ref Byte3);
+			}
+		}
 
         public static implicit operator int(Converter32 c)
         {
@@ -170,34 +297,104 @@ namespace CLARTE.Serialization
         public int Int2;
 
         [FieldOffset(0)]
-        public long Long;
+        public long _long;
 
         [FieldOffset(0)]
-        public double Double;
+        public double _double;
 
-        public Converter64(int value1, int value2)
+		public long Long
+		{
+			get
+			{
+				if(Converter.isLittleEndian)
+				{
+					return _long;
+				}
+				else
+				{
+					Int1 = new Converter32(Int1)._int;
+					Int2 = new Converter32(Int2)._int;
+
+					Converter.Swap(ref Int1, ref Int2);
+
+					long result = _long;
+
+					Int1 = new Converter32(Int1)._int;
+					Int2 = new Converter32(Int2)._int;
+
+					Converter.Swap(ref Int1, ref Int2);
+
+					return result;
+				}
+			}
+		}
+
+		public double Double
+		{
+			get
+			{
+				if(Converter.isLittleEndian)
+				{
+					return _double;
+				}
+				else
+				{
+					Int1 = new Converter32(Int1)._int;
+					Int2 = new Converter32(Int2)._int;
+
+					Converter.Swap(ref Int1, ref Int2);
+
+					double result = _double;
+
+					Int1 = new Converter32(Int1)._int;
+					Int2 = new Converter32(Int2)._int;
+
+					Converter.Swap(ref Int1, ref Int2);
+
+					return result;
+				}
+			}
+		}
+
+		public Converter64(int value1, int value2)
         {
-            Long = 0;
-            Double = 0;
+            _long = 0;
+            _double = 0;
             Int1 = value1;
             Int2 = value2;
-        }
+		}
 
         public Converter64(long value)
         {
             Int1 = 0;
             Int2 = 0;
-            Double = 0;
-            Long = value;
-        }
+            _double = 0;
+            _long = value;
+
+			if(!Converter.isLittleEndian)
+			{
+				Int1 = new Converter32(Int1)._int;
+				Int2 = new Converter32(Int2)._int;
+
+				Converter.Swap(ref Int1, ref Int2);
+			}
+		}
 
         public Converter64(double value)
         {
             Int1 = 0;
             Int2 = 0;
-            Long = 0;
-            Double = value;
-        }
+            _long = 0;
+            _double = value;
+
+			if(!Converter.isLittleEndian)
+			{
+				Int1 = new Converter32(Int1)._int;
+				Int2 = new Converter32(Int2)._int;
+
+				Converter.Swap(ref Int1, ref Int2);
+			}
+		}
 
         public static implicit operator long(Converter64 c)
         {
@@ -246,11 +443,44 @@ namespace CLARTE.Serialization
         public int Int4;
 
         [FieldOffset(0)]
-        public decimal Decimal;
+        public decimal _decimal;
 
-        public Converter128(int value1, int value2, int value3, int value4)
+		public decimal Decimal
+		{
+			get
+			{
+				if(Converter.isLittleEndian)
+				{
+					return _decimal;
+				}
+				else
+				{
+					Int1 = new Converter32(Int1)._int;
+					Int2 = new Converter32(Int2)._int;
+					Int3 = new Converter32(Int3)._int;
+					Int4 = new Converter32(Int4)._int;
+
+					Converter.Swap(ref Int1, ref Int4);
+					Converter.Swap(ref Int2, ref Int3);
+
+					decimal result = _decimal;
+
+					Int1 = new Converter32(Int1)._int;
+					Int2 = new Converter32(Int2)._int;
+					Int3 = new Converter32(Int3)._int;
+					Int4 = new Converter32(Int4)._int;
+
+					Converter.Swap(ref Int1, ref Int4);
+					Converter.Swap(ref Int2, ref Int3);
+
+					return result;
+				}
+			}
+		}
+
+		public Converter128(int value1, int value2, int value3, int value4)
         {
-            Decimal = 0;
+            _decimal = 0;
             Int1 = value1;
             Int2 = value2;
             Int3 = value3;
@@ -263,8 +493,19 @@ namespace CLARTE.Serialization
             Int2 = 0;
             Int3 = 0;
             Int4 = 0;
-            Decimal = value;
-        }
+            _decimal = value;
+
+			if(!Converter.isLittleEndian)
+			{
+				Int1 = new Converter32(Int1)._int;
+				Int2 = new Converter32(Int2)._int;
+				Int3 = new Converter32(Int3)._int;
+				Int4 = new Converter32(Int4)._int;
+
+				Converter.Swap(ref Int1, ref Int4);
+				Converter.Swap(ref Int2, ref Int3);
+			}
+		}
 
         public static implicit operator decimal(Converter128 c)
         {
