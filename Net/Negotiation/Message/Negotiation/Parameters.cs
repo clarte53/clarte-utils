@@ -8,6 +8,7 @@ namespace CLARTE.Net.Negotiation.Message.Negotiation
 	public class Parameters : Base
 	{
 		#region Members
+		public Guid guid;
 		public ushort channel;
 		public Net.Negotiation.Channel.Type type;
 		public TimeSpan heartbeat;
@@ -19,13 +20,17 @@ namespace CLARTE.Net.Negotiation.Message.Negotiation
 		{
 			uint read = 0;
 
+			byte[] raw_guid;
 			byte channel_type;
 			ushort heartbeat_ticks;
 
+			read += serializer.FromBytes(buffer, start + read, out raw_guid);
 			read += serializer.FromBytes(buffer, start + read, out channel);
 			read += serializer.FromBytes(buffer, start + read, out channel_type);
 			read += serializer.FromBytes(buffer, start + read, out heartbeat_ticks);
 			read += serializer.FromBytes(buffer, start + read, out autoReconnect);
+
+			guid = new Guid(raw_guid);
 
 			type = (Net.Negotiation.Channel.Type) channel_type;
 
@@ -45,7 +50,7 @@ namespace CLARTE.Net.Negotiation.Message.Negotiation
 		{
 			uint written = 0;
 
-			const uint message_size = sizeof(byte) + sizeof(ushort) + sizeof(bool);
+			const uint message_size = guidSize + 2 * sizeof(ushort) + sizeof(byte) + sizeof(bool);
 
 			serializer.ResizeBuffer(ref buffer, start + message_size);
 
@@ -56,6 +61,7 @@ namespace CLARTE.Net.Negotiation.Message.Negotiation
 				heartbeat_ticks = ushort.MaxValue;
 			}
 
+			written += serializer.ToBytes(ref buffer, start + written, guid.ToByteArray());
 			written += serializer.ToBytes(ref buffer, start + written, channel);
 			written += serializer.ToBytes(ref buffer, start + written, (byte) type);
 			written += serializer.ToBytes(ref buffer, start + written, (ushort) heartbeat_ticks);
