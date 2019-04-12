@@ -1,4 +1,5 @@
-﻿
+﻿#if !NETFX_CORE
+
 namespace CLARTE.Net.Negotiation.Message.Negotiation
 {
 	public class Start : Action
@@ -6,3 +7,5 @@ namespace CLARTE.Net.Negotiation.Message.Negotiation
 
 	}
 }
+
+#endif // !NETFX_CORE

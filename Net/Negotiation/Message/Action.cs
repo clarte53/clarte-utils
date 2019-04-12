@@ -1,4 +1,6 @@
-﻿using CLARTE.Serialization;
+﻿#if !NETFX_CORE
+
+using CLARTE.Serialization;
 
 namespace CLARTE.Net.Negotiation.Message
 {
@@ -17,3 +19,5 @@ namespace CLARTE.Net.Negotiation.Message
 		#endregion
 	}
 }
+
+#endif // !NETFX_CORE
