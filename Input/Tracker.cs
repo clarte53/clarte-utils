@@ -6,9 +6,8 @@ namespace CLARTE.Input
 {
     public abstract class Tracker : MonoBehaviour
     {
-        [SerializeField] bool ShowNodes = false;
-
         #region Members
+        [SerializeField] bool ShowNodes = false;
         protected List<XRNodeState> nodes;
         protected XRNode currentType;
         protected ulong uniqueID;
