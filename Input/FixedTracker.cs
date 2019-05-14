@@ -15,6 +15,10 @@ namespace CLARTE.Input
             return (node.uniqueID == id);
         }
 
+        protected override bool IsSameNode(XRNodeState node) {
+            return (node.uniqueID == id);
+        }
+
         protected override void OnNodeAdded(XRNodeState node)
         {
             Debug.LogFormat("Fixed tracker '{0}' is associated to object '{1}'", uniqueID, gameObject.name);
