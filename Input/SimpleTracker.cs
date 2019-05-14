@@ -18,6 +18,10 @@ namespace CLARTE.Input
             return (node.nodeType == type && !(trackedIds.ContainsKey(node.uniqueID) && trackedIds[node.uniqueID] > 0));
         }
 
+        protected override bool IsSameNode(XRNodeState node) {
+            return node.nodeType == type && trackedIds.ContainsKey(node.uniqueID) && trackedIds[node.uniqueID] > 0;
+        }
+
         protected override void OnNodeAdded(XRNodeState node)
         {
             if(!trackedIds.ContainsKey(node.uniqueID))
