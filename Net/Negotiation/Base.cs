@@ -346,7 +346,7 @@ namespace CLARTE.Net.Negotiation
             Dispose(true);
         }
 
-		public void ReservePort(ushort port)
+		protected void ReservePort(ushort port)
 		{
 			lock(availablePorts)
 			{
@@ -403,7 +403,6 @@ namespace CLARTE.Net.Negotiation
 				port = 0
 			};
 
-
             if(channels != null && param.channel < channels.Count)
             {
                 while(!success)
@@ -432,6 +431,8 @@ namespace CLARTE.Net.Negotiation
                         {
                             udp = new UdpClient(msg.port, AddressFamily.InterNetwork);
 
+							ReservePort(msg.port);
+
                             success = true;
                         }
                         catch(SocketException)
@@ -458,6 +459,8 @@ namespace CLARTE.Net.Negotiation
 				{
 					if(response.port > 0)
 					{
+						udp.Connect(connection.GetRemoteAddress(), response.port);
+
 						SaveChannel(new Connection.Udp(this, param, DisconnectionHandler, udp, msg.port, response.port));
 					}
 					else

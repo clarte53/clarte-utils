@@ -62,10 +62,15 @@ namespace CLARTE.Net.Negotiation.Connection
             // TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
             // TODO: set fields of large size with null value.
         }
-        #endregion
+		#endregion
 
-        #region Base class implementation
-        public override IPAddress GetRemoteAddress()
+		#region Base class implementation
+		public override bool Connected()
+		{
+			return client != null && stream != null && client.Connected;
+		}
+
+		public override IPAddress GetRemoteAddress()
         {
             IPAddress address = null;
 
@@ -75,11 +80,6 @@ namespace CLARTE.Net.Negotiation.Connection
             }
 
             return address;
-        }
-
-        public override bool Connected()
-        {
-            return client != null && stream != null && client.Connected;
         }
 
         protected override void SendAsync(Threads.Result result, byte[] data)
@@ -139,9 +139,9 @@ namespace CLARTE.Net.Negotiation.Connection
 				HandleException(e);
 			}
 		}
-        #endregion
+		#endregion
 
-        #region Helper serialization functions
+		#region Helper serialization functions
 		public void Send(Message.Base message)
 		{
 			if(stream != null && parent != null)

@@ -70,12 +70,12 @@ namespace CLARTE.Net.Negotiation.Connection
         protected Queue<Threads.Task> sendQueue;
         protected bool listen;
         private bool disposed;
-        #endregion
+		#endregion
 
-        #region Abstract methods
-        protected abstract void DisposeInternal(bool disposing);
-        public abstract IPAddress GetRemoteAddress();
-        public abstract bool Connected();
+		#region Abstract methods
+		public abstract bool Connected();
+		public abstract IPAddress GetRemoteAddress();
+		protected abstract void DisposeInternal(bool disposing);
         protected abstract void SendAsync(Threads.Result result, byte[] data);
         protected abstract void ReceiveAsync();
 		#endregion

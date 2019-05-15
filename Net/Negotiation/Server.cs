@@ -344,6 +344,11 @@ namespace CLARTE.Net.Negotiation
 						};
 
 						connection.Send(param);
+
+						if(param.type == Channel.Type.UDP)
+						{
+							ConnectUdp(connection, param);
+						}
 					}
 				}
 				else if(msg.IsType<Message.Negotiation.Channel.TCP>())
