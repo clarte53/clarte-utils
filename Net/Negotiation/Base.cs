@@ -52,6 +52,14 @@ namespace CLARTE.Net.Negotiation
             #endregion
         }
 
+		protected struct UdpConnectionParams
+		{
+			public Message.Negotiation.Parameters param;
+			public UdpClient udp;
+			public IPAddress remote;
+			public ushort localPort;
+		}
+
         #region Members
         protected static readonly TimeSpan defaultHeartbeat = new TimeSpan(5 * TimeSpan.TicksPerSecond);
 
@@ -61,7 +69,8 @@ namespace CLARTE.Net.Negotiation
         protected Dictionary<Guid, Connection.Base[]> openedChannels;
         protected HashSet<Connection.Tcp> initializedConnections;
         protected HashSet<ushort> availablePorts;
-        protected State state;
+		protected Connection.Tcp monitor;
+		protected State state;
         #endregion
 
         #region Abstract methods
@@ -72,6 +81,19 @@ namespace CLARTE.Net.Negotiation
 		#endregion
 
 		#region Clean-up helpers
+		protected void CloseMonitor()
+		{
+			if(monitor != null)
+			{
+				if(monitor.initialization != null)
+				{
+					monitor.initialization.Wait();
+				}
+
+				monitor.Close();
+			}
+		}
+
 		protected void CloseInitializedConnections()
         {
             lock(initializedConnections)
@@ -387,14 +409,20 @@ namespace CLARTE.Net.Negotiation
                 return (IEnumerable<Channel>) channels;
             }
         }
-        #endregion
+		#endregion
 
-        #region Shared network methods
-        protected void ConnectUdp(Connection.Tcp connection, Message.Negotiation.Parameters param)
-        {
-            UdpClient udp = null;
-
+		#region Shared network methods
+		protected UdpConnectionParams SendUdpParams(Connection.Tcp connection, Message.Negotiation.Parameters param)
+		{
 			bool success = false;
+
+			UdpConnectionParams udp_param = new UdpConnectionParams
+			{
+				param = param,
+				udp = null,
+				remote = connection.GetRemoteAddress(),
+				localPort = 0
+			};
 
 			Message.Negotiation.Channel.UDP msg = new Message.Negotiation.Channel.UDP
 			{
@@ -403,80 +431,79 @@ namespace CLARTE.Net.Negotiation
 				port = 0
 			};
 
-            if(channels != null && param.channel < channels.Count)
-            {
-                while(!success)
-                {
-                    lock(availablePorts)
-                    {
-                        HashSet<ushort>.Enumerator it = availablePorts.GetEnumerator();
+			if(channels != null && param.channel < channels.Count)
+			{
+				while(!success)
+				{
+					lock(availablePorts)
+					{
+						HashSet<ushort>.Enumerator it = availablePorts.GetEnumerator();
 
-                        if(it.MoveNext())
-                        {
-                            msg.port = it.Current;
+						if(it.MoveNext())
+						{
+							udp_param.localPort = it.Current;
 
-                            availablePorts.Remove(msg.port);
-                        }
-                        else
-                        {
-							msg.port = 0;
+							availablePorts.Remove(udp_param.localPort);
+						}
+						else
+						{
+							udp_param.localPort = 0;
 
-                            success = true;
-                        }
-                    }
+							success = true;
+						}
+					}
 
-                    if(msg.port > 0)
-                    {
-                        try
-                        {
-                            udp = new UdpClient(msg.port, AddressFamily.InterNetwork);
+					if(udp_param.localPort > 0)
+					{
+						try
+						{
+							udp_param.udp = new UdpClient(udp_param.localPort, AddressFamily.InterNetwork);
 
-							ReservePort(msg.port);
+							ReservePort(udp_param.localPort);
 
-                            success = true;
-                        }
-                        catch(SocketException)
-                        {
-                            // Port unavailable. Remove it definitively from the list and try another port.
-                            udp = null;
+							success = true;
+						}
+						catch(SocketException)
+						{
+							// Port unavailable. Remove it definitively from the list and try another port.
+							udp_param.udp = null;
 
-                            success = false;
-                        }
-                    }
-                }
-            }
+							udp_param.localPort = 0;
+
+							success = false;
+						}
+					}
+				}
+			}
+
+			msg.port = udp_param.localPort;
 
 			// Send the selected port. A value of 0 means that no port are available.
 			connection.Send(msg);
 
-			Message.Base resp;
+			return udp_param;
+		}
 
-			if(connection.Receive(out resp) && resp.IsType<Message.Negotiation.Channel.UDP>())
+		protected void ConnectUdp(UdpConnectionParams param, Message.Negotiation.Channel.UDP response)
+		{ 
+			if(param.udp != null && param.localPort > 0)
 			{
-				Message.Negotiation.Channel.UDP response = (Message.Negotiation.Channel.UDP) resp;
-
-				if(udp != null && msg.port > 0)
+				if(response.port > 0)
 				{
-					if(response.port > 0)
-					{
-						udp.Connect(connection.GetRemoteAddress(), response.port);
+					param.udp.Connect(param.remote, response.port);
 
-						SaveChannel(new Connection.Udp(this, param, DisconnectionHandler, udp, msg.port, response.port));
-					}
-					else
-					{
-						Debug.LogError("No available remote port for UDP connection.");
-					}
+					SaveChannel(new Connection.Udp(this, param.param, DisconnectionHandler, param.udp, param.localPort, response.port));
 				}
 				else
 				{
-					Debug.LogError("No available local port for UDP connection.");
+					Debug.LogError("No available remote port for UDP connection.");
 				}
 			}
 			else
 			{
-				Drop(connection, "Expected to receive remote UDP parameters.");
+				Debug.LogError("No available local port for UDP connection.");
 			}
+	
         }
 
         protected void SaveChannel(Connection.Base connection)

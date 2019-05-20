@@ -124,9 +124,16 @@ namespace CLARTE.Pattern
 						// Get the md5 hash of the fully qualified type name and convert it into an id value
 						U type_id = converter(md5.ComputeHash(Encoding.UTF8.GetBytes(type.ToString())));
 
-						// Register the association between the type and the computed id
-						id2type.Add(type_id, type);
-						type2id.Add(type, type_id);
+						try
+						{
+							// Register the association between the type and the computed id
+							id2type.Add(type_id, type);
+							type2id.Add(type, type_id);
+						}
+						catch(ArgumentException)
+						{
+							throw new TypeLoadException(string.Format("Invalid duplicated ID '{0}' for type '{1}'. Try using an ID type with more bytes to reduce probability of hash collisison between types.", type_id, type));
+						}
 					}
 				}
 

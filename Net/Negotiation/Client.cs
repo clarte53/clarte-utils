@@ -39,7 +39,9 @@ namespace CLARTE.Net.Negotiation
                     CloseInitializedConnections();
 
                     CloseOpenedChannels();
-                }
+
+					CloseMonitor();
+				}
 
                 // TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
                 // TODO: set fields of large size with null value.
@@ -62,11 +64,7 @@ namespace CLARTE.Net.Negotiation
 				}
 				else if(typeof(Connection.Udp).IsAssignableFrom(type))
 				{
-					Connection.Udp c = (Connection.Udp) connection;
-
-					UdpClient udp = new UdpClient(c.LocalPort, AddressFamily.InterNetwork);
-
-					SaveChannel(new Connection.Udp(this, connection.Parameters, DisconnectionHandler, udp, c.LocalPort, c.RemotePort));
+					ConnectUdp(monitor, connection.Parameters);
 				}
 			}
 		}
@@ -87,7 +85,7 @@ namespace CLARTE.Net.Negotiation
 					channel = 0,
 					heartbeat = defaultHeartbeat,
 					autoReconnect = false
-				});
+				}, true);
             }
             else
             {
@@ -97,15 +95,22 @@ namespace CLARTE.Net.Negotiation
         #endregion
 
         #region Connection methods
-        protected void ConnectTcp(Message.Negotiation.Parameters param)
+        protected void ConnectTcp(Message.Negotiation.Parameters param, bool is_monitor = false)
         {
             // Create a new TCP client
             Connection.Tcp connection = new Connection.Tcp(this, param, DisconnectionHandler, new TcpClient());
 
-            lock(initializedConnections)
-            {
-                initializedConnections.Add(connection);
-            }
+			if(is_monitor)
+			{
+				monitor = connection;
+			}
+			else
+			{
+				lock(initializedConnections)
+				{
+					initializedConnections.Add(connection);
+				}
+			}
 
             // Start asynchronous connection to server
             connection.initialization = Threads.Tasks.Add(() => connection.client.BeginConnect(hostname, (int) port, Connected, connection));
@@ -351,6 +356,22 @@ namespace CLARTE.Net.Negotiation
 
             return false;
         }
+
+		protected void ConnectUdp(Connection.Tcp connection, Message.Negotiation.Parameters param)
+		{
+			UdpConnectionParams udp_param = SendUdpParams(connection, param);
+
+			Message.Base resp;
+
+			if(connection.Receive(out resp) && resp.IsType<Message.Negotiation.Channel.UDP>())
+			{
+				ConnectUdp(udp_param, (Message.Negotiation.Channel.UDP) resp);
+			}
+			else
+			{
+				Drop(connection, "Expected to receive remote UDP parameters.");
+			}
+		}
         #endregion
     }
 }

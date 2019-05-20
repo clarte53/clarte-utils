@@ -44,6 +44,8 @@ namespace CLARTE.Net.Negotiation
 
                     CloseOpenedChannels();
 
+					CloseMonitor();
+
                     listenerThread.Join();
 
                     stopEvent.Close();
@@ -60,17 +62,7 @@ namespace CLARTE.Net.Negotiation
 		#region Base implementation
 		protected override void Reconnect(Connection.Base connection)
 		{
-			if(state == State.RUNNING && connection != null && connection.AutoReconnect)
-			{
-				if(typeof(Connection.Udp).IsAssignableFrom(connection.GetType()))
-				{
-					Connection.Udp c = (Connection.Udp) connection;
-
-					UdpClient udp = new UdpClient(c.LocalPort, AddressFamily.InterNetwork);
-
-					SaveChannel(new Connection.Udp(this, connection.Parameters, DisconnectionHandler, udp, c.LocalPort, c.RemotePort));
-				}
-			}
+			
 		}
 		#endregion
 
@@ -334,22 +326,21 @@ namespace CLARTE.Net.Negotiation
 
 					for(ushort i = 0; i < n.nbChannels; i++)
 					{
+						ServerChannel channel = channels[i];
+
 						Message.Negotiation.Parameters param = new Message.Negotiation.Parameters
 						{
 							guid = n.guid,
 							channel = i,
-							type = channels[i].type,
-							heartbeat = channels[i].Heartbeat,
-							autoReconnect = !channels[i].disableAutoReconnect
+							type = channel.type,
+							heartbeat = channel.Heartbeat,
+							autoReconnect = !channel.disableAutoReconnect
 						};
 
 						connection.Send(param);
-
-						if(param.type == Channel.Type.UDP)
-						{
-							ConnectUdp(connection, param);
-						}
 					}
+
+					MonitorListen(connection);
 				}
 				else if(msg.IsType<Message.Negotiation.Channel.TCP>())
 				{
@@ -369,6 +360,39 @@ namespace CLARTE.Net.Negotiation
 				Drop(connection, "Expected to receive some negotiation command.");
 			}
         }
+
+		protected void MonitorListen(Connection.Tcp connection)
+		{
+			monitor = connection;
+
+			while(!stopEvent.WaitOne(0))
+			{
+				Message.Base msg;
+
+				if(monitor.Receive(out msg))
+				{
+					if(msg.IsType<Message.Negotiation.Channel.UDP>())
+					{
+						Message.Negotiation.Channel.UDP response = (Message.Negotiation.Channel.UDP) msg;
+
+						ServerChannel channel = channels[response.channel];
+
+						Message.Negotiation.Parameters param = new Message.Negotiation.Parameters
+						{
+							guid = response.guid,
+							channel = response.channel,
+							type = channel.type,
+							heartbeat = channel.Heartbeat,
+							autoReconnect = !channel.disableAutoReconnect
+						};
+
+						UdpConnectionParams udp_param = SendUdpParams(monitor, param);
+
+						ConnectUdp(udp_param, response);
+					}
+				}
+			}
+		}
         #endregion
     }
 }

@@ -12,13 +12,16 @@ namespace CLARTE.Net.Negotiation.Connection
 {
     public class Tcp : Base
     {
-        #region Members
-        public Threads.IResult initialization;
+		#region Members
+		protected const ushort headerSize = 5;
+
+		public Threads.IResult initialization;
         public TcpClient client;
         public Stream stream;
         public uint version;
 
-        protected byte[] readBuffer;
+		protected byte[] headerBuffer;
+		protected byte[] readBuffer;
         protected byte[] writeBuffer;
         #endregion
 
@@ -29,7 +32,8 @@ namespace CLARTE.Net.Negotiation.Connection
 
             stream = null;
 
-            readBuffer = new byte[sizeof(int)];
+			headerBuffer = new byte[headerSize];
+			readBuffer = new byte[sizeof(int)];
             writeBuffer = new byte[sizeof(int)];
         }
         #endregion
@@ -170,23 +174,43 @@ namespace CLARTE.Net.Negotiation.Connection
 
 			if(stream != null && parent != null)
 			{
-				message = Pattern.Factory<Message.Base, byte>.CreateInstance((byte) stream.ReadByte());
-
-				size = new Converter32((byte) stream.ReadByte(), (byte) stream.ReadByte(), (byte) stream.ReadByte(), (byte) stream.ReadByte());
-
-				Binary.Buffer buffer = parent.Serializer.GetBuffer(size);
-
-				int received = 0;
-
-				while(received < size)
+				if(ReceiveData(stream, headerBuffer, headerSize))
 				{
-					received += stream.Read(buffer.Data, received, (int) (size - received));
-				}
+					message = Pattern.Factory<Message.Base, byte>.CreateInstance(headerBuffer[0]);
 
-				read = parent.Serializer.FromBytesOverwrite(buffer, 0, message);
+					size = new Converter32(headerBuffer[1], headerBuffer[2], headerBuffer[3], headerBuffer[4]);
+
+					Binary.Buffer buffer = parent.Serializer.GetBuffer(size);
+
+					if(ReceiveData(stream, buffer.Data, size))
+					{
+						read = parent.Serializer.FromBytesOverwrite(buffer, 0, message);
+					}
+				}
 			}
 
 			return (message != null && read == size);
+		}
+
+		protected bool ReceiveData(Stream stream, byte[] buffer, uint size)
+		{
+			int received = 0;
+
+			try
+			{
+				while(received < size)
+				{
+					received += stream.Read(buffer, received, (int) (size - received));
+				}
+			}
+			catch(Exception e)
+			{
+				HandleException(e);
+
+				return false;
+			}
+
+			return true;
 		}
         #endregion
 
