@@ -147,7 +147,7 @@ namespace CLARTE.Net.Negotiation
         #region Connection methods
         protected void Listen()
         {
-            while(true)
+            while(state < State.CLOSING && !stopEvent.WaitOne(0))
             {
                 // Listen for new connections
                 IAsyncResult context = listener.BeginAcceptTcpClient(AcceptClient, null);
@@ -378,7 +378,7 @@ namespace CLARTE.Net.Negotiation
 
 		protected void MonitorWorker()
 		{
-			while(!stopEvent.WaitOne(0))
+			while(state < State.CLOSING && !stopEvent.WaitOne(0))
 			{
 				Message.Base msg;
 
