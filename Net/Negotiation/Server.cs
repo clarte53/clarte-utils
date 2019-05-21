@@ -47,8 +47,12 @@ namespace CLARTE.Net.Negotiation
 
 					CloseMonitor();
 
-					monitorThread.Join();
-                    listenerThread.Join();
+					listenerThread.Join();
+
+					if(monitor != null)
+					{
+						monitorThread.Join();
+					}
 
                     stopEvent.Close();
                 }
