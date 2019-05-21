@@ -45,11 +45,13 @@ namespace CLARTE.Net.Negotiation
 
                     CloseOpenedChannels();
 
+					bool has_monitor = (monitor != null);
+
 					CloseMonitor();
 
 					listenerThread.Join();
 
-					if(monitor != null)
+					if(has_monitor)
 					{
 						monitorThread.Join();
 					}
