@@ -94,10 +94,10 @@ namespace CLARTE.Net.Negotiation.Connection
                 {
                     Converter32 c = new Converter32(data.Length);
 
-                    writeBuffer[0] = c.Byte4;
-                    writeBuffer[1] = c.Byte3;
-                    writeBuffer[2] = c.Byte2;
-                    writeBuffer[3] = c.Byte1;
+                    writeBuffer[0] = c.Byte1;
+                    writeBuffer[1] = c.Byte2;
+                    writeBuffer[2] = c.Byte3;
+                    writeBuffer[3] = c.Byte4;
 
                     stream.BeginWrite(writeBuffer, 0, writeBuffer.Length, FinalizeSendLength, new SendState { result = result, data = data });
                 }
