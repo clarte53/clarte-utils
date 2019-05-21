@@ -156,6 +156,13 @@ namespace CLARTE.Net.Negotiation.Connection
         {
             if(!disposed)
             {
+				disposed = true;
+
+				lock(sendQueue)
+				{
+					sendQueue.Clear();
+				}
+
                 DisposeInternal(disposing);
 
                 if(disposing)
@@ -171,8 +178,6 @@ namespace CLARTE.Net.Negotiation.Connection
 
                 // TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
                 // TODO: set fields of large size with null value.
-
-                disposed = true;
 
 				Threads.APC.MonoBehaviourCall.Instance.Call(() =>
 				{
@@ -252,17 +257,20 @@ namespace CLARTE.Net.Negotiation.Connection
 
         public void SendAsync(byte[] data)
         {
-            lock(sendQueue)
-            {
-                Threads.Result result = CreateResult();
+			if(!disposed)
+			{
+				lock(sendQueue)
+				{
+					Threads.Result result = CreateResult();
 
-                sendQueue.Enqueue(new Threads.Task(() => SendAsync(result, data), result));
-            }
+					sendQueue.Enqueue(new Threads.Task(() => SendAsync(result, data), result));
+				}
 
-            lock(addEvent)
-            {
-                addEvent.Set();
-            }
+				lock(addEvent)
+				{
+					addEvent.Set();
+				}
+			}
         }
         #endregion
 
