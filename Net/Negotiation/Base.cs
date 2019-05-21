@@ -91,6 +91,8 @@ namespace CLARTE.Net.Negotiation
 				}
 
 				monitor.Close();
+
+				monitor = null;
 			}
 		}
 

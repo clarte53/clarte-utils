@@ -20,7 +20,8 @@ namespace CLARTE.Net.Negotiation
         public uint port;
 
         protected Threads.Thread listenerThread;
-        protected TcpListener listener;
+		protected Threads.Thread monitorThread;
+		protected TcpListener listener;
         protected X509Certificate2 serverCertificate;
         protected ManualResetEvent stopEvent;
         #endregion
@@ -46,6 +47,7 @@ namespace CLARTE.Net.Negotiation
 
 					CloseMonitor();
 
+					monitorThread.Join();
                     listenerThread.Join();
 
                     stopEvent.Close();
@@ -105,7 +107,9 @@ namespace CLARTE.Net.Negotiation
                 File.Delete(tmp_file);
             }
 
-            listener = new TcpListener(IPAddress.Any, (int) port);
+			monitorThread = new Threads.Thread(MonitorWorker);
+
+			listener = new TcpListener(IPAddress.Any, (int) port);
             listener.Start();
 
             listenerThread = new Threads.Thread(Listen);
@@ -340,7 +344,12 @@ namespace CLARTE.Net.Negotiation
 						connection.Send(param);
 					}
 
-					MonitorListen(connection);
+					if(monitor == null)
+					{
+						monitor = connection;
+
+						monitorThread.Start();
+					}
 				}
 				else if(msg.IsType<Message.Negotiation.Channel.TCP>())
 				{
@@ -361,10 +370,8 @@ namespace CLARTE.Net.Negotiation
 			}
         }
 
-		protected void MonitorListen(Connection.Tcp connection)
+		protected void MonitorWorker()
 		{
-			monitor = connection;
-
 			while(!stopEvent.WaitOne(0))
 			{
 				Message.Base msg;
