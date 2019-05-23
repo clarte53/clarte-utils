@@ -2144,12 +2144,6 @@ namespace CLARTE.Serialization
                     throw new ArgumentException(string.Format("Unsupported array type '{0}'. Values type is unsupported.", array.GetType()), "array");
                 }
 
-                if(sizes.TryGetValue(type, out type_size)) // If the type size is not defined, we will need to use on-the-fly buffer resizing, which is less effective.
-				{
-					// Check wether our buffer is large enough to get all data
-					ResizeBuffer(ref buffer, start + 2 * uintSize + array_size * type_size);
-				}
-
 				// Write the length of the array in the buffer
 				written = ToBytes(ref buffer, start, array_size);
 
@@ -2161,8 +2155,14 @@ namespace CLARTE.Serialization
                 // Write the type of the array's elements
                 written += ToBytes(ref buffer, start + written, element_type);
 
-                // Write all data in the buffer
-                for(uint i = 0; i < array_size; ++i)
+				if(sizes.TryGetValue(type, out type_size)) // If the type size is not defined, we will need to use on-the-fly buffer resizing, which is less effective.
+				{
+					// Check wether our buffer is large enough to get all data
+					ResizeBuffer(ref buffer, start + written + array_size * type_size);
+				}
+
+				// Write all data in the buffer
+				for(uint i = 0; i < array_size; ++i)
 				{
 					written += ToBytesWrapper(ref buffer, start + written, array.GetValue(i), type);
 				}
@@ -2200,9 +2200,6 @@ namespace CLARTE.Serialization
 
 				uint array_bytes_size = array_size * byteSize;
 
-				// Check wether our buffer is large enough to get all data
-				ResizeBuffer(ref buffer, start + uintSize + array_bytes_size);
-
 				// Write the length of the array in the buffer
 				written = ToBytes(ref buffer, start, array_size);
 
@@ -2214,8 +2211,11 @@ namespace CLARTE.Serialization
                 // Write the type of the array's elements
                 written += ToBytes(ref buffer, start + written, typeof(byte));
 
-                // Write all data in the buffer as fast as possible
-                Array.Copy(array, 0, buffer.Data, (int) (start + written), (int) array_bytes_size);
+				// Check wether our buffer is large enough to get all data
+				ResizeBuffer(ref buffer, start + written + array_bytes_size);
+
+				// Write all data in the buffer as fast as possible
+				Array.Copy(array, 0, buffer.Data, (int) (start + written), (int) array_bytes_size);
 
 				written += array_bytes_size;
 			}
@@ -2341,12 +2341,6 @@ namespace CLARTE.Serialization
                     throw new ArgumentException(string.Format("Unsupported list type '{0}'. Either list type or values type are unsupported.", list.GetType()), "list");
                 } 
 
-                if(sizes.TryGetValue(type, out type_size)) // If the type size is not defined, we will need to use on-the-fly buffer resizing, which is less effective.
-                {
-                    // Check wether our buffer is large enough to get all data
-                    ResizeBuffer(ref buffer, start + uintSize + list_size * type_size);
-                }
-
                 // Write the length of the list in the buffer
                 written = ToBytes(ref buffer, start, list_size);
 
@@ -2358,8 +2352,14 @@ namespace CLARTE.Serialization
                 // Write the type of the list's elements
                 written += ToBytes(ref buffer, start + written, element_type);
 
-                // Write all data in the buffer
-                for(uint i = 0; i < list_size; ++i)
+				if(sizes.TryGetValue(type, out type_size)) // If the type size is not defined, we will need to use on-the-fly buffer resizing, which is less effective.
+				{
+					// Check wether our buffer is large enough to get all data
+					ResizeBuffer(ref buffer, start + written + list_size * type_size);
+				}
+
+				// Write all data in the buffer
+				for(uint i = 0; i < list_size; ++i)
                 {
                     written += ToBytesWrapper(ref buffer, start + written, list[(int) i], type);
                 }
