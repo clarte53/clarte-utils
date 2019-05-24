@@ -52,7 +52,7 @@ namespace CLARTE.Net.Negotiation
             #endregion
         }
 
-		protected struct UdpConnectionParams
+		protected class UdpConnectionParams
 		{
 			public Message.Negotiation.Parameters param;
 			public UdpClient udp;
@@ -76,6 +76,7 @@ namespace CLARTE.Net.Negotiation
         #region Abstract methods
         protected abstract void Dispose(bool disposing);
 		protected abstract void Reconnect(Connection.Base connection);
+		protected abstract void OnMonitorReceive(IPAddress address, Guid guid, ushort channel, byte[] data);
 		public abstract ushort NbChannels { get; }
         public abstract IEnumerable<Channel> Channels { get; }
 		#endregion
@@ -148,13 +149,16 @@ namespace CLARTE.Net.Negotiation
 					}
 				}
 
-				lock(openedChannels)
+				if(connection.Channel != ushort.MaxValue)
 				{
-					Connection.Base[] connections;
-
-					if(openedChannels.TryGetValue(connection.Remote, out connections))
+					lock(openedChannels)
 					{
-						connections[connection.Channel] = null;
+						Connection.Base[] connections;
+
+						if(openedChannels.TryGetValue(connection.Remote, out connections))
+						{
+							connections[connection.Channel] = null;
+						}
 					}
 				}
 
@@ -388,10 +392,11 @@ namespace CLARTE.Net.Negotiation
         #endregion
     }
 
-    public abstract class Base<T> : Base where T : Channel
+    public abstract class Base<T, U> : Base where T : MonitorChannel where U : Channel
     {
-        #region Members
-        public List<T> channels;
+		#region Members
+		public T negotiation;
+		public List<U> channels;
         public Credentials credentials;
         #endregion
 
@@ -414,6 +419,40 @@ namespace CLARTE.Net.Negotiation
 		#endregion
 
 		#region Shared network methods
+		protected void SendMonitorCommand(Connection.Tcp connection, Message.Base message, uint message_size = 0)
+		{
+			Binary.Buffer buffer = serializer.GetBuffer(message_size != 0 ? message_size : 256);
+
+			uint written = serializer.ToBytes(ref buffer, 0, Pattern.Factory<Message.Base, byte>.Get(message.GetType()));
+
+			written += serializer.ToBytes(ref buffer, written, message);
+
+			byte[] data = new byte[written];
+
+			Array.Copy(buffer.Data, data, written);
+
+			// Send the selected port. A value of 0 means that no port are available.
+			connection.SendAsync(data);
+		}
+
+		protected Message.Base ReceiveMonitorCommand(byte[] data)
+		{
+			const ushort type_nb_bytes = 1;
+
+			Message.Base message = Pattern.Factory<Message.Base, byte>.CreateInstance(data[0]);
+
+			Binary.Buffer buffer = Serializer.GetBufferFromExistingData(data);
+
+			uint read = Serializer.FromBytesOverwrite(buffer, type_nb_bytes, message);
+
+			if(read != data.Length - type_nb_bytes)
+			{
+				Debug.LogErrorFormat("Some received data was not read. Read '{0}' bytes instead of '{1}'.", read, data.Length - type_nb_bytes);
+			}
+
+			return message;
+		}
+
 		protected UdpConnectionParams SendUdpParams(Connection.Tcp connection, Message.Negotiation.Parameters param)
 		{
 			bool success = false;
@@ -480,8 +519,7 @@ namespace CLARTE.Net.Negotiation
 
 			msg.port = udp_param.localPort;
 
-			// Send the selected port. A value of 0 means that no port are available.
-			connection.Send(msg);
+			SendMonitorCommand(connection, msg, Message.Negotiation.Channel.UDP.messageSize);
 
 			return udp_param;
 		}
@@ -507,6 +545,19 @@ namespace CLARTE.Net.Negotiation
 			}
 	
         }
+
+		protected void SaveMonitor(Connection.Tcp connection)
+		{
+			if(monitor == null)
+			{
+				monitor = connection;
+
+				monitor.SetEvents(negotiation);
+				monitor.SetEvents(OnMonitorReceive);
+
+				monitor.Listen();
+			}
+		}
 
         protected void SaveChannel(Connection.Base connection)
         {

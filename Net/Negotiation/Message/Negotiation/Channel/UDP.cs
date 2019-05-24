@@ -8,6 +8,8 @@ namespace CLARTE.Net.Negotiation.Message.Negotiation.Channel
 	public class UDP : Base
 	{
 		#region Members
+		public const uint messageSize = guidSize + 2 * sizeof(ushort);
+
 		public Guid guid;
 		public ushort channel;
 		public ushort port;
@@ -33,9 +35,7 @@ namespace CLARTE.Net.Negotiation.Message.Negotiation.Channel
 		{
 			uint written = 0;
 
-			const uint message_size = guidSize + 2 * sizeof(ushort);
-
-			serializer.ResizeBuffer(ref buffer, start + message_size);
+			serializer.ResizeBuffer(ref buffer, start + messageSize);
 
 			written += serializer.ToBytes(ref buffer, start + written, guid.ToByteArray());
 			written += serializer.ToBytes(ref buffer, start + written, channel);

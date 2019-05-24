@@ -222,16 +222,28 @@ namespace CLARTE.Net.Negotiation.Connection
 			parameters.heartbeat = heartbeat;
 		}
 
-        public void SetEvents(Channel channel)
-        {
-            events.onConnected = channel.onConnected;
+		public void SetEvents(BaseChannel channel)
+		{
+			events.onConnected = channel.onConnected;
 			events.onDisconnected = channel.onDisconnected;
 			events.onException = channel.onException;
+		}
+
+		public void SetEvents(Channel channel)
+        {
+			SetEvents((BaseChannel) channel);
+
 			events.onReceive = channel.onReceive;
 			events.onReceiveProgress = channel.onReceiveProgress;
         }
 
-        public void Close()
+		public void SetEvents(UnityAction<IPAddress, Guid, ushort, byte[]> on_receive)
+		{
+			events.onReceive = new Events.ReceiveCallback();
+			events.onReceive.AddListener(on_receive);
+		}
+
+		public void Close()
         {
 			if(!disposed)
 			{
@@ -250,9 +262,9 @@ namespace CLARTE.Net.Negotiation.Connection
 				ReceiveAsync();
 
                 worker.Start();
-            }
 
-            Threads.APC.MonoBehaviourCall.Instance.Call(() => events.onConnected.Invoke(address, parameters.guid, parameters.channel));
+				Threads.APC.MonoBehaviourCall.Instance.Call(() => events.onConnected.Invoke(address, parameters.guid, parameters.channel));
+			}
         }
 
         public void SendAsync(byte[] data)

@@ -1,6 +1,8 @@
 ﻿#if !NETFX_CORE
 
 using System;
+using System.Collections.Generic;
+using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
@@ -8,7 +10,7 @@ using UnityEngine;
 
 namespace CLARTE.Net.Negotiation
 {
-    public class Client : Base<Channel>
+    public class Client : Base<MonitorChannel, Channel>
     {
         [Serializable]
         public class CertificateValidation
@@ -23,6 +25,8 @@ namespace CLARTE.Net.Negotiation
         public CertificateValidation certificateValidation;
         public string hostname = "localhost";
         public uint port;
+
+		protected HashSet<UdpConnectionParams> pendingUdpConnection;
         #endregion
 
         #region IDisposable implementation
@@ -41,6 +45,11 @@ namespace CLARTE.Net.Negotiation
                     CloseOpenedChannels();
 
 					CloseMonitor();
+
+					lock(pendingUdpConnection)
+					{
+						pendingUdpConnection.Clear();
+					}
 				}
 
                 // TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
@@ -56,17 +65,74 @@ namespace CLARTE.Net.Negotiation
 		{
 			if(state == State.RUNNING && connection != null && connection.AutoReconnect)
 			{
-				Type type = connection.GetType();
+				if(connection == monitor)
+				{
+					CloseMonitor();
 
-				if(typeof(Connection.Tcp).IsAssignableFrom(type))
-				{
-					ConnectTcp(connection.Parameters);
+					Connect();
 				}
-				else if(typeof(Connection.Udp).IsAssignableFrom(type))
+				else
 				{
-					ConnectUdp(monitor, connection.Parameters);
+					Type type = connection.GetType();
+
+					if(typeof(Connection.Tcp).IsAssignableFrom(type))
+					{
+						ConnectTcp(connection.Parameters);
+					}
+					else if(typeof(Connection.Udp).IsAssignableFrom(type))
+					{
+						ConnectUdp(monitor, connection.Parameters);
+					}
 				}
 			}
+		}
+
+		protected override void OnMonitorReceive(IPAddress address, Guid guid, ushort channel, byte[] data)
+		{
+			Message.Base msg = ReceiveMonitorCommand(data);
+
+			if(msg.IsType<Message.Negotiation.Channel.UDP>())
+			{
+				Message.Negotiation.Channel.UDP response = (Message.Negotiation.Channel.UDP) msg;
+
+				UdpConnectionParams udp_params = null;
+
+				lock(pendingUdpConnection)
+				{
+					foreach(UdpConnectionParams pending_udp_params in pendingUdpConnection)
+					{
+						if(pending_udp_params.param.guid == response.guid && pending_udp_params.param.channel == response.channel)
+						{
+							udp_params = pending_udp_params;
+
+							break;
+						}
+					}
+
+					if(udp_params != null)
+					{
+						pendingUdpConnection.Remove(udp_params);
+					}
+				}
+
+				if(udp_params != null)
+				{
+					ConnectUdp(udp_params, (Message.Negotiation.Channel.UDP) msg);
+				}
+				else
+				{
+					Debug.LogError("Reiceved UDP connection parameters for unrequested connection.");
+				}
+			}
+		}
+		#endregion
+
+		#region MonoBehaviour callbacks
+		protected override void Awake()
+		{
+			pendingUdpConnection = new HashSet<UdpConnectionParams>();
+
+			base.Awake();
 		}
 		#endregion
 
@@ -82,10 +148,10 @@ namespace CLARTE.Net.Negotiation
 				ConnectTcp(new Message.Negotiation.Parameters
 				{
 					guid = Guid.Empty,
-					channel = 0,
+					channel = ushort.MaxValue,
 					heartbeat = defaultHeartbeat,
 					autoReconnect = false
-				}, true);
+				});
             }
             else
             {
@@ -95,16 +161,12 @@ namespace CLARTE.Net.Negotiation
         #endregion
 
         #region Connection methods
-        protected void ConnectTcp(Message.Negotiation.Parameters param, bool is_monitor = false)
+        protected void ConnectTcp(Message.Negotiation.Parameters param)
         {
             // Create a new TCP client
             Connection.Tcp connection = new Connection.Tcp(this, param, DisconnectionHandler, new TcpClient());
 
-			if(is_monitor)
-			{
-				monitor = connection;
-			}
-			else
+			if(param.guid != Guid.Empty)
 			{
 				lock(initializedConnections)
 				{
@@ -249,7 +311,8 @@ namespace CLARTE.Net.Negotiation
 				{
 					Message.Negotiation.New n = (Message.Negotiation.New) msg;
 
-					Guid remote = n.guid;
+					connection.Parameters.guid = n.guid;
+
 					ushort nb_channels = n.nbChannels;
 
 					if(nb_channels > 0)
@@ -260,14 +323,17 @@ namespace CLARTE.Net.Negotiation
 							{
 								Message.Negotiation.Parameters param = (Message.Negotiation.Parameters) msg;
 
-								switch(param.type)
+								if(!Ready(param.guid, param.channel))
 								{
-									case Channel.Type.TCP:
-										ConnectTcp(param);
-										break;
-									case Channel.Type.UDP:
-										ConnectUdp(connection, param);
-										break;
+									switch(param.type)
+									{
+										case Channel.Type.TCP:
+											ConnectTcp(param);
+											break;
+										case Channel.Type.UDP:
+											ConnectUdp(connection, param);
+											break;
+									}
 								}
 							}
 							else
@@ -275,6 +341,8 @@ namespace CLARTE.Net.Negotiation
 								Drop(connection, "Expected to receive channel parameterts for channel {0}.", i);
 							}
 						}
+
+						SaveMonitor(connection);
 
 						state = State.RUNNING;
 					}
@@ -359,21 +427,15 @@ namespace CLARTE.Net.Negotiation
 
 		protected void ConnectUdp(Connection.Tcp connection, Message.Negotiation.Parameters param)
 		{
-			UdpConnectionParams udp_param = SendUdpParams(connection, param);
+			UdpConnectionParams udp_params = SendUdpParams(connection, param);
 
-			Message.Base resp;
-
-			if(connection.Receive(out resp) && resp.IsType<Message.Negotiation.Channel.UDP>())
+			lock(pendingUdpConnection)
 			{
-				ConnectUdp(udp_param, (Message.Negotiation.Channel.UDP) resp);
-			}
-			else
-			{
-				Drop(connection, "Expected to receive remote UDP parameters.");
+				pendingUdpConnection.Add(udp_params);
 			}
 		}
-        #endregion
-    }
+		#endregion
+	}
 }
 
 #endif // !NETFX_CORE

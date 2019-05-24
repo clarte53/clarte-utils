@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace CLARTE.Net.Negotiation
 {
-    public class Server : Base<ServerChannel>
+    public class Server : Base<ServerMonitorChannel, ServerChannel>
     {
         #region Members
         public const uint maxSupportedVersion = 1;
@@ -20,7 +20,6 @@ namespace CLARTE.Net.Negotiation
         public uint port;
 
         protected Threads.Thread listenerThread;
-		protected Threads.Thread monitorThread;
 		protected TcpListener listener;
         protected X509Certificate2 serverCertificate;
         protected ManualResetEvent stopEvent;
@@ -45,18 +44,11 @@ namespace CLARTE.Net.Negotiation
 
                     CloseOpenedChannels();
 
-					bool has_monitor = (monitor != null);
-
 					CloseMonitor();
 
 					listenerThread.Join();
 
-					if(has_monitor)
-					{
-						monitorThread.Join();
-					}
-
-                    stopEvent.Close();
+					stopEvent.Close();
                 }
 
                 // TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
@@ -70,7 +62,35 @@ namespace CLARTE.Net.Negotiation
 		#region Base implementation
 		protected override void Reconnect(Connection.Base connection)
 		{
-			
+			if(connection == monitor)
+			{
+				CloseMonitor();
+			}
+		}
+
+		protected override void OnMonitorReceive(IPAddress address, Guid guid, ushort channel, byte[] data)
+		{
+			Message.Base msg = ReceiveMonitorCommand(data);
+
+			if(msg.IsType<Message.Negotiation.Channel.UDP>())
+			{
+				Message.Negotiation.Channel.UDP response = (Message.Negotiation.Channel.UDP) msg;
+
+				ServerChannel channel_parameters = channels[response.channel];
+
+				Message.Negotiation.Parameters param = new Message.Negotiation.Parameters
+				{
+					guid = response.guid,
+					channel = response.channel,
+					type = channel_parameters.type,
+					heartbeat = channel_parameters.parameters.Heartbeat,
+					autoReconnect = !channel_parameters.parameters.disableAutoReconnect
+				};
+
+				UdpConnectionParams udp_param = SendUdpParams(monitor, param);
+
+				ConnectUdp(udp_param, response);
+			}
 		}
 		#endregion
 
@@ -113,8 +133,6 @@ namespace CLARTE.Net.Negotiation
                 File.Delete(tmp_file);
             }
 
-			monitorThread = new Threads.Thread(MonitorWorker);
-
 			listener = new TcpListener(IPAddress.Any, (int) port);
             listener.Start();
 
@@ -134,10 +152,10 @@ namespace CLARTE.Net.Negotiation
             {
                 foreach(ServerChannel channel in channels)
                 {
-                    if(!channel.disableHeartbeat && channel.heartbeat == 0)
+                    if(!channel.parameters.disableHeartbeat && channel.parameters.heartbeat == 0)
                     {
                         channel.type = Channel.Type.TCP;
-                        channel.heartbeat = 2f;
+                        channel.parameters.heartbeat = 2f;
                     }
                 }
             }
@@ -169,9 +187,9 @@ namespace CLARTE.Net.Negotiation
 					Message.Negotiation.Parameters param = new Message.Negotiation.Parameters
 					{
 						guid = Guid.Empty,
-						channel = 0,
-						heartbeat = defaultHeartbeat,
-						autoReconnect = false
+						channel = ushort.MaxValue,
+						heartbeat = negotiation.parameters.Heartbeat,
+						autoReconnect = !negotiation.parameters.disableAutoReconnect
 					};
 
                     // Get the new connection
@@ -320,10 +338,14 @@ namespace CLARTE.Net.Negotiation
 			{
 				if(msg.IsType<Message.Negotiation.Start>())
 				{
+					connection.Parameters.guid = Guid.NewGuid();
+
+					SaveMonitor(connection);
+
 					// Send a new Guid for these connections and the number of associated channels
 					Message.Negotiation.New n = new Message.Negotiation.New
 					{
-						guid = Guid.NewGuid(),
+						guid = connection.Parameters.guid,
 						nbChannels = (ushort) Math.Min(channels != null ? channels.Count : 0, ushort.MaxValue)
 					};
 
@@ -343,25 +365,18 @@ namespace CLARTE.Net.Negotiation
 							guid = n.guid,
 							channel = i,
 							type = channel.type,
-							heartbeat = channel.Heartbeat,
-							autoReconnect = !channel.disableAutoReconnect
+							heartbeat = channel.parameters.Heartbeat,
+							autoReconnect = !channel.parameters.disableAutoReconnect
 						};
 
 						connection.Send(param);
-					}
-
-					if(monitor == null)
-					{
-						monitor = connection;
-
-						monitorThread.Start();
 					}
 				}
 				else if(msg.IsType<Message.Negotiation.Channel.TCP>())
 				{
 					Message.Negotiation.Channel.TCP tcp = (Message.Negotiation.Channel.TCP) msg;
 
-					connection.SetConfig(tcp.guid, tcp.channel, channels[tcp.channel].Heartbeat);
+					connection.SetConfig(tcp.guid, tcp.channel, channels[tcp.channel].parameters.Heartbeat);
 
 					SaveChannel(connection);
 				}
@@ -375,37 +390,6 @@ namespace CLARTE.Net.Negotiation
 				Drop(connection, "Expected to receive some negotiation command.");
 			}
         }
-
-		protected void MonitorWorker()
-		{
-			while(state < State.CLOSING && !stopEvent.WaitOne(0))
-			{
-				Message.Base msg;
-
-				if(monitor.Receive(out msg))
-				{
-					if(msg.IsType<Message.Negotiation.Channel.UDP>())
-					{
-						Message.Negotiation.Channel.UDP response = (Message.Negotiation.Channel.UDP) msg;
-
-						ServerChannel channel = channels[response.channel];
-
-						Message.Negotiation.Parameters param = new Message.Negotiation.Parameters
-						{
-							guid = response.guid,
-							channel = response.channel,
-							type = channel.type,
-							heartbeat = channel.Heartbeat,
-							autoReconnect = !channel.disableAutoReconnect
-						};
-
-						UdpConnectionParams udp_param = SendUdpParams(monitor, param);
-
-						ConnectUdp(udp_param, response);
-					}
-				}
-			}
-		}
         #endregion
     }
 }

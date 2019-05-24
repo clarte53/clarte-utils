@@ -6,31 +6,12 @@ using UnityEngine.Events;
 
 namespace CLARTE.Net.Negotiation
 {
-    [Serializable]
-    public class Channel
-    {
-        public enum Type : ushort
-        {
-            TCP,
-            UDP,
-        }
-
-        #region Members
-        public Events.ConnectionCallback onConnected;
-        public Events.DisconnectionCallback onDisconnected;
-		public Events.ExceptionCallback onException;
-		public Events.ReceiveCallback onReceive;
-        public Events.ReceiveProgressCallback onReceiveProgress;
-        #endregion
-    }
-
-    [Serializable]
-    public class ServerChannel : Channel
+	[Serializable]
+	public class ChannelParameters
 	{
-        #region Members
-        public Type type;
-        [Range(0.1f, 300f)]
-        public float heartbeat; // In seconds
+		#region Members
+		[Range(0.1f, 300f)]
+		public float heartbeat; // In seconds
 		public bool disableHeartbeat;
 		public bool disableAutoReconnect;
 		#endregion
@@ -50,6 +31,54 @@ namespace CLARTE.Net.Negotiation
 				}
 			}
 		}
+		#endregion
+	}
+
+	[Serializable]
+    public class BaseChannel
+    {
+        #region Members
+        public Events.ConnectionCallback onConnected;
+        public Events.DisconnectionCallback onDisconnected;
+		public Events.ExceptionCallback onException;
+        #endregion
+    }
+
+	[Serializable]
+	public class Channel : BaseChannel
+	{
+		public enum Type : ushort
+		{
+			TCP,
+			UDP,
+		}
+
+		#region Members
+		public Events.ReceiveCallback onReceive;
+		public Events.ReceiveProgressCallback onReceiveProgress;
+		#endregion
+	}
+
+	[Serializable]
+	public class MonitorChannel : BaseChannel
+	{
+
+	}
+
+	[Serializable]
+	public class ServerMonitorChannel : MonitorChannel
+	{
+		#region Members
+		public ChannelParameters parameters;
+		#endregion
+	}
+
+	[Serializable]
+    public class ServerChannel : Channel
+	{
+		#region Members
+		public Type type;
+		public ChannelParameters parameters;
 		#endregion
 	}
 }
