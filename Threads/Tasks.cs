@@ -44,6 +44,14 @@ namespace CLARTE.Threads
 		{
 			return threads.AddTask(task);
 		}
-		#endregion
-	}
+
+        /// <summary>
+        /// Get the number of tasks currentlty planned or executing.
+        /// </summary>
+        /// <returns>The number of tasks.</returns>
+        public static long TaskCount() {
+            return threads.TaskCount();
+        }
+        #endregion
+    }
 }
