@@ -620,7 +620,7 @@ namespace CLARTE.Serialization
 
 		#region Public serialization methods
 		/// <summary>
-		/// Serialize an object to a file.
+		/// Serialize an object to a file asynchronously.
 		/// </summary>
 		/// <param name="value">The value to serialize.</param>
 		/// <param name="filename">The name of the file where to save the serialized data.</param>
@@ -652,7 +652,7 @@ namespace CLARTE.Serialization
 		}
 
 		/// <summary>
-		/// Serialize an object to a byte array.
+		/// Serialize an object to a byte array asynchronously.
 		/// </summary>
 		/// <param name="value">The value to serialize.</param>
 		/// <param name="callback">A callback called once the data is serialized to get the result byte array and serialized size.</param>
@@ -704,7 +704,44 @@ namespace CLARTE.Serialization
 		}
 
 		/// <summary>
-		/// Deserialize an object from a file
+		/// Serialize an object to a byte array synchronously.
+		/// </summary>
+		/// <param name="value">The value to serialize.</param>
+		/// <param name="default_buffer_size">The default size to use for serialization buffer.</param>
+		/// <returns>The serialized data.</returns>
+		public byte[] Serialize(object value, uint default_buffer_size = defaultSerializationBufferSize)
+		{
+			byte[] result = null;
+
+			Buffer buffer = null;
+		
+			try
+			{
+				buffer = GetBuffer(default_buffer_size);
+
+				uint written = ToBytes(ref buffer, 0, value);
+
+				result = new byte[written];
+
+				Array.Copy(buffer.Data, result, written);
+			}
+			catch(Exception e)
+			{
+				throw new SerializationException("An error occured during serialization.", e);
+			}
+			finally
+			{
+				if(buffer != null)
+				{
+					buffer.Dispose();
+				}
+			}
+
+			return result;
+		}
+
+		/// <summary>
+		/// Deserialize an object from a file asynchronously.
 		/// </summary>
 		/// <param name="filename">The name of the file where to get the deserialized data.</param>
 		/// <param name="callback">A callback to get the deserialized object.</param>
@@ -718,7 +755,7 @@ namespace CLARTE.Serialization
 		}
 
 		/// <summary>
-		/// Deserialize an object from a byte array.
+		/// Deserialize an object from a byte array asynchronously.
 		/// </summary>
 		/// <param name="data">The byte array containing the serialized data.</param>
 		/// <param name="callback">A callback to get the deserialized object.</param>
@@ -761,6 +798,35 @@ namespace CLARTE.Serialization
 			{
 				callback(value);
 			}
+		}
+
+		/// <summary>
+		/// Deserialize an object from a byte array synchronously.
+		/// </summary>
+		/// <param name="data">The byte array containing the serialized data.</param>
+		/// <returns>The deserialized object.</returns>
+		public object Deserialize(byte[] data)
+		{
+			object value = null;
+
+			using(Buffer buffer = GetBufferFromExistingData(data))
+			{
+				try
+				{
+					uint read = FromBytes(buffer, 0, out value);
+
+					if(read != data.Length)
+					{
+						throw new DeserializationException("Not all available data was used.", null);
+					}
+				}
+				catch(Exception e)
+				{
+					throw new DeserializationException("An error occured during deserialization.", e);
+				}
+			}
+
+			return value;
 		}
 		#endregion
 
