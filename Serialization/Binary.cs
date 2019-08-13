@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace CLARTE.Serialization
@@ -669,9 +670,9 @@ namespace CLARTE.Serialization
 
 				buffer = GetBuffer(default_buffer_size, p => progress_percentage = p);
 
-				Threads.Result<uint> result = Threads.Tasks.Add(() => ToBytes(ref buffer, 0, value));
+				Task<uint> result = Task.Run(() => ToBytes(ref buffer, 0, value));
 
-				while(!result.Done)
+				while(!result.IsCompleted)
 				{
 					if(progress != null && DateTime.Now >= time)
 					{
@@ -690,7 +691,7 @@ namespace CLARTE.Serialization
 
 				if(callback != null)
 				{
-					callback(buffer.Data, result.Value);
+					callback(buffer.Data, result.Result);
 				}
 			}
 			finally
@@ -732,9 +733,9 @@ namespace CLARTE.Serialization
 
 			using(Buffer buffer = GetBufferFromExistingData(data, p => progress_percentage = p))
 			{
-				Threads.Result<uint> result = Threads.Tasks.Add(() => FromBytes(buffer, 0, out value));
+				Task<uint> result = Task.Run(() => FromBytes(buffer, 0, out value));
 
-				while(!result.Done)
+				while(!result.IsCompleted)
 				{
 					if(progress != null && DateTime.Now >= time)
 					{
@@ -750,7 +751,7 @@ namespace CLARTE.Serialization
 				{
 					throw new DeserializationException("An error occured during deserialization.", result.Exception);
 				}
-				else if(result.Value != data.Length)
+				else if(result.Result != data.Length)
 				{
 					throw new DeserializationException("Invalid deserialization. Not all available data was used.", null);
 				}
