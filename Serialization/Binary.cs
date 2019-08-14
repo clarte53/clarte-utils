@@ -14,6 +14,22 @@ namespace CLARTE.Serialization
 	public class Binary
 	{
 		/// <summary>
+		/// Delegate used to pass user defined serialization logic.
+		/// </summary>
+		/// <param name="serializer">The serializer to use.</param>
+		/// <param name="buffer">The buffer to use.</param>
+		/// <returns>The number of bytes written.</returns>
+		public delegate uint SerializationCallback(Binary serializer, ref Buffer buffer);
+
+		/// <summary>
+		/// Delegate used to pass user defined deserialization logic.
+		/// </summary>
+		/// <param name="serializer">The serializer to use.</param>
+		/// <param name="buffer">The buffer to use.</param>
+		/// <returns>The number of bytes read.</returns>
+		public delegate uint DeserializationCallback(Binary serializer, Buffer buffer);
+
+		/// <summary>
 		/// The types that are supported natively by the serializer. Other types can be added by implementing IBinarySerializable.
 		/// </summary>
 		public enum SupportedTypes : byte
@@ -83,12 +99,12 @@ namespace CLARTE.Serialization
 			#endregion
 		}
 
-        /// <summary>
-        /// Helper class for compressed data saved as indexed values.
-        /// </summary>
-        /// <remarks>The actual values are automatically saved in the stream, interlaced with the other content.</remarks>
-        /// <typeparam name="T">The type of values to save.</typeparam>
-        public class IDMap<T>
+		/// <summary>
+		/// Helper class for compressed data saved as indexed values.
+		/// </summary>
+		/// <remarks>The actual values are automatically saved in the stream, interlaced with the other content.</remarks>
+		/// <typeparam name="T">The type of values to save.</typeparam>
+		public class IDMap<T>
         {
             #region Members
             protected Binary serializer;
@@ -445,11 +461,59 @@ namespace CLARTE.Serialization
             #endregion
         }
 
-        #region Members
-        /// <summary>
-        /// Serialization buffer of 10 Mo by default.
-        /// </summary>
-        public const uint defaultSerializationBufferSize = 1024 * 1024 * 10;
+		/// <summary>
+		/// Helper struct used for wrapping serialized / deserialized value when using simple one value serialization logic. 
+		/// </summary>
+		protected struct DefaultSerializationCallbacks
+		{
+			#region Members
+			/// <summary>
+			/// The serialized / deserialized value.
+			/// </summary>
+			public object data;
+			#endregion
+
+			#region Constructors
+			/// <summary>
+			/// Constructor.
+			/// </summary>
+			/// <param name="data">The value to serialize.</param>
+			public DefaultSerializationCallbacks(object data)
+			{
+				this.data = data;
+			}
+			#endregion
+
+			#region Public methods
+			/// <summary>
+			/// Callback used to pass simple one value serialization logic.
+			/// </summary>
+			/// <param name="serializer">The serializer to use.</param>
+			/// <param name="buffer">The buffer to use.</param>
+			/// <returns>The number of bytes written.</returns>
+			public uint SerializationCallback(Binary serializer, ref Buffer buffer)
+			{
+				return serializer != null && buffer != null ? serializer.ToBytes(ref buffer, 0, data) : 0;
+			}
+
+			/// <summary>
+			/// Callback used to pass simple one value deserialization logic.
+			/// </summary>
+			/// <param name="serializer">The serializer to use.</param>
+			/// <param name="buffer">The buffer to use.</param>
+			/// <returns>The number of bytes read.</returns>
+			public uint DeserializationCallback(Binary serializer, Buffer buffer)
+			{
+				return serializer.FromBytes(buffer, 0, out data);
+			}
+			#endregion
+		}
+
+		#region Members
+		/// <summary>
+		/// Serialization buffer of 10 Mo by default.
+		/// </summary>
+		public const uint defaultSerializationBufferSize = 1024 * 1024 * 10;
 		public const float minResizeOffset = 0.1f;
 
 		protected const uint nbParameters = 3;
@@ -620,6 +684,38 @@ namespace CLARTE.Serialization
 
 		#region Public serialization methods
 		/// <summary>
+		/// Serialize an object to a file asynchronously, using user defined logic.
+		/// </summary>
+		/// <param name="serialization_callback">The callback used to serialize the data once the context is set.</param>
+		/// <param name="filename">The name of the file where to save the serialized data.</param>
+		/// <param name="callback">A callback called once the data is serialized to know if the serialization was a success.</param>
+		/// <param name="progress">A callback to get progress notifications.</param>
+		/// <param name="default_buffer_size">The default size to use for serialization buffer.</param>
+		/// <returns>An enumerator to wait for the serialization completion.</returns>
+		public IEnumerator Serialize(SerializationCallback serialization_callback, string filename, Action<bool> callback = null, Action<float> progress = null, uint default_buffer_size = defaultSerializationBufferSize)
+		{
+			return Serialize(serialization_callback, (b, s) =>
+			{
+				bool success = false;
+
+				if(b != null && b.Length > 0)
+				{
+					using(System.IO.FileStream fs = System.IO.File.Open(filename, System.IO.FileMode.Create, System.IO.FileAccess.Write, System.IO.FileShare.None))
+					{
+						fs.Write(b, 0, (int) s);
+					}
+
+					success = true;
+				}
+
+				if(callback != null)
+				{
+					callback(success);
+				}
+			}, progress, default_buffer_size);
+		}
+
+		/// <summary>
 		/// Serialize an object to a file asynchronously.
 		/// </summary>
 		/// <param name="value">The value to serialize.</param>
@@ -652,14 +748,14 @@ namespace CLARTE.Serialization
 		}
 
 		/// <summary>
-		/// Serialize an object to a byte array asynchronously.
+		/// Serialize an object to a byte array asynchronously, using user defined logic.
 		/// </summary>
-		/// <param name="value">The value to serialize.</param>
+		/// <param name="serialization_callback">The callback used to serialize the data once the context is set.</param>
 		/// <param name="callback">A callback called once the data is serialized to get the result byte array and serialized size.</param>
 		/// <param name="progress">A callback to get progress notifications.</param>
 		/// <param name="default_buffer_size">The default size to use for serialization buffer.</param>
 		/// <returns>An enumerator to wait for the serialization completion.</returns>
-		public IEnumerator Serialize(object value, Action<byte[], uint> callback, Action<float> progress = null, uint default_buffer_size = defaultSerializationBufferSize)
+		public IEnumerator Serialize(SerializationCallback serialization_callback, Action<byte[], uint> callback, Action<float> progress = null, uint default_buffer_size = defaultSerializationBufferSize)
 		{
 			Buffer buffer = null;
 
@@ -670,7 +766,7 @@ namespace CLARTE.Serialization
 
 				buffer = GetBuffer(default_buffer_size, p => progress_percentage = p);
 
-				Task<uint> result = Task.Run(() => ToBytes(ref buffer, 0, value));
+				Task<uint> result = Task.Run(() => serialization_callback(this, ref buffer));
 
 				while(!result.IsCompleted)
 				{
@@ -704,22 +800,42 @@ namespace CLARTE.Serialization
 		}
 
 		/// <summary>
-		/// Serialize an object to a byte array synchronously.
+		/// Serialize an object to a byte array asynchronously.
 		/// </summary>
 		/// <param name="value">The value to serialize.</param>
+		/// <param name="callback">A callback called once the data is serialized to get the result byte array and serialized size.</param>
+		/// <param name="progress">A callback to get progress notifications.</param>
+		/// <param name="default_buffer_size">The default size to use for serialization buffer.</param>
+		/// <returns>An enumerator to wait for the serialization completion.</returns>
+		public IEnumerator Serialize(object value, Action<byte[], uint> callback, Action<float> progress = null, uint default_buffer_size = defaultSerializationBufferSize)
+		{
+			DefaultSerializationCallbacks context = new DefaultSerializationCallbacks(value);
+
+			IEnumerator it = Serialize(context.SerializationCallback, callback, progress, default_buffer_size);
+
+			while(it.MoveNext())
+			{
+				yield return it.Current;
+			}
+		}
+
+		/// <summary>
+		/// Serialize objects to a byte array synchronously, using user defined logic.
+		/// </summary>
+		/// <param name="serialization_callback">The callback used to serialize the data once the context is set.</param>
 		/// <param name="default_buffer_size">The default size to use for serialization buffer.</param>
 		/// <returns>The serialized data.</returns>
-		public byte[] Serialize(object value, uint default_buffer_size = defaultSerializationBufferSize)
+		public byte[] Serialize(SerializationCallback serialization_callback, uint default_buffer_size = defaultSerializationBufferSize)
 		{
 			byte[] result = null;
 
 			Buffer buffer = null;
-		
+
 			try
 			{
 				buffer = GetBuffer(default_buffer_size);
 
-				uint written = ToBytes(ref buffer, 0, value);
+				uint written = serialization_callback(this, ref buffer);
 
 				result = new byte[written];
 
@@ -741,6 +857,33 @@ namespace CLARTE.Serialization
 		}
 
 		/// <summary>
+		/// Serialize an object to a byte array synchronously.
+		/// </summary>
+		/// <param name="value">The value to serialize.</param>
+		/// <param name="default_buffer_size">The default size to use for serialization buffer.</param>
+		/// <returns>The serialized data.</returns>
+		public byte[] Serialize(object value, uint default_buffer_size = defaultSerializationBufferSize)
+		{
+			DefaultSerializationCallbacks context = new DefaultSerializationCallbacks(value);
+
+			return Serialize(context.SerializationCallback, default_buffer_size);
+		}
+
+		/// <summary>
+		/// Deserialize an object from a file asynchronously, using user defined logic.
+		/// </summary>
+		/// <param name="filename">The name of the file where to get the deserialized data.</param>
+		/// /// <param name="deserialization_callback">The callback used to deserialize the data once the context is set.</param>
+		/// <param name="progress">A callback to get progress notifications.</param>
+		/// <returns>An enumerator to wait for the deserialization completion.</returns>
+		public IEnumerator Deserialize(string filename, DeserializationCallback deserialization_callback, Action<float> progress = null)
+		{
+			byte[] data = System.IO.File.ReadAllBytes(filename);
+
+			return Deserialize(data, deserialization_callback, progress);
+		}
+
+		/// <summary>
 		/// Deserialize an object from a file asynchronously.
 		/// </summary>
 		/// <param name="filename">The name of the file where to get the deserialized data.</param>
@@ -755,22 +898,21 @@ namespace CLARTE.Serialization
 		}
 
 		/// <summary>
-		/// Deserialize an object from a byte array asynchronously.
+		/// Deserialize an object from a byte array asynchronously, using user defined logic.
 		/// </summary>
 		/// <param name="data">The byte array containing the serialized data.</param>
+		/// <param name="deserialization_callback">The callback used to deserialize the data once the context is set.</param>
 		/// <param name="callback">A callback to get the deserialized object.</param>
 		/// <param name="progress">A callback to get progress notifications.</param>
 		/// <returns>An enumerator to wait for the deserialization completion.</returns>
-		public IEnumerator Deserialize(byte[] data, Action<object> callback, Action<float> progress = null)
+		public IEnumerator Deserialize(byte[] data, DeserializationCallback deserialization_callback, Action<float> progress = null)
 		{
-			object value = null;
-
 			DateTime time = DateTime.Now + progressRefresRate;
 			float progress_percentage = 0f;
 
 			using(Buffer buffer = GetBufferFromExistingData(data, p => progress_percentage = p))
 			{
-				Task<uint> result = Task.Run(() => FromBytes(buffer, 0, out value));
+				Task<uint> result = Task.Run(() => deserialization_callback(this, buffer));
 
 				while(!result.IsCompleted)
 				{
@@ -793,27 +935,44 @@ namespace CLARTE.Serialization
 					throw new DeserializationException("Invalid deserialization. Not all available data was used.", null);
 				}
 			}
+		}
+
+		/// <summary>
+		/// Deserialize an object from a byte array asynchronously.
+		/// </summary>
+		/// <param name="data">The byte array containing the serialized data.</param>
+		/// <param name="callback">A callback to get the deserialized object.</param>
+		/// <param name="progress">A callback to get progress notifications.</param>
+		/// <returns>An enumerator to wait for the deserialization completion.</returns>
+		public IEnumerator Deserialize(byte[] data, Action<object> callback, Action<float> progress = null)
+		{
+			DefaultSerializationCallbacks context = new DefaultSerializationCallbacks(data);
+
+			IEnumerator it = Deserialize(data, context.DeserializationCallback, progress);
+
+			while(it.MoveNext())
+			{
+				yield return it.Current;
+			}
 
 			if(callback != null)
 			{
-				callback(value);
+				callback(context.data);
 			}
 		}
 
 		/// <summary>
-		/// Deserialize an object from a byte array synchronously.
+		/// Deserialize an object from a byte array synchronously, using user defined logic.
 		/// </summary>
 		/// <param name="data">The byte array containing the serialized data.</param>
-		/// <returns>The deserialized object.</returns>
-		public object Deserialize(byte[] data)
+		/// <param name="deserialization_callback">The callback used to deserialize the data once the context is set.</param>
+		public void Deserialize(byte[] data, DeserializationCallback deserialization_callback)
 		{
-			object value = null;
-
 			using(Buffer buffer = GetBufferFromExistingData(data))
 			{
 				try
 				{
-					uint read = FromBytes(buffer, 0, out value);
+					uint read = deserialization_callback(this, buffer);
 
 					if(read != data.Length)
 					{
@@ -825,8 +984,20 @@ namespace CLARTE.Serialization
 					throw new DeserializationException("An error occured during deserialization.", e);
 				}
 			}
+		}
 
-			return value;
+		/// <summary>
+		/// Deserialize an object from a byte array synchronously.
+		/// </summary>
+		/// <param name="data">The byte array containing the serialized data.</param>
+		/// <returns>The deserialized object.</returns>
+		public object Deserialize(byte[] data)
+		{
+			DefaultSerializationCallbacks context = new DefaultSerializationCallbacks();
+
+			Deserialize(data, context.DeserializationCallback);
+
+			return context.data;
 		}
 		#endregion
 
