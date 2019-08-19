@@ -14,12 +14,12 @@ The folowing namespaces are defined:
   older versions of the framework.
 - 'Dev' contains tools to help debug and profile applications.
 - 'Geometry' adds classes and extensions methods to extend the capabilities
-  offered by unity in regards to geometrical operations (matricial operations
+  offered by Unity in regard to geometrical operations (matricial operations
   for example), as well as collision detection related things.
 - 'Input' defines helper class to work with unity native API for VR tracking.
 - 'Net' contains classes used for network communication. In particular, it
   defines an HTTP server and client, as well as a multi-channel negotiation
-  protocol for easy networking independant of unity network stack.
+  protocol for easy networking independant of Unity network stack.
 - 'Pattern' provide base implementation for various useful design patterns.
 - 'Serialization' contains all serialization helper class. In particular, it
   defines a custom high performance binary serializer compatible with all
