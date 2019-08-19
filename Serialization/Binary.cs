@@ -464,7 +464,7 @@ namespace CLARTE.Serialization
 		/// <summary>
 		/// Helper struct used for wrapping serialized / deserialized value when using simple one value serialization logic. 
 		/// </summary>
-		protected struct DefaultSerializationCallbacks
+		protected class DefaultSerializationCallbacks
 		{
 			#region Members
 			/// <summary>
@@ -474,6 +474,14 @@ namespace CLARTE.Serialization
 			#endregion
 
 			#region Constructors
+			/// <summary>
+			/// Constructor.
+			/// </summary>
+			public DefaultSerializationCallbacks()
+			{
+				data = null;
+			}
+
 			/// <summary>
 			/// Constructor.
 			/// </summary>
@@ -504,6 +512,8 @@ namespace CLARTE.Serialization
 			/// <returns>The number of bytes read.</returns>
 			public uint DeserializationCallback(Binary serializer, Buffer buffer)
 			{
+				data = null;
+
 				return serializer.FromBytes(buffer, 0, out data);
 			}
 			#endregion
@@ -946,7 +956,7 @@ namespace CLARTE.Serialization
 		/// <returns>An enumerator to wait for the deserialization completion.</returns>
 		public IEnumerator Deserialize(byte[] data, Action<object> callback, Action<float> progress = null)
 		{
-			DefaultSerializationCallbacks context = new DefaultSerializationCallbacks(data);
+			DefaultSerializationCallbacks context = new DefaultSerializationCallbacks();
 
 			IEnumerator it = Deserialize(data, context.DeserializationCallback, progress);
 
