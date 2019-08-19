@@ -200,21 +200,35 @@ namespace CLARTE.Threads
                 }
             }
 
-            // Wait for events to call the worker callback
-            while((event_idx = WaitHandle.WaitAny(wait)) != 0)
-            {
-                descriptor.worker(wait[event_idx]);
-            }
+			try
+			{
+				// Wait for events to call the worker callback
+				while((event_idx = WaitHandle.WaitAny(wait)) != 0)
+				{
+					descriptor.worker(wait[event_idx]);
+				}
+			}
+			catch(ObjectDisposedException)
+			{
+				// Fixed errors in Unity editor
+			}
 
-            // Cleanup of events
-            for(uint i = 1; i < wait.Length; i++)
+			// Cleanup of events
+			for(uint i = 1; i < wait.Length; i++)
             {
+				try
+				{
 #if NETFX_CORE
-                wait[i].Dispose();
+					wait[i].Dispose();
 #else
-                wait[i].Close();
+					wait[i].Close();
 #endif
-            }
+				}
+				catch(ObjectDisposedException)
+				{
+					// Fixed errors in Unity editor
+				}
+			}
         }
         #endregion
     }
