@@ -36,6 +36,8 @@ relative to serialization:
   platform to provide serialized values that could be decoded on any
   platform. For efficiency issues, the values are always stored in the
   little endian form.
+- 'IBinarySerializable' is an interface that objects can implement in
+  order to be serializable using the binary serializer.
 - 'link.xml' contains compilation related configurations to avoid that
   methods and types of the serialization namespace would be striped
   during compilation. Otherwise, compiler could optimize the generated
