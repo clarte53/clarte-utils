@@ -8,7 +8,8 @@ relative to serialization:
   'Serialize' and 'Deserialize', available both in synchronous or
   asynchronous modes. It also provides low level serialization methods
   that can offer more control over the serialization process. This
-  class also contains sub-classes:
+  class is split into multiple partial class in order to make the code
+  base more manageable. It also contains sub-classes:
   - 'Buffer' is an helper type that encapsulate a byte array for the
     serialization / deserialization process. The underlying arrays are
 	managed by the serializer in a pool, reducing the need for memory
