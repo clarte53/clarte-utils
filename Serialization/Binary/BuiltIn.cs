@@ -40,11 +40,18 @@ namespace CLARTE.Serialization
 			{SupportedTypes.DOUBLE, doubleSize},
 			{SupportedTypes.DECIMAL, decimalSize},
 			{SupportedTypes.TYPE, intSize},
-			{SupportedTypes.VECTOR2, 2 * floatSize},
-			{SupportedTypes.VECTOR3, 3 * floatSize},
-			{SupportedTypes.VECTOR4, 4 * floatSize},
-			{SupportedTypes.QUATERNION, 4 * floatSize},
-			{SupportedTypes.COLOR, 4 * byteSize}
+			{SupportedTypes.UNITY_VECTOR2, 2 * floatSize},
+			{SupportedTypes.UNITY_VECTOR3, 3 * floatSize},
+			{SupportedTypes.UNITY_VECTOR4, 4 * floatSize},
+			{SupportedTypes.UNITY_QUATERNION, 4 * floatSize},
+			{SupportedTypes.UNITY_MATRIX4X4, 4 * 4 * floatSize},
+			{SupportedTypes.UNITY_COLOR, 4 * byteSize},
+			{SupportedTypes.UNITY_GRADIENT_COLOR_KEY, floatSize + 4 * byteSize},
+			{SupportedTypes.UNITY_GRADIENT_ALPHA_KEY, 2 * floatSize},
+			{SupportedTypes.UNITY_RECT, 2 * 2 * floatSize},
+			{SupportedTypes.UNITY_RECT_OFFSET, 4 * intSize},
+			{SupportedTypes.UNITY_LAYER_MASK, intSize},
+			{SupportedTypes.UNITY_KEY_FRAME, 6 * floatSize},
 		};
 		#endregion
 
