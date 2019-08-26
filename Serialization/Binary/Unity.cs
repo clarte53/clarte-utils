@@ -390,17 +390,14 @@ namespace CLARTE.Serialization
 		public uint FromBytes(Buffer buffer, uint start, out GUIStyleState value)
 		{
 			Texture2D background;
-			Texture2D[] scaled_backgrounds;
 			Color text_color;
 
 			uint read = FromBytes(buffer, start, out background);
-			read += FromBytes(buffer, start + read, out scaled_backgrounds);
 			read += FromBytes(buffer, start + read, out text_color);
 
 			value = new GUIStyleState();
 
 			value.background = background;
-			value.scaledBackgrounds = scaled_backgrounds;
 			value.textColor = text_color;
 
 			return read;
@@ -759,7 +756,6 @@ namespace CLARTE.Serialization
 		public uint ToBytes(ref Buffer buffer, uint start, GUIStyleState value)
 		{
 			uint written = ToBytes(ref buffer, start, value.background);
-			written += ToBytes(ref buffer, start + written, value.scaledBackgrounds);
 			written += ToBytes(ref buffer, start + written, value.textColor);
 
 			return written;
