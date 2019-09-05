@@ -1,56 +1,120 @@
 ﻿using System;
 using System.Threading;
 
-namespace CLARTE.Threads.DataFlow {
-    public class DataWorker<InputType, OutputType>: IDataProvider<OutputType> where InputType: ICloneable {
-        public event ProvideDataDelegate<OutputType> ProvideDataEvent;
-        public WorkOnDataDelegate<InputType, OutputType> WorkOnData;
-        public int millisecondsTimeout = 1000;
+namespace CLARTE.Threads.DataFlow
+{
+	/// <summary>
+	/// Class that transform some input data into output data.
+	/// </summary>
+	/// <typeparam name="InputType">The type of input data.</typeparam>
+	/// <typeparam name="OutputType">The type of output data.</typeparam>
+	public class DataWorker<InputType, OutputType>: IDataProvider<OutputType> where InputType: ICloneable
+	{
+		#region Members
+		/// <summary>
+		/// Delegate used to provides output data.
+		/// </summary>
+		public event ProvideDataDelegate<OutputType> ProvideDataEvent;
 
-        public bool HasException { get { return exception != null; } }
+		/// <summary>
+		/// Delegate to transform data.
+		/// </summary>
+        public WorkOnDataDelegate<InputType, OutputType> WorkOnData;
+
+		/// <summary>
+		/// Timeout used to raise exception if no data have been received in a given amount of time.
+		/// </summary>
+        public int millisecondsTimeout = 1000;
 
         private InputType inputData;
         private Exception exception;
         private Barrier barrier;
-
         private AutoResetEvent enqueue = new AutoResetEvent(true);
+		#endregion
 
-        public void RegisterBarrier(Barrier barrier) {
-            if (this.barrier != null) {
+		#region Getters / Setters
+		/// <summary>
+		/// Check if one exception was raised.
+		/// </summary>
+		public bool HasException
+		{
+			get
+			{
+				return exception != null;
+			}
+		}
+		#endregion
+
+		#region Public methods
+		/// <summary>
+		/// Register this worker to wait at a given barrier.
+		/// </summary>
+		/// <param name="barrier">The barrier to wait at.</param>
+		public void RegisterBarrier(Barrier barrier)
+		{
+            if (this.barrier != null)
+			{
                 this.barrier.RemoveParticipant();
             }
+
             this.barrier = barrier;
             this.barrier.AddParticipant();
         }
 
-        public void EnqeueTask(InputType data, bool clone) {
+		/// <summary>
+		/// ProvideDataDelegate implementation to clone data and start transformation on it.
+		/// </summary>
+		/// <param name="data">The data to work on.</param>
+		/// <param name="clone">True if the data must be cloned, false otherwise.</param>
+		public void EnqeueTask(InputType data, bool clone)
+		{
             inputData = clone ? (InputType)data.Clone() : data;
-            if (!enqueue.WaitOne(millisecondsTimeout)) {
+
+            if (!enqueue.WaitOne(millisecondsTimeout))
+			{
                 throw new TimeoutException(string.Format("ConsumeData is too long, new data is waiting for {0} milliseconds.", millisecondsTimeout));
             }
-            if (barrier != null && !barrier.SignalAndWait(millisecondsTimeout)) {
+
+            if (barrier != null && !barrier.SignalAndWait(millisecondsTimeout))
+			{
                 throw new TimeoutException(string.Format("A barrier participant is too long, new data is waiting for {0} milliseconds.", millisecondsTimeout));
             }
-            Tasks.Add(new Action(asyncWork));
+
+            Tasks.Add(AsyncWork);
         }
 
-        public void Throw() {
-            if (exception != null) {
-                throw new Exception("Exception Occurs", exception);
+		/// <summary>
+		/// Rethrow a received exception.
+		/// </summary>
+        public void Throw()
+		{
+            if (exception != null)
+			{
+                throw new Exception("Exception occurred", exception);
             }
         }
+		#endregion
 
-        private void asyncWork() {
-            try {
+		#region Internal methods
+		private void AsyncWork()
+		{
+            try
+			{
                 OutputType data = WorkOnData(inputData);
-                if (ProvideDataEvent != null) {
+
+                if (ProvideDataEvent != null)
+				{
                     bool clone = ProvideDataEvent.GetInvocationList().Length > 1;
+
                     ProvideDataEvent.Invoke(data, clone);
                 }
-            } catch (Exception ex) {
+            } catch (Exception ex)
+			{
                 exception = ex;
             }
+
             enqueue.Set();
         }
-    }
+		#endregion
+	}
 }

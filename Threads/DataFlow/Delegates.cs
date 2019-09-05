@@ -1,4 +1,5 @@
-﻿namespace CLARTE.Threads.DataFlow {
+﻿namespace CLARTE.Threads.DataFlow
+{
 	#region Delegates
 	/// <summary>
 	/// Delegate for functions providing data to the flow.
@@ -38,7 +39,8 @@
 	/// Interface for data providers.
 	/// </summary>
 	/// <typeparam name="OutputType">The type of provided data.</typeparam>
-	public interface IDataProvider<OutputType> {
+	public interface IDataProvider<OutputType>
+	{
 		/// <summary>
 		/// The list of registered output receivers for this provider.
 		/// </summary>
@@ -49,7 +51,8 @@
 	/// Interface for data providers based on Unity MonoBehaviours.
 	/// </summary>
 	/// <typeparam name="OuptputType">The type of provided data.</typeparam>
-	public interface IMonoBehaviourDataProvider<OuptputType> {
+	public interface IMonoBehaviourDataProvider<OuptputType>
+	{
 		/// <summary>
 		/// Getter for associated IDataProvider.
 		/// </summary>

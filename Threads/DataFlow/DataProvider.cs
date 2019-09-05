@@ -1,45 +1,102 @@
-﻿using CLARTE.Threads;
-using System;
+﻿using System;
 
-namespace CLARTE.Threads.DataFlow {
-    public class DataProvider<OutputType>: IDataProvider<OutputType> {
-        public event ProvideDataDelegate<OutputType> ProvideDataEvent;
-        public CreateDataDelegate<OutputType> CreateData;
+namespace CLARTE.Threads.DataFlow
+{
+	/// <summary>
+	/// Class that provide some data.
+	/// </summary>
+	/// <typeparam name="OutputType">The type of provided data.</typeparam>
+    public class DataProvider<OutputType>: IDataProvider<OutputType>
+	{
+		#region Members
+		/// <summary>
+		/// Delegate used to provides output data.
+		/// </summary>
+		public event ProvideDataDelegate<OutputType> ProvideDataEvent;
 
-        public bool Running { get; private set; } = false;
-        public bool HasException { get { return exception != null; } }
+		/// <summary>
+		/// Delegate used to get some data.
+		/// </summary>
+		public CreateDataDelegate<OutputType> CreateData;
 
         private Thread thread;
         private Exception exception;
+		#endregion
 
-        public virtual void Start() {
+		#region Getters / Setters
+		/// <summary>
+		/// Check if the provider is running.
+		/// </summary>
+		public bool Running
+		{
+			get;
+			private set;
+		} = false;
+
+		/// <summary>
+		/// Check if one exception was raised.
+		/// </summary>
+		public bool HasException
+		{
+			get
+			{
+				return exception != null;
+			}
+		}
+		#endregion
+
+		#region Public methods
+		/// <summary>
+		/// Start the provider.
+		/// </summary>
+		public virtual void Start()
+		{
             exception = null;
-            thread = new Thread(new Action(threadedDataProvider));
+
+            thread = new Thread(new Action(ThreadedDataProvider));
+
             thread.Start();
         }
 
-        public virtual void Stop() {
+		/// <summary>
+		/// Stop the provider.
+		/// </summary>
+        public virtual void Stop()
+		{
             Running = false;
+
             thread.Join();
-            if (exception != null) {
-                throw new Exception("Exception Occurs", exception);
+
+            if (exception != null)
+			{
+                throw new Exception("Exception occurred", exception);
             }
         }
+		#endregion
 
-        private void threadedDataProvider() {
-            try {
+		#region Internal methods
+		private void ThreadedDataProvider()
+		{
+            try
+			{
                 Running = true;
-                while (Running) {
+
+                while (Running)
+				{
                     OutputType data = CreateData();
-                    if (ProvideDataEvent != null) {
+
+                    if (ProvideDataEvent != null)
+					{
                         bool clone = ProvideDataEvent.GetInvocationList().Length > 1;
+
                         ProvideDataEvent.Invoke(data, clone);
                     }
                 }
-            } catch (Exception ex) {
+            } catch (Exception ex)
+			{
                 exception = ex;
             }
         }
-
-    }
+		#endregion
+	}
 }
