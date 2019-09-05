@@ -7,6 +7,9 @@ The 'Threads' namespace contains the following tools:
   It allows execution from other threads to call Unity methods
   asynchronously by moving back execution temporarily into the
   Unity main thread.
+- DataFlow is a asynchronous pipeline framework for data
+  transformation. It provides tools for efficient creation of
+  complex pipelines, with multiplexing and barriers.
 - 'Pool' is a thread pool that can be used for applications
   requiring efficient parallel tasks.
 - 'Result' defines futures. They can be used to be notified of
