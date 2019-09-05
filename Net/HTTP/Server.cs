@@ -6,6 +6,7 @@ using System.IO;
 using System.Net;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace CLARTE.Net.HTTP
@@ -138,7 +139,7 @@ namespace CLARTE.Net.HTTP
             {
                 HttpListenerContext context = listener.EndGetContext(async_result);
 
-                Threads.Tasks.Add(() => Respond(context));
+				Parallel.Invoke(() => Respond(context));
             }
             catch(Exception exception)
             {
@@ -193,8 +194,8 @@ namespace CLARTE.Net.HTTP
                         // Call unity callback in main unity thread
                         Response res = callback(parameters);
 
-                        // Send response back to the client in another thread
-                        Threads.Tasks.Add(() =>
+						// Send response back to the client in another thread
+						Parallel.Invoke(() =>
                         {
                             response.ContentType = res.mimeType;
                             response.ContentEncoding = Encoding.UTF8;
