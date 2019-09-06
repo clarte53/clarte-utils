@@ -53,7 +53,7 @@ namespace CLARTE.Threads.DataFlow
 		{
             exception = null;
 
-            thread = new Thread(new Action(ThreadedDataProvider));
+            thread = new Thread(ThreadedDataProvider);
 
             thread.Start();
         }
