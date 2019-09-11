@@ -61,21 +61,21 @@ namespace CLARTE.Threads.DataFlow
 		/// <summary>
 		/// Stop the provider.
 		/// </summary>
-        public virtual void Stop()
+        public virtual void Stop(bool join = true)
 		{
             Running = false;
 
-            thread.Join();
-
-            if (exception != null)
-			{
-                throw new Exception("Exception occurred", exception);
+            if (join) {
+                thread.Join();
+                if (exception != null) {
+                    throw new Exception("Exception occurred", exception);
+                }
             }
         }
-		#endregion
+        #endregion
 
-		#region Internal methods
-		private void ThreadedDataProvider()
+        #region Internal methods
+        private void ThreadedDataProvider()
 		{
             try
 			{
