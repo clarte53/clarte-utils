@@ -61,6 +61,7 @@ namespace CLARTE.Threads.DataFlow
 		/// <summary>
 		/// Stop the provider.
 		/// </summary>
+		/// <param name="join">Should function join the thread (waiting the end of the thread).</param>
         public virtual void Stop(bool join = true)
 		{
             Running = false;
