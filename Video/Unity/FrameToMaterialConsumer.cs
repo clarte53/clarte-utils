@@ -4,7 +4,7 @@ using UnityEngine;
 namespace CLARTE.Video {
 
     public class FrameToMaterialConsumer: DataConsumer<Frame> {
-        [SerializeField] private Material FrameDropMaterial;
+        public Material FrameDropMaterial;
 
         protected Texture2D frameDropTexture;
         protected bool available = false;
