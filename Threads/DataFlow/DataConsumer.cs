@@ -62,7 +62,7 @@ namespace CLARTE.Threads.DataFlow
 		/// <param name="clone">True if the data must be cloned, false otherwise.</param>
 		public void EnqeueTask(InputType data, bool clone)
 		{
-            inputData = clone ? (InputType)data.Clone() : data;
+            inputData = clone && data != null ? (InputType)data.Clone() : data;
 
             if (! enqueue.WaitOne(millisecondsTimeout))
 			{
