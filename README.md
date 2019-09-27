@@ -2,7 +2,7 @@ Clarte Utils
 ===============
 
 This repository contains shared utility code. It only defines independent and
-reusable class / modules intended to be used in many projects.
+reusable classes / modules intended to be used in many projects.
 
 Content
 ===============
@@ -20,7 +20,7 @@ The folowing namespaces are defined:
 - 'Net' contains classes used for network communication. In particular, it
   defines an HTTP server and client, as well as a multi-channel negotiation
   protocol for easy networking independant of Unity network stack.
-- 'Pattern' provide base implementation for various useful design patterns.
+- 'Pattern' provides base implementation for various useful design patterns.
 - 'Serialization' contains all serialization helper class. In particular, it
   defines a custom high performance binary serializer compatible with all
   platforms (including hololens).
@@ -48,7 +48,7 @@ The guidelines for the authorized code are the following:
   polluting types with unwanted extensions methods.
 - Code should not use Debug.Log functions. Errors should be returned explicitly
   by every functions. Users should have the possibility to choose what is
-  logged, including severity and message formating.
+  logged, including severity and message formatting.
 - Commented code. In particular, each public class or method must have
   comments following the C# XML conventions :
   https://docs.microsoft.com/en-us/dotnet/csharp/programming-guide/xmldoc/xml-documentation-comments
