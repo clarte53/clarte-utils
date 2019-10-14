@@ -94,5 +94,45 @@ namespace CLARTE.Dev.Profiling
 				UnityEngine.Debug.LogWarning("Profiler not found (" + label + ")");
 			}
 		}
+		
+		/// <summary>
+		/// Display total duration for every profiling probe
+		/// </summary>
+		static public void DisplayAllTotals()
+		{
+			if(durations != null)
+			{
+				foreach(string label in durations.Keys)
+				{
+					DisplayTotal(label);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Display total duration for one specific profiling probe
+		/// </summary>
+		/// <param name="label">Identifier of the probe to be displayed</param>
+		static public void DisplayTotal(string label)
+		{
+			if(durations != null)
+			{
+				if(durations.ContainsKey(label))
+				{
+					double sum = 0.0;
+
+					foreach(double duration in durations[label])
+					{
+						sum += duration;
+					}
+
+					UnityEngine.Debug.Log("Total duration for " + label + ": " + sum + "ms");
+				}
+				else
+				{
+					UnityEngine.Debug.LogWarning("Profiler not found (" + label + ")");
+				}
+			}
+		}
 	}
 }
