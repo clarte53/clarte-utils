@@ -4,7 +4,7 @@ using System;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
+using System.Threading.Tasks;
 using UnityEngine.Events;
 using CLARTE.Serialization;
 
@@ -15,7 +15,7 @@ namespace CLARTE.Net.Negotiation.Connection
 		#region Members
 		protected const ushort headerSize = 5;
 
-		public Threads.IResult initialization;
+		public Task initialization;
         public TcpClient client;
         public Stream stream;
         public uint version;

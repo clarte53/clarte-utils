@@ -7,6 +7,7 @@ using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace CLARTE.Net.Negotiation
@@ -200,7 +201,7 @@ namespace CLARTE.Net.Negotiation
                         initializedConnections.Add(connection);
                     }
 
-                    connection.initialization = Threads.Tasks.Add(() => Connected(connection));
+                    connection.initialization = Task.Run(() => Connected(connection));
                 }
             }
             catch(Exception exception)

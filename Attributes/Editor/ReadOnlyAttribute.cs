@@ -23,7 +23,23 @@ namespace CLARTE.Attributes.Editor
 		}
 	}
 
-	public class ReadOnlyAttribute : PropertyAttribute
+	/// <summary>
+	/// ReadOnlyOnPlay attribute: make a field in the inspector read only when playing, i.e. disabled/greyed out
+	/// Source: https://forum.unity.com/threads/read-only-fields.68976/
+	/// </summary>
+	[CustomPropertyDrawer(typeof(ReadOnlyOnPlayAttribute))]
+	public class ReadOnlyOnPlayDrawer : ReadOnlyDrawer
 	{
+		public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+		{
+			if (Application.isPlaying)
+			{
+				base.OnGUI(position, property, label);
+			}
+			else
+			{
+				EditorGUI.PropertyField(position, property, label, true);
+			}
+		}
 	}
 }

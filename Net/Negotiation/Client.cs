@@ -6,6 +6,7 @@ using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace CLARTE.Net.Negotiation
@@ -175,7 +176,7 @@ namespace CLARTE.Net.Negotiation
 			}
 
             // Start asynchronous connection to server
-            connection.initialization = Threads.Tasks.Add(() => connection.client.BeginConnect(hostname, (int) port, Connected, connection));
+            connection.initialization = Task.Run(() => connection.client.BeginConnect(hostname, (int) port, Connected, connection));
         }
 
         protected void Connected(IAsyncResult async_result)
