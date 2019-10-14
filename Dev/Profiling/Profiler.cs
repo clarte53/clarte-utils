@@ -5,9 +5,9 @@ namespace CLARTE.Dev.Profiling
 {
 	static public class Profiler
     {
-		static private Dictionary<string, List<double>> durations;
+		static private Dictionary<string, List<double>> durations = new Dictionary<string, List<double>>();
 
-		static private Dictionary<string, Stopwatch> chronos;
+		static private Dictionary<string, Stopwatch> chronos = new Dictionary<string, Stopwatch>();
 
 		/// <summary>
 		/// Set the beginning of a profiling probe
@@ -16,19 +16,9 @@ namespace CLARTE.Dev.Profiling
 		/// <param name="label">Identifier of the profiling probe</param>
 		static public void Start(string label)
 		{
-			if (durations == null)
-			{
-				durations = new Dictionary<string, List<double>>();
-			}
-
 			if (!durations.ContainsKey(label))
 			{
 				durations.Add(label, new List<double>());
-			}
-
-			if (chronos == null)
-			{
-				chronos = new Dictionary<string, Stopwatch>();
 			}
 
 			if (!chronos.ContainsKey(label))
@@ -65,7 +55,7 @@ namespace CLARTE.Dev.Profiling
 			}
 			else
 			{
-				UnityEngine.Debug.LogError("Please call StartProfiling before StopProfiling");
+				UnityEngine.Debug.LogWarning("Please call StartProfiling before StopProfiling");
 
 				return 0.0;
 			}
@@ -76,12 +66,9 @@ namespace CLARTE.Dev.Profiling
 		/// </summary>
 		static public void DisplayAllAverages()
 		{
-			if (durations != null)
+			foreach (string label in durations.Keys)
 			{
-				foreach (string label in durations.Keys)
-				{
-					DisplayAverage(label);
-				}
+				DisplayAverage(label);
 			}
 		}
 
@@ -91,23 +78,20 @@ namespace CLARTE.Dev.Profiling
 		/// <param name="label">Identifier of the probe to be displayed</param>
 		static public void DisplayAverage(string label)
 		{
-			if (durations != null)
+			if (durations.ContainsKey(label))
 			{
-				if (durations.ContainsKey(label))
-				{
-					double sum = 0.0;
+				double sum = 0.0;
 
-					foreach (double duration in durations[label])
-					{
-						sum += duration;
-					}
-
-					UnityEngine.Debug.Log("Average duration for " + label + ": " + sum / (double)durations[label].Count + "ms");
-				}
-				else
+				foreach (double duration in durations[label])
 				{
-					UnityEngine.Debug.LogWarning("Profiler not found (" + label + ")");
+					sum += duration;
 				}
+
+				UnityEngine.Debug.Log("Average duration for " + label + ": " + sum / (double)durations[label].Count + "ms");
+			}
+			else
+			{
+				UnityEngine.Debug.LogWarning("Profiler not found (" + label + ")");
 			}
 		}
 	}
