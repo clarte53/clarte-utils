@@ -1,6 +1,6 @@
 ﻿using System;
 using UnityEngine;
-using CLARTE.Geometry.Extensions;
+using CLARTE.Rendering.Extensions;
 
 namespace CLARTE.Video {
     public class InvalidDataFrame: Exception {

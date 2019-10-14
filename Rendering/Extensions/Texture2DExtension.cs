@@ -1,7 +1,7 @@
 ﻿using System;
 using UnityEngine;
 
-namespace CLARTE.Geometry.Extensions {
+namespace CLARTE.Rendering.Extensions {
 
     public class UnknownTextureFormatException: Exception {
         public UnknownTextureFormatException(string message) : base(message) { }
