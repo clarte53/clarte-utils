@@ -72,7 +72,7 @@ namespace CLARTE.Threads.DataFlow.Unity
 				WorkOnData = Work
 			};
 
-			if (DataBarrier != null)
+			if (DataBarrier != null && enabled)
 			{
                 worker.RegisterBarrier(DataBarrier.barrier);
             }

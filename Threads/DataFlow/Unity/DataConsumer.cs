@@ -58,7 +58,7 @@ namespace CLARTE.Threads.DataFlow.Unity
 				ConsumeData = ConsumeData
 			};
 
-			if (DataBarrier != null)
+			if (DataBarrier != null && enabled)
 			{
                 consumer.RegisterBarrier(DataBarrier.barrier);
             }
