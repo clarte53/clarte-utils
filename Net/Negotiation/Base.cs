@@ -159,6 +159,7 @@ namespace CLARTE.Net.Negotiation
 						{
 							connections[connection.Channel] = null;
 						}
+						openedChannels.Remove(connection.Remote);
 					}
 				}
 
