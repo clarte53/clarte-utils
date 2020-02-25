@@ -159,6 +159,7 @@ namespace CLARTE.Net.Negotiation
 						{
 							connections[connection.Channel] = null;
 						}
+						openedChannels.Remove(connection.Remote);
 					}
 				}
 
@@ -235,7 +236,7 @@ namespace CLARTE.Net.Negotiation
 
         protected void OnDestroy()
         {
-            Close();
+            Dispose(true);
         }
 
         protected virtual void OnValidate()
@@ -367,11 +368,6 @@ namespace CLARTE.Net.Negotiation
         public void SendAll(ushort channel, byte[] data)
         {
             SendOthers(Guid.Empty, channel, data);
-        }
-
-        public void Close()
-        {
-            Dispose(true);
         }
 
 		protected void ReservePort(ushort port)

@@ -7,7 +7,8 @@ namespace CLARTE.Input
     public abstract class Tracker : MonoBehaviour
     {
         #region Members
-        [SerializeField] bool ShowNodes = false;
+        public bool ShowNodes = false;
+        public bool InverseTransform = false;
         protected List<XRNodeState> nodes;
         protected XRNode currentType;
         protected ulong uniqueID;
@@ -36,6 +37,11 @@ namespace CLARTE.Input
                 EnableComponents(tracked);
             }
         }
+
+        public ulong UniqueID
+        {
+            get { return uniqueID; }
+        }
         #endregion
 
         #region MonoBehaviour callbacks
@@ -60,7 +66,7 @@ namespace CLARTE.Input
             if (ShowNodes) {
                 string log = "Devices:";
                 foreach (XRNodeState nd in nodes) {
-                    log += "\n" + nd.nodeType + " " + nd.uniqueID;
+                    log += "\n" + nd.nodeType + " " + nd.uniqueID + " '" + InputTracking.GetNodeName(nd.uniqueID)+"'";
                 }
                 Debug.Log(log);
                 ShowNodes = false;
@@ -91,17 +97,28 @@ namespace CLARTE.Input
                             Vector3 pos;
                             Quaternion rot;
 
-                            if(node.TryGetPosition(out pos))
+                            if (node.TryGetPosition(out pos))
                             {
-                                transform.position = pos;
-                            }
-
-                            if(node.TryGetRotation(out rot))
-                            {
-                                transform.rotation = rot;
+                                if (node.TryGetRotation(out rot))
+                                {
+                                    if (InverseTransform)
+                                    {
+                                        rot = Quaternion.Inverse(rot);
+                                        pos = rot * -pos;
+                                    }
+                                    transform.localRotation = rot;
+                                    transform.localPosition = pos;
+                                }
+                                else
+                                {
+                                    if (InverseTransform)
+                                    {
+                                        pos = -pos;
+                                    }
+                                    transform.localPosition = pos;
+                                }
                             }
                         }
-
                         break;
                     }
                 }

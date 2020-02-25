@@ -41,10 +41,9 @@ namespace CLARTE.Net.Negotiation
                 {
                     // TODO: delete managed state (managed objects).
 
-                    CloseInitializedConnections();
+                    Disconnect();
 
                     CloseOpenedChannels();
-
 					CloseMonitor();
 
 					lock(pendingUdpConnection)
@@ -159,6 +158,16 @@ namespace CLARTE.Net.Negotiation
                 Debug.LogErrorFormat("Invalid connection attempt to server when in state {0}.", state);
             }
         }
+
+        public void Disconnect()
+        {
+            if (state == State.RUNNING)
+            {
+                CloseInitializedConnections();
+                state = State.STARTED;
+            }
+        }
+
         #endregion
 
         #region Connection methods
