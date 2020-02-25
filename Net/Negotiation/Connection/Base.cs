@@ -8,8 +8,8 @@ using UnityEngine.Events;
 
 namespace CLARTE.Net.Negotiation.Connection
 {
-    public abstract class Base : IDisposable
-    {
+	public abstract class Base : IDisposable
+	{
 		protected class ChannelEvents : Channel
 		{
 			public class DisonnectionHandlerCallback : UnityEvent<Connection.Base>
@@ -23,66 +23,66 @@ namespace CLARTE.Net.Negotiation.Connection
 		}
 
 		protected struct SendState
-        {
-            public Threads.Result result;
-            public byte[] data;
-        }
+		{
+			public Threads.Result result;
+			public byte[] data;
+		}
 
-        protected struct ReceiveState
-        {
-            public IPEndPoint ip;
-            public byte[] data;
-            public int offset;
+		protected struct ReceiveState
+		{
+			public IPEndPoint ip;
+			public byte[] data;
+			public int offset;
 
-            public ReceiveState(IPEndPoint ip)
-            {
-                this.ip = ip;
+			public ReceiveState(IPEndPoint ip)
+			{
+				this.ip = ip;
 
-                data = null;
-                offset = 0;
-            }
+				data = null;
+				offset = 0;
+			}
 
-            public void Set(byte[] data)
-            {
-                this.data = data;
+			public void Set(byte[] data)
+			{
+				this.data = data;
 
-                offset = 0;
-            }
+				offset = 0;
+			}
 
-            public int MissingDataLength
-            {
-                get
-                {
-                    return data != null ? data.Length - offset : 0;
-                }
-            }
-        }
+			public int MissingDataLength
+			{
+				get
+				{
+					return data != null ? data.Length - offset : 0;
+				}
+			}
+		}
 
 		#region Members
 		protected Negotiation.Base parent;
 		protected Message.Negotiation.Parameters parameters;
 		protected IPAddress address;
 		protected ChannelEvents events;
-        protected ManualResetEvent stopEvent;
-        protected ManualResetEvent addEvent;
-        protected Threads.Thread worker;
-        protected Threads.Result sendResult;
-        protected Queue<Threads.Task> sendQueue;
-        protected bool listen;
-        private bool disposed;
+		protected ManualResetEvent stopEvent;
+		protected ManualResetEvent addEvent;
+		protected Threads.Thread worker;
+		protected Threads.Result sendResult;
+		protected Queue<Threads.Task> sendQueue;
+		protected bool listen;
+		private bool disposed;
 		#endregion
 
 		#region Abstract methods
 		public abstract bool Connected();
 		public abstract IPAddress GetRemoteAddress();
 		protected abstract void DisposeInternal(bool disposing);
-        protected abstract void SendAsync(Threads.Result result, byte[] data);
-        protected abstract void ReceiveAsync();
+		protected abstract void SendAsync(Threads.Result result, byte[] data);
+		protected abstract void ReceiveAsync();
 		#endregion
 
 		#region Constructors
 		public Base(Negotiation.Base parent, Message.Negotiation.Parameters parameters, UnityAction<Base> disconnection_handler)
-        {
+		{
 			this.parent = parent;
 			this.parameters = parameters;
 
@@ -92,13 +92,13 @@ namespace CLARTE.Net.Negotiation.Connection
 
 			sendResult = null;
 
-            sendQueue = new Queue<Threads.Task>();
+			sendQueue = new Queue<Threads.Task>();
 
-            stopEvent = new ManualResetEvent(false);
-            addEvent = new ManualResetEvent(false);
+			stopEvent = new ManualResetEvent(false);
+			addEvent = new ManualResetEvent(false);
 
-            worker = new Threads.Thread(Worker);
-        }
+			worker = new Threads.Thread(Worker);
+		}
 		#endregion
 
 		#region Getter / Setter
@@ -119,20 +119,20 @@ namespace CLARTE.Net.Negotiation.Connection
 		}
 
 		public Guid Remote
-        {
-            get
-            {
-                return parameters.guid;
-            }
-        }
+		{
+			get
+			{
+				return parameters.guid;
+			}
+		}
 
-        public ushort Channel
-        {
-            get
-            {
-                return parameters.channel;
-            }
-        }
+		public ushort Channel
+		{
+			get
+			{
+				return parameters.channel;
+			}
+		}
 
 		public TimeSpan Heartbeat
 		{
@@ -153,9 +153,9 @@ namespace CLARTE.Net.Negotiation.Connection
 
 		#region IDisposable implementation
 		protected void Dispose(bool disposing)
-        {
-            if(!disposed)
-            {
+		{
+			if(!disposed)
+			{
 				disposed = true;
 
 				lock(sendQueue)
@@ -163,21 +163,21 @@ namespace CLARTE.Net.Negotiation.Connection
 					sendQueue.Clear();
 				}
 
-                DisposeInternal(disposing);
+				DisposeInternal(disposing);
 
-                if(disposing)
-                {
-                    // TODO: delete managed state (managed objects).
-                    stopEvent.Set();
+				if(disposing)
+				{
+					// TODO: delete managed state (managed objects).
+					stopEvent.Set();
 
-                    if(listen)
-                    {
-                        worker.Join();
-                    }
-                }
+					if(listen)
+					{
+						worker.Join();
+					}
+				}
 
-                // TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
-                // TODO: set fields of large size with null value.
+				// TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
+				// TODO: set fields of large size with null value.
 
 				Threads.APC.MonoBehaviourCall.Instance.Call(() =>
 				{
@@ -192,32 +192,32 @@ namespace CLARTE.Net.Negotiation.Connection
 					}
 				});
 			}
-        }
+		}
 
-        // TODO: replace finalizer only if the above Dispose(bool disposing) function as code to free unmanaged resources.
-        ~Base()
-        {
-            Dispose(/*false*/);
-        }
+		// TODO: replace finalizer only if the above Dispose(bool disposing) function as code to free unmanaged resources.
+		~Base()
+		{
+			Dispose(/*false*/);
+		}
 
-        /// <summary>
-        /// Dispose of the HTTP server.
-        /// </summary>
-        public void Dispose()
-        {
-            // Pass true in dispose method to clean managed resources too and say GC to skip finalize in next line.
-            Dispose(true);
+		/// <summary>
+		/// Dispose of the HTTP server.
+		/// </summary>
+		public void Dispose()
+		{
+			// Pass true in dispose method to clean managed resources too and say GC to skip finalize in next line.
+			Dispose(true);
 
-            // If dispose is called already then say GC to skip finalize on this instance.
-            // TODO: uncomment next line if finalizer is replaced above.
-            GC.SuppressFinalize(this);
-        }
-        #endregion
+			// If dispose is called already then say GC to skip finalize on this instance.
+			// TODO: uncomment next line if finalizer is replaced above.
+			GC.SuppressFinalize(this);
+		}
+		#endregion
 
-        #region Public methods
-        public void SetConfig(Guid remote, ushort channel, TimeSpan heartbeat)
-        {
-            parameters.guid = remote;
+		#region Public methods
+		public void SetConfig(Guid remote, ushort channel, TimeSpan heartbeat)
+		{
+			parameters.guid = remote;
 			parameters.channel = channel;
 			parameters.heartbeat = heartbeat;
 		}
@@ -230,12 +230,12 @@ namespace CLARTE.Net.Negotiation.Connection
 		}
 
 		public void SetEvents(Channel channel)
-        {
+		{
 			SetEvents((BaseChannel) channel);
 
 			events.onReceive = channel.onReceive;
 			events.onReceiveProgress = channel.onReceiveProgress;
-        }
+		}
 
 		public void SetEvents(UnityAction<IPAddress, Guid, ushort, byte[]> on_receive)
 		{
@@ -244,31 +244,31 @@ namespace CLARTE.Net.Negotiation.Connection
 		}
 
 		public void Close()
-        {
+		{
 			if(!disposed)
 			{
 				Dispose();
 			}
-        }
+		}
 
-        public void Listen()
-        {
-            if(!listen)
-            {
-                listen = true;
+		public void Listen()
+		{
+			if(!listen)
+			{
+				listen = true;
 
 				address = GetRemoteAddress();
 
 				ReceiveAsync();
 
-                worker.Start();
+				worker.Start();
 
 				Threads.APC.MonoBehaviourCall.Instance.Call(() => events.onConnected.Invoke(address, parameters.guid, parameters.channel));
 			}
-        }
+		}
 
-        public void SendAsync(byte[] data)
-        {
+		public void SendAsync(byte[] data)
+		{
 			if(!disposed)
 			{
 				lock(sendQueue)
@@ -283,24 +283,24 @@ namespace CLARTE.Net.Negotiation.Connection
 					addEvent.Set();
 				}
 			}
-        }
-        #endregion
+		}
+		#endregion
 
-        #region Helper functions
-        public static void SafeDispose<T>(T value) where T : IDisposable
-        {
-            try
-            {
-                if(value != null)
-                {
-                    value.Dispose();
-                }
-            }
-            catch(ObjectDisposedException)
-            {
-                // Already done
-            }
-        }
+		#region Helper functions
+		public static void SafeDispose<T>(T value) where T : IDisposable
+		{
+			try
+			{
+				if(value != null)
+				{
+					value.Dispose();
+				}
+			}
+			catch(ObjectDisposedException)
+			{
+				// Already done
+			}
+		}
 
 		protected Threads.Result CreateResult()
 		{
@@ -335,21 +335,21 @@ namespace CLARTE.Net.Negotiation.Connection
 				}
 			}
 		}
-        #endregion
+		#endregion
 
-        #region Thread background worker
-        protected void Worker()
-        {
-            WaitHandle[] wait = new WaitHandle[] { stopEvent, addEvent };
+		#region Thread background worker
+		protected void Worker()
+		{
+			WaitHandle[] wait = new WaitHandle[] { stopEvent, addEvent };
 
 			byte[] heartbeat_data = new byte[0];
 
 			int event_idx = 0;
 
-            while((event_idx = WaitHandle.WaitAny(wait, parameters.heartbeat)) != 0)
-            {
-                if(event_idx == WaitHandle.WaitTimeout)
-                {
+			while((event_idx = WaitHandle.WaitAny(wait, parameters.heartbeat)) != 0)
+			{
+				if(event_idx == WaitHandle.WaitTimeout)
+				{
 					// Handle heartbeat
 					if(sendResult == null || sendResult.Done)
 					{
@@ -358,47 +358,47 @@ namespace CLARTE.Net.Negotiation.Connection
 						SendAsync(sendResult, heartbeat_data);
 					}
 				}
-                else
-                {
-                    Threads.Task task = null;
+				else
+				{
+					Threads.Task task = null;
 
-                    lock(addEvent)
-                    {
-                        if(sendResult == null || sendResult.Done)
-                        {
-                            sendResult = null;
+					lock(addEvent)
+					{
+						if(sendResult == null || sendResult.Done)
+						{
+							sendResult = null;
 
-                            lock(sendQueue)
-                            {
-                                if(sendQueue.Count > 0)
-                                {
-                                    task = sendQueue.Dequeue();
-                                }
-                                else
-                                {
-                                    // Nothing to do anymore, go to sleep
-                                    addEvent.Reset();
-                                }
-                            }
-                        }
-                        else
-                        {
-                            // Not done yet, go to sleep
-                            addEvent.Reset();
-                        }
-                    }
+							lock(sendQueue)
+							{
+								if(sendQueue.Count > 0)
+								{
+									task = sendQueue.Dequeue();
+								}
+								else
+								{
+									// Nothing to do anymore, go to sleep
+									addEvent.Reset();
+								}
+							}
+						}
+						else
+						{
+							// Not done yet, go to sleep
+							addEvent.Reset();
+						}
+					}
 
-                    if(task != null)
-                    {
-                        sendResult = (Threads.Result) task.result;
+					if(task != null)
+					{
+						sendResult = (Threads.Result) task.result;
 
-                        task.callback();
-                    }
-                }
-            }
-        }
-        #endregion
-    }
+						task.callback();
+					}
+				}
+			}
+		}
+		#endregion
+	}
 }
 
 #endif // !NETFX_CORE

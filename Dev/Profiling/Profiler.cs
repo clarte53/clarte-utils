@@ -4,7 +4,7 @@ using System.Diagnostics;
 namespace CLARTE.Dev.Profiling
 {
 	static public class Profiler
-    {
+	{
 		static private Dictionary<string, List<double>> durations = new Dictionary<string, List<double>>();
 
 		static private Dictionary<string, Stopwatch> chronos = new Dictionary<string, Stopwatch>();

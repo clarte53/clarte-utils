@@ -26,13 +26,13 @@ namespace CLARTE.UI
 		public float gazeTimeInSeconds = 1.5f;
 		[Range(-1f, 1f)]
 		public float verticalOffset = 0.2f;
-        public bool useTimeBasedClick = true;
-        public bool addPhysicsRaycaster = true;
+		public bool useTimeBasedClick = true;
+		public bool addPhysicsRaycaster = true;
 
-        [Header("Assets")]
-        public Camera eventCamera;
-        public Shader overlayShader;
-        public Sprite crosshair;
+		[Header("Assets")]
+		public Camera eventCamera;
+		public Shader overlayShader;
+		public Sprite crosshair;
 		public Sprite visualFeedback;
 		public AudioClip audioFeedback;
 
@@ -43,7 +43,7 @@ namespace CLARTE.UI
 		private Image progressRange;
 		private AudioSource audioSource;
 		private float selectionTime;
-        private bool externalClick;
+		private bool externalClick;
 		#endregion
 
 		#region MonoBehaviour callbacks
@@ -87,42 +87,42 @@ namespace CLARTE.UI
 
 				pointer = CreateCanvas("Pointer", feedback);
 
-                if(crosshair != null)
-                {
-                    Image crosshair_image = CreateImage("Crosshair", pointer, crosshair, material);
+				if(crosshair != null)
+				{
+					Image crosshair_image = CreateImage("Crosshair", pointer, crosshair, material);
 
-                    if(crosshair_image != null)
-                    {
-                        crosshair_image.transform.localRotation = Quaternion.identity;
-                    }
-                }
+					if(crosshair_image != null)
+					{
+						crosshair_image.transform.localRotation = Quaternion.identity;
+					}
+				}
 
 				if(visualFeedback != null)
 				{
 					progressRange = CreateImage("Progress", pointer, visualFeedback, material);
 
-                    if(progressRange != null)
-                    {
-                        progressRange.GetComponent<RectTransform>().localEulerAngles = new Vector3(0f, 0f, 45f);
-                        progressRange.color = new Color(1f, 1f, 1f, 0.75f);
-                        progressRange.type = Image.Type.Filled;
-                        progressRange.fillMethod = Image.FillMethod.Radial360;
-                        progressRange.fillOrigin = (int) Image.Origin360.Bottom;
-                        progressRange.fillClockwise = true;
-                        progressRange.fillAmount = 0f;
+					if(progressRange != null)
+					{
+						progressRange.GetComponent<RectTransform>().localEulerAngles = new Vector3(0f, 0f, 45f);
+						progressRange.color = new Color(1f, 1f, 1f, 0.75f);
+						progressRange.type = Image.Type.Filled;
+						progressRange.fillMethod = Image.FillMethod.Radial360;
+						progressRange.fillOrigin = (int) Image.Origin360.Bottom;
+						progressRange.fillClockwise = true;
+						progressRange.fillAmount = 0f;
 
-                        Image progress_background = CreateImage("Background", progressRange.gameObject, visualFeedback, material);
+						Image progress_background = CreateImage("Background", progressRange.gameObject, visualFeedback, material);
 
-                        if(progress_background != null)
-                        {
-                            progress_background.color = new Color(0f, 0f, 0f, 0.25f);
-                        }
-                    }
+						if(progress_background != null)
+						{
+							progress_background.color = new Color(0f, 0f, 0f, 0.25f);
+						}
+					}
 				}
 
-                feedback.SetActive(false);
+				feedback.SetActive(false);
 
-                selectionTime = float.MaxValue;
+				selectionTime = float.MaxValue;
 			}
 		}
 
@@ -134,32 +134,32 @@ namespace CLARTE.UI
 			pointerEventData = new PointerEventData(eventSystem);
 		}
 
-        protected override void OnEnable()
-        {
-            base.OnEnable();
+		protected override void OnEnable()
+		{
+			base.OnEnable();
 
-            if(pointer != null)
-            {
-                pointer.transform.parent.gameObject.SetActive(true);
-            }
-        }
+			if(pointer != null)
+			{
+				pointer.transform.parent.gameObject.SetActive(true);
+			}
+		}
 
-        protected override void OnDisable()
-        {
-            base.OnDisable();
+		protected override void OnDisable()
+		{
+			base.OnDisable();
 
-            if(pointer != null)
-            {
-                pointer.transform.parent.gameObject.SetActive(false);
-            }
-        }
-        #endregion
+			if(pointer != null)
+			{
+				pointer.transform.parent.gameObject.SetActive(false);
+			}
+		}
+		#endregion
 
-        #region Input handling
-        public void Click()
-        {
-            externalClick = true;
-        }
+		#region Input handling
+		public void Click()
+		{
+			externalClick = true;
+		}
 
 		public override void Process()
 		{
@@ -231,15 +231,15 @@ namespace CLARTE.UI
 					selectionTime = float.MaxValue;
 				}
 
-                if(useTimeBasedClick && progressRange != null)
+				if(useTimeBasedClick && progressRange != null)
 				{
 					progressRange.fillAmount = Mathf.Clamp01((Time.realtimeSinceStartup - (selectionTime - gazeTimeInSeconds)) / gazeTimeInSeconds);
 				}
 
-                bool click = externalClick || (useTimeBasedClick && Time.realtimeSinceStartup > selectionTime);
+				bool click = externalClick || (useTimeBasedClick && Time.realtimeSinceStartup > selectionTime);
 
-                // If we have a handler and it's time to click, do it now
-                if(selectedObject != null && click)
+				// If we have a handler and it's time to click, do it now
+				if(selectedObject != null && click)
 				{
 					ExecuteEvents.ExecuteHierarchy(selectedObject, pointerEventData, ExecuteEvents.pointerClickHandler);
 
@@ -254,22 +254,22 @@ namespace CLARTE.UI
 				selectionTime = float.MaxValue;
 			}
 
-            externalClick = false;
-        }
+			externalClick = false;
+		}
 
 		private void ProcessMouseEvent()
 		{
-            MouseState mouse_data = GetMousePointerEventData();
+			MouseState mouse_data = GetMousePointerEventData();
 
-            bool pressed = mouse_data.AnyPressesThisFrame();
-            bool released = mouse_data.AnyReleasesThisFrame();
+			bool pressed = mouse_data.AnyPressesThisFrame();
+			bool released = mouse_data.AnyReleasesThisFrame();
 
-            MouseButtonEventData left_button_data = mouse_data.GetButtonState(PointerEventData.InputButton.Left).eventData;
+			MouseButtonEventData left_button_data = mouse_data.GetButtonState(PointerEventData.InputButton.Left).eventData;
 
-            if(!UseMouse(pressed, released, left_button_data.buttonData))
-            {
-                return;
-            }
+			if(!UseMouse(pressed, released, left_button_data.buttonData))
+			{
+				return;
+			}
 
 			// Process the first mouse button fully
 			ProcessMousePress(left_button_data);
@@ -284,7 +284,7 @@ namespace CLARTE.UI
 
 			if(!Mathf.Approximately(left_button_data.buttonData.scrollDelta.sqrMagnitude, 0.0f))
 			{
-                GameObject scroll_handler = ExecuteEvents.GetEventHandler<IScrollHandler>(left_button_data.buttonData.pointerCurrentRaycast.gameObject);
+				GameObject scroll_handler = ExecuteEvents.GetEventHandler<IScrollHandler>(left_button_data.buttonData.pointerCurrentRaycast.gameObject);
 
 				ExecuteEvents.ExecuteHierarchy(scroll_handler, left_button_data.buttonData, ExecuteEvents.scrollHandler);
 			}
@@ -292,123 +292,123 @@ namespace CLARTE.UI
 
 		private static bool UseMouse(bool pressed, bool released, PointerEventData pointerData)
 		{
-            return pressed || released || pointerData.IsPointerMoving() || pointerData.IsScrolling();
+			return pressed || released || pointerData.IsPointerMoving() || pointerData.IsScrolling();
 		}
 
-        private void ProcessMousePress(MouseButtonEventData data)
-        {
-            PointerEventData pointer_event = data.buttonData;
-            GameObject current_over_go = pointer_event.pointerCurrentRaycast.gameObject;
+		private void ProcessMousePress(MouseButtonEventData data)
+		{
+			PointerEventData pointer_event = data.buttonData;
+			GameObject current_over_go = pointer_event.pointerCurrentRaycast.gameObject;
 
-            // PointerDown notification
-            if(data.PressedThisFrame())
-            {
-                pointer_event.eligibleForClick = true;
-                pointer_event.delta = Vector2.zero;
-                pointer_event.dragging = false;
-                pointer_event.useDragThreshold = true;
-                pointer_event.pressPosition = pointer_event.position;
-                pointer_event.pointerPressRaycast = pointer_event.pointerCurrentRaycast;
+			// PointerDown notification
+			if(data.PressedThisFrame())
+			{
+				pointer_event.eligibleForClick = true;
+				pointer_event.delta = Vector2.zero;
+				pointer_event.dragging = false;
+				pointer_event.useDragThreshold = true;
+				pointer_event.pressPosition = pointer_event.position;
+				pointer_event.pointerPressRaycast = pointer_event.pointerCurrentRaycast;
 
-                DeselectIfSelectionChanged(current_over_go, pointer_event);
+				DeselectIfSelectionChanged(current_over_go, pointer_event);
 
-                // search for the control that will receive the press
-                // if we can't find a press handler set the press
-                // handler to be what would receive a click.
-                GameObject newPressed = ExecuteEvents.ExecuteHierarchy(current_over_go, pointer_event, ExecuteEvents.pointerDownHandler);
+				// search for the control that will receive the press
+				// if we can't find a press handler set the press
+				// handler to be what would receive a click.
+				GameObject newPressed = ExecuteEvents.ExecuteHierarchy(current_over_go, pointer_event, ExecuteEvents.pointerDownHandler);
 
-                // didnt find a press handler... search for a click handler
-                if(newPressed == null)
-                {
-                    newPressed = ExecuteEvents.GetEventHandler<IPointerClickHandler>(current_over_go);
-                }
+				// didnt find a press handler... search for a click handler
+				if(newPressed == null)
+				{
+					newPressed = ExecuteEvents.GetEventHandler<IPointerClickHandler>(current_over_go);
+				}
 
-                // Debug.Log("Pressed: " + newPressed);
+				// Debug.Log("Pressed: " + newPressed);
 
-                float time = Time.unscaledTime;
+				float time = Time.unscaledTime;
 
-                if(newPressed == pointer_event.lastPress)
-                {
-                    float diffTime = time - pointer_event.clickTime;
+				if(newPressed == pointer_event.lastPress)
+				{
+					float diffTime = time - pointer_event.clickTime;
 
-                    if(diffTime < 0.3f)
-                    {
-                        ++pointer_event.clickCount;
-                    }
-                    else
-                    {
-                        pointer_event.clickCount = 1;
-                    }
+					if(diffTime < 0.3f)
+					{
+						++pointer_event.clickCount;
+					}
+					else
+					{
+						pointer_event.clickCount = 1;
+					}
 
-                    pointer_event.clickTime = time;
-                }
-                else
-                {
-                    pointer_event.clickCount = 1;
-                }
+					pointer_event.clickTime = time;
+				}
+				else
+				{
+					pointer_event.clickCount = 1;
+				}
 
-                pointer_event.pointerPress = newPressed;
-                pointer_event.rawPointerPress = current_over_go;
+				pointer_event.pointerPress = newPressed;
+				pointer_event.rawPointerPress = current_over_go;
 
-                pointer_event.clickTime = time;
+				pointer_event.clickTime = time;
 
-                // Save the drag handler as well
-                pointer_event.pointerDrag = ExecuteEvents.GetEventHandler<IDragHandler>(current_over_go);
+				// Save the drag handler as well
+				pointer_event.pointerDrag = ExecuteEvents.GetEventHandler<IDragHandler>(current_over_go);
 
-                if(pointer_event.pointerDrag != null)
-                {
-                    ExecuteEvents.Execute(pointer_event.pointerDrag, pointer_event, ExecuteEvents.initializePotentialDrag);
-                }
-            }
+				if(pointer_event.pointerDrag != null)
+				{
+					ExecuteEvents.Execute(pointer_event.pointerDrag, pointer_event, ExecuteEvents.initializePotentialDrag);
+				}
+			}
 
-            // PointerUp notification
-            if(data.ReleasedThisFrame())
-            {
-                // Debug.Log("Executing pressup on: " + pointer.pointerPress);
-                ExecuteEvents.Execute(pointer_event.pointerPress, pointer_event, ExecuteEvents.pointerUpHandler);
+			// PointerUp notification
+			if(data.ReleasedThisFrame())
+			{
+				// Debug.Log("Executing pressup on: " + pointer.pointerPress);
+				ExecuteEvents.Execute(pointer_event.pointerPress, pointer_event, ExecuteEvents.pointerUpHandler);
 
-                // Debug.Log("KeyCode: " + pointer.eventData.keyCode);
+				// Debug.Log("KeyCode: " + pointer.eventData.keyCode);
 
-                // see if we mouse up on the same element that we clicked on...
-                GameObject pointerUpHandler = ExecuteEvents.GetEventHandler<IPointerClickHandler>(current_over_go);
+				// see if we mouse up on the same element that we clicked on...
+				GameObject pointerUpHandler = ExecuteEvents.GetEventHandler<IPointerClickHandler>(current_over_go);
 
-                // PointerClick and Drop events
-                if(pointer_event.pointerPress == pointerUpHandler && pointer_event.eligibleForClick)
-                {
-                    ExecuteEvents.Execute(pointer_event.pointerPress, pointer_event, ExecuteEvents.pointerClickHandler);
-                }
-                else if(pointer_event.pointerDrag != null)
-                {
-                    ExecuteEvents.ExecuteHierarchy(current_over_go, pointer_event, ExecuteEvents.dropHandler);
-                }
+				// PointerClick and Drop events
+				if(pointer_event.pointerPress == pointerUpHandler && pointer_event.eligibleForClick)
+				{
+					ExecuteEvents.Execute(pointer_event.pointerPress, pointer_event, ExecuteEvents.pointerClickHandler);
+				}
+				else if(pointer_event.pointerDrag != null)
+				{
+					ExecuteEvents.ExecuteHierarchy(current_over_go, pointer_event, ExecuteEvents.dropHandler);
+				}
 
-                pointer_event.eligibleForClick = false;
-                pointer_event.pointerPress = null;
-                pointer_event.rawPointerPress = null;
+				pointer_event.eligibleForClick = false;
+				pointer_event.pointerPress = null;
+				pointer_event.rawPointerPress = null;
 
-                if(pointer_event.pointerDrag != null && pointer_event.dragging)
-                {
-                    ExecuteEvents.Execute(pointer_event.pointerDrag, pointer_event, ExecuteEvents.endDragHandler);
-                }
+				if(pointer_event.pointerDrag != null && pointer_event.dragging)
+				{
+					ExecuteEvents.Execute(pointer_event.pointerDrag, pointer_event, ExecuteEvents.endDragHandler);
+				}
 
-                pointer_event.dragging = false;
-                pointer_event.pointerDrag = null;
+				pointer_event.dragging = false;
+				pointer_event.pointerDrag = null;
 
-                // redo pointer enter / exit to refresh state
-                // so that if we moused over somethign that ignored it before
-                // due to having pressed on something else
-                // it now gets it.
-                if(current_over_go != pointer_event.pointerEnter)
-                {
-                    HandlePointerExitAndEnter(pointer_event, null);
-                    HandlePointerExitAndEnter(pointer_event, current_over_go);
-                }
-            }
-        }
-        #endregion
+				// redo pointer enter / exit to refresh state
+				// so that if we moused over somethign that ignored it before
+				// due to having pressed on something else
+				// it now gets it.
+				if(current_over_go != pointer_event.pointerEnter)
+				{
+					HandlePointerExitAndEnter(pointer_event, null);
+					HandlePointerExitAndEnter(pointer_event, current_over_go);
+				}
+			}
+		}
+		#endregion
 
-        #region Audio handling
-        private void PlayAudio(float volume = 1f, float pitch = 1f)
+		#region Audio handling
+		private void PlayAudio(float volume = 1f, float pitch = 1f)
 		{
 			if(audioSource != null)
 			{
@@ -442,28 +442,28 @@ namespace CLARTE.UI
 
 		private Image CreateImage(string name, GameObject parent, Sprite sprite, Material material)
 		{
-            Image image = null;
+			Image image = null;
 
-            if(parent != null && sprite != null)
-            {
-                GameObject go = new GameObject(name, typeof(RectTransform), typeof(Image));
+			if(parent != null && sprite != null)
+			{
+				GameObject go = new GameObject(name, typeof(RectTransform), typeof(Image));
 
-                RectTransform rect_transform = go.GetComponent<RectTransform>();
-                rect_transform.SetParent(parent.transform, false);
-                rect_transform.localPosition = Vector3.zero;
-                rect_transform.localRotation = Quaternion.identity;
-                rect_transform.localScale = Vector3.one;
-                rect_transform.pivot = 0.5f * Vector2.one;
-                rect_transform.anchorMin = Vector2.zero;
-                rect_transform.anchorMax = Vector2.one;
-                rect_transform.sizeDelta = Vector2.zero;
+				RectTransform rect_transform = go.GetComponent<RectTransform>();
+				rect_transform.SetParent(parent.transform, false);
+				rect_transform.localPosition = Vector3.zero;
+				rect_transform.localRotation = Quaternion.identity;
+				rect_transform.localScale = Vector3.one;
+				rect_transform.pivot = 0.5f * Vector2.one;
+				rect_transform.anchorMin = Vector2.zero;
+				rect_transform.anchorMax = Vector2.one;
+				rect_transform.sizeDelta = Vector2.zero;
 
-                image = go.GetComponent<Image>();
-                image.sprite = sprite;
-                image.material = material;
-                image.raycastTarget = false;
-                image.preserveAspect = true;
-            }
+				image = go.GetComponent<Image>();
+				image.sprite = sprite;
+				image.material = material;
+				image.raycastTarget = false;
+				image.preserveAspect = true;
+			}
 
 			return image;
 		}

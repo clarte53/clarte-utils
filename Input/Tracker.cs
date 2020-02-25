@@ -4,196 +4,196 @@ using UnityEngine.XR;
 
 namespace CLARTE.Input
 {
-    public abstract class Tracker : MonoBehaviour
-    {
-        #region Members
-        public bool ShowNodes = false;
-        public bool InverseTransform = false;
-        protected List<XRNodeState> nodes;
-        protected XRNode currentType;
-        protected ulong uniqueID;
-        protected bool tracked;
-        #endregion
+	public abstract class Tracker : MonoBehaviour
+	{
+		#region Members
+		public bool ShowNodes = false;
+		public bool InverseTransform = false;
+		protected List<XRNodeState> nodes;
+		protected XRNode currentType;
+		protected ulong uniqueID;
+		protected bool tracked;
+		#endregion
 
-        #region Abstract methods
-        protected abstract bool IsNode(XRNodeState node);
-        protected abstract bool IsSameNode(XRNodeState node);
-        protected abstract void OnNodeAdded(XRNodeState node);
-        protected abstract void OnNodeRemoved();
-        #endregion
+		#region Abstract methods
+		protected abstract bool IsNode(XRNodeState node);
+		protected abstract bool IsSameNode(XRNodeState node);
+		protected abstract void OnNodeAdded(XRNodeState node);
+		protected abstract void OnNodeRemoved();
+		#endregion
 
-        #region Getter / Setter
-        public bool Tracked
-        {
-            get
-            {
-                return tracked;
-            }
+		#region Getter / Setter
+		public bool Tracked
+		{
+			get
+			{
+				return tracked;
+			}
 
-            protected set
-            {
-                tracked = value;
+			protected set
+			{
+				tracked = value;
 
-                EnableComponents(tracked);
-            }
-        }
+				EnableComponents(tracked);
+			}
+		}
 
-        public ulong UniqueID
-        {
-            get { return uniqueID; }
-        }
-        #endregion
+		public ulong UniqueID
+		{
+			get { return uniqueID; }
+		}
+		#endregion
 
-        #region MonoBehaviour callbacks
-        protected virtual void Awake()
-        {
-            nodes = new List<XRNodeState>();
+		#region MonoBehaviour callbacks
+		protected virtual void Awake()
+		{
+			nodes = new List<XRNodeState>();
 
-            uniqueID = 0;
+			uniqueID = 0;
 
-            Tracked = false;
-        }
+			Tracked = false;
+		}
 
-        protected virtual void OnDisable()
-        {
-            RemoveNode();
-        }
+		protected virtual void OnDisable()
+		{
+			RemoveNode();
+		}
 
-        protected virtual void Update()
-        {
-            InputTracking.GetNodeStates(nodes);
+		protected virtual void Update()
+		{
+			InputTracking.GetNodeStates(nodes);
 
-            if (ShowNodes) {
-                string log = "Devices:";
-                foreach (XRNodeState nd in nodes) {
-                    log += "\n" + nd.nodeType + " " + nd.uniqueID + " '" + InputTracking.GetNodeName(nd.uniqueID)+"'";
-                }
-                Debug.Log(log);
-                ShowNodes = false;
-            }
+			if (ShowNodes) {
+				string log = "Devices:";
+				foreach (XRNodeState nd in nodes) {
+					log += "\n" + nd.nodeType + " " + nd.uniqueID + " '" + InputTracking.GetNodeName(nd.uniqueID)+"'";
+				}
+				Debug.Log(log);
+				ShowNodes = false;
+			}
 
-            if (uniqueID == 0)
-            {
-                SearchValidNode(nodes);
-            }
-            else if(!CheckConnectedNode(nodes))
-            {
-                RemoveNode();
-            }
+			if (uniqueID == 0)
+			{
+				SearchValidNode(nodes);
+			}
+			else if(!CheckConnectedNode(nodes))
+			{
+				RemoveNode();
+			}
   
-            if(uniqueID != 0)
-            {
-                foreach(XRNodeState node in nodes)
-                {
-                    if(node.uniqueID == uniqueID)
-                    {
-                        if(node.tracked != Tracked)
-                        {
-                            Tracked = node.tracked;
-                        }
+			if(uniqueID != 0)
+			{
+				foreach(XRNodeState node in nodes)
+				{
+					if(node.uniqueID == uniqueID)
+					{
+						if(node.tracked != Tracked)
+						{
+							Tracked = node.tracked;
+						}
 
-                        if(Tracked)
-                        {
-                            Vector3 pos;
-                            Quaternion rot;
+						if(Tracked)
+						{
+							Vector3 pos;
+							Quaternion rot;
 
-                            if (node.TryGetPosition(out pos))
-                            {
-                                if (node.TryGetRotation(out rot))
-                                {
-                                    if (InverseTransform)
-                                    {
-                                        rot = Quaternion.Inverse(rot);
-                                        pos = rot * -pos;
-                                    }
-                                    transform.localRotation = rot;
-                                    transform.localPosition = pos;
-                                }
-                                else
-                                {
-                                    if (InverseTransform)
-                                    {
-                                        pos = -pos;
-                                    }
-                                    transform.localPosition = pos;
-                                }
-                            }
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-        #endregion
+							if (node.TryGetPosition(out pos))
+							{
+								if (node.TryGetRotation(out rot))
+								{
+									if (InverseTransform)
+									{
+										rot = Quaternion.Inverse(rot);
+										pos = rot * -pos;
+									}
+									transform.localRotation = rot;
+									transform.localPosition = pos;
+								}
+								else
+								{
+									if (InverseTransform)
+									{
+										pos = -pos;
+									}
+									transform.localPosition = pos;
+								}
+							}
+						}
+						break;
+					}
+				}
+			}
+		}
+		#endregion
 
-        #region Helper methods
-        protected bool CheckConnectedNode(List<XRNodeState> nodes)
-        {
-            bool found = false;
+		#region Helper methods
+		protected bool CheckConnectedNode(List<XRNodeState> nodes)
+		{
+			bool found = false;
 
-            foreach(XRNodeState node in nodes)
-            {
-                if(node.uniqueID == uniqueID)
-                {
-                    found = (node.nodeType == currentType) && IsSameNode(node);
+			foreach(XRNodeState node in nodes)
+			{
+				if(node.uniqueID == uniqueID)
+				{
+					found = (node.nodeType == currentType) && IsSameNode(node);
 
-                    break;
-                }
-            }
+					break;
+				}
+			}
 
-            return found;
-        }
+			return found;
+		}
 
-        protected void SearchValidNode(List<XRNodeState> nodes)
-        {
-            foreach(XRNodeState node in nodes)
-            {
-                if(uniqueID == 0 && IsNode(node))
-                {
-                    uniqueID = node.uniqueID;
-                    currentType = node.nodeType;
+		protected void SearchValidNode(List<XRNodeState> nodes)
+		{
+			foreach(XRNodeState node in nodes)
+			{
+				if(uniqueID == 0 && IsNode(node))
+				{
+					uniqueID = node.uniqueID;
+					currentType = node.nodeType;
 
-                    Tracked = node.tracked;
+					Tracked = node.tracked;
 
-                    OnNodeAdded(node);
+					OnNodeAdded(node);
 
-                    break;
-                }
-            }
-        }
+					break;
+				}
+			}
+		}
 
-        protected void RemoveNode()
-        {
-            if(uniqueID != 0)
-            {
-                OnNodeRemoved();
+		protected void RemoveNode()
+		{
+			if(uniqueID != 0)
+			{
+				OnNodeRemoved();
 
-                uniqueID = 0;
+				uniqueID = 0;
 
-                SearchValidNode(nodes);
-            }
-        }
+				SearchValidNode(nodes);
+			}
+		}
 
-        protected void EnableComponents(bool enable)
-        {
-            foreach(Collider collider in GetComponents<Collider>())
-            {
-                collider.enabled = enable;
-            }
+		protected void EnableComponents(bool enable)
+		{
+			foreach(Collider collider in GetComponents<Collider>())
+			{
+				collider.enabled = enable;
+			}
 
-            foreach(Behaviour component in GetComponents<Behaviour>())
-            {
-                if(component != this)
-                {
-                    component.enabled = enable;
-                }
-            }
+			foreach(Behaviour component in GetComponents<Behaviour>())
+			{
+				if(component != this)
+				{
+					component.enabled = enable;
+				}
+			}
 
-            foreach(Transform child in transform)
-            {
-                child.gameObject.SetActive(enable);
-            }
-        }
-        #endregion
-    }
+			foreach(Transform child in transform)
+			{
+				child.gameObject.SetActive(enable);
+			}
+		}
+		#endregion
+	}
 }

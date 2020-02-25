@@ -10,62 +10,62 @@ using CLARTE.Serialization;
 
 namespace CLARTE.Net.Negotiation.Connection
 {
-    public class Tcp : Base
-    {
+	public class Tcp : Base
+	{
 		#region Members
 		protected const ushort headerSize = 5;
 
 		public Task initialization;
-        public TcpClient client;
-        public Stream stream;
-        public uint version;
+		public TcpClient client;
+		public Stream stream;
+		public uint version;
 
 		protected byte[] headerBuffer;
 		protected byte[] readBuffer;
-        protected byte[] writeBuffer;
-        #endregion
+		protected byte[] writeBuffer;
+		#endregion
 
-        #region Constructors
-        public Tcp(Negotiation.Base parent, Message.Negotiation.Parameters parameters, UnityAction<Base> disconnection_handler, TcpClient client) : base(parent, parameters, disconnection_handler)
-        {
-            this.client = client;
+		#region Constructors
+		public Tcp(Negotiation.Base parent, Message.Negotiation.Parameters parameters, UnityAction<Base> disconnection_handler, TcpClient client) : base(parent, parameters, disconnection_handler)
+		{
+			this.client = client;
 
-            stream = null;
+			stream = null;
 
 			headerBuffer = new byte[headerSize];
 			readBuffer = new byte[sizeof(int)];
-            writeBuffer = new byte[sizeof(int)];
-        }
-        #endregion
+			writeBuffer = new byte[sizeof(int)];
+		}
+		#endregion
 
-        #region IDisposable implementation
-        protected override void DisposeInternal(bool disposing)
-        {
-            if(disposing)
-            {
-                // TODO: delete managed state (managed objects).
+		#region IDisposable implementation
+		protected override void DisposeInternal(bool disposing)
+		{
+			if(disposing)
+			{
+				// TODO: delete managed state (managed objects).
 
-                try
-                {
-                    // Flush the stream to make sure that all sent data is effectively sent to the client
-                    if(stream != null)
-                    {
-                        stream.Flush();
-                    }
-                }
-                catch(ObjectDisposedException)
-                {
-                    // Already closed
-                }
+				try
+				{
+					// Flush the stream to make sure that all sent data is effectively sent to the client
+					if(stream != null)
+					{
+						stream.Flush();
+					}
+				}
+				catch(ObjectDisposedException)
+				{
+					// Already closed
+				}
 
-                // Close the stream and client
-                SafeDispose(stream);
-                SafeDispose(client);
-            }
+				// Close the stream and client
+				SafeDispose(stream);
+				SafeDispose(client);
+			}
 
-            // TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
-            // TODO: set fields of large size with null value.
-        }
+			// TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
+			// TODO: set fields of large size with null value.
+		}
 		#endregion
 
 		#region Base class implementation
@@ -75,45 +75,45 @@ namespace CLARTE.Net.Negotiation.Connection
 		}
 
 		public override IPAddress GetRemoteAddress()
-        {
-            IPAddress address = null;
+		{
+			IPAddress address = null;
 
-            if(client != null)
-            {
-                address = ((IPEndPoint) client.Client.RemoteEndPoint).Address;
-            }
+			if(client != null)
+			{
+				address = ((IPEndPoint) client.Client.RemoteEndPoint).Address;
+			}
 
-            return address;
-        }
+			return address;
+		}
 
-        protected override void SendAsync(Threads.Result result, byte[] data)
-        {
-            try
-            {
-                if(client != null)
-                {
-                    Converter32 c = new Converter32(data.Length);
+		protected override void SendAsync(Threads.Result result, byte[] data)
+		{
+			try
+			{
+				if(client != null)
+				{
+					Converter32 c = new Converter32(data.Length);
 
-                    writeBuffer[0] = c.Byte1;
-                    writeBuffer[1] = c.Byte2;
-                    writeBuffer[2] = c.Byte3;
-                    writeBuffer[3] = c.Byte4;
+					writeBuffer[0] = c.Byte1;
+					writeBuffer[1] = c.Byte2;
+					writeBuffer[2] = c.Byte3;
+					writeBuffer[3] = c.Byte4;
 
-                    stream.BeginWrite(writeBuffer, 0, writeBuffer.Length, FinalizeSendLength, new SendState { result = result, data = data });
-                }
-                else
-                {
-                    throw new ArgumentNullException("client", "The connection tcpClient is not defined.");
-                }
-            }
-            catch(Exception e)
-            {
-                result.Complete(e);
-            }
-        }
+					stream.BeginWrite(writeBuffer, 0, writeBuffer.Length, FinalizeSendLength, new SendState { result = result, data = data });
+				}
+				else
+				{
+					throw new ArgumentNullException("client", "The connection tcpClient is not defined.");
+				}
+			}
+			catch(Exception e)
+			{
+				result.Complete(e);
+			}
+		}
 
-        protected override void ReceiveAsync()
-        {
+		protected override void ReceiveAsync()
+		{
 			try
 			{
 				if(client != null)
@@ -212,15 +212,15 @@ namespace CLARTE.Net.Negotiation.Connection
 
 			return true;
 		}
-        #endregion
+		#endregion
 
-        #region Internal methods
-        protected void FinalizeSendLength(IAsyncResult async_result)
-        {
-            SendState state = (SendState) async_result.AsyncState;
+		#region Internal methods
+		protected void FinalizeSendLength(IAsyncResult async_result)
+		{
+			SendState state = (SendState) async_result.AsyncState;
 
-            try
-            {
+			try
+			{
 				if(state.data.Length > 0)
 				{
 					stream.EndWrite(async_result);
@@ -231,33 +231,33 @@ namespace CLARTE.Net.Negotiation.Connection
 				{
 					FinalizeSendData(async_result);
 				}
-            }
-            catch(Exception e)
-            {
-                state.result.Complete(e);
-            }
-        }
+			}
+			catch(Exception e)
+			{
+				state.result.Complete(e);
+			}
+		}
 
-        protected void FinalizeSendData(IAsyncResult async_result)
-        {
-            SendState state = (SendState) async_result.AsyncState;
+		protected void FinalizeSendData(IAsyncResult async_result)
+		{
+			SendState state = (SendState) async_result.AsyncState;
 
-            try
-            {
-                stream.EndWrite(async_result);
+			try
+			{
+				stream.EndWrite(async_result);
 
-                stream.Flush();
+				stream.Flush();
 
-                state.result.Complete();
-            }
-            catch(Exception e)
-            {
-                state.result.Complete(e);
-            }
-        }
+				state.result.Complete();
+			}
+			catch(Exception e)
+			{
+				state.result.Complete(e);
+			}
+		}
 
-        protected void FinalizeReceive(IAsyncResult async_result, Action<ReceiveState> callback)
-        {
+		protected void FinalizeReceive(IAsyncResult async_result, Action<ReceiveState> callback)
+		{
 			try
 			{
 				ReceiveState state = (ReceiveState) async_result.AsyncState;
@@ -296,11 +296,11 @@ namespace CLARTE.Net.Negotiation.Connection
 			}
 		}
 
-        protected void FinalizeReceiveLength(IAsyncResult async_result)
-        {
-            FinalizeReceive(async_result, state =>
-            {
-                Converter32 c = new Converter32(state.data[0], state.data[1], state.data[2], state.data[3]);
+		protected void FinalizeReceiveLength(IAsyncResult async_result)
+		{
+			FinalizeReceive(async_result, state =>
+			{
+				Converter32 c = new Converter32(state.data[0], state.data[1], state.data[2], state.data[3]);
 
 				if(c.Int > 0)
 				{
@@ -315,25 +315,25 @@ namespace CLARTE.Net.Negotiation.Connection
 					// Wait for next message
 					stream.BeginRead(state.data, state.offset, state.MissingDataLength, FinalizeReceiveLength, state);
 				}
-            });
-        }
+			});
+		}
 
-        protected void FinalizeReceiveData(IAsyncResult async_result)
-        {
-            FinalizeReceive(async_result, state =>
-            {
-                byte[] data = state.data; // Otherwise the call to state.data in unity thread will be evaluated to null, because of the weird catching of parameters of lambdas
+		protected void FinalizeReceiveData(IAsyncResult async_result)
+		{
+			FinalizeReceive(async_result, state =>
+			{
+				byte[] data = state.data; // Otherwise the call to state.data in unity thread will be evaluated to null, because of the weird catching of parameters of lambdas
 
-                Threads.APC.MonoBehaviourCall.Instance.Call(() => events.onReceive.Invoke(state.ip.Address, parameters.guid, parameters.channel, data));
+				Threads.APC.MonoBehaviourCall.Instance.Call(() => events.onReceive.Invoke(state.ip.Address, parameters.guid, parameters.channel, data));
 
-                state.Set(readBuffer);
+				state.Set(readBuffer);
 
-                // Wait for next message
-                stream.BeginRead(state.data, state.offset, state.MissingDataLength, FinalizeReceiveLength, state);
-            });
-        }
-        #endregion
-    }
+				// Wait for next message
+				stream.BeginRead(state.data, state.offset, state.MissingDataLength, FinalizeReceiveLength, state);
+			});
+		}
+		#endregion
+	}
 }
 
 #endif // !NETFX_CORE

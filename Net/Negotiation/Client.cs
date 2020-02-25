@@ -11,39 +11,39 @@ using UnityEngine;
 
 namespace CLARTE.Net.Negotiation
 {
-    public class Client : Base<MonitorChannel, Channel>
-    {
-        [Serializable]
-        public class CertificateValidation
-        {
-            public bool allowSelfSigned = false;
-            public bool allowInvalidHostname = false;
-        }
+	public class Client : Base<MonitorChannel, Channel>
+	{
+		[Serializable]
+		public class CertificateValidation
+		{
+			public bool allowSelfSigned = false;
+			public bool allowInvalidHostname = false;
+		}
 
-        #region Members
-        public const uint maxSupportedVersion = 1;
+		#region Members
+		public const uint maxSupportedVersion = 1;
 
-        public CertificateValidation certificateValidation;
-        public string hostname = "localhost";
-        public uint port;
+		public CertificateValidation certificateValidation;
+		public string hostname = "localhost";
+		public uint port;
 
 		protected HashSet<UdpConnectionParams> pendingUdpConnection;
-        #endregion
+		#endregion
 
-        #region IDisposable implementation
-        protected override void Dispose(bool disposing)
-        {
-            if(state != State.DISPOSED)
-            {
-                state = State.CLOSING;
+		#region IDisposable implementation
+		protected override void Dispose(bool disposing)
+		{
+			if(state != State.DISPOSED)
+			{
+				state = State.CLOSING;
 
-                if(disposing)
-                {
-                    // TODO: delete managed state (managed objects).
+				if(disposing)
+				{
+					// TODO: delete managed state (managed objects).
 
-                    Disconnect();
+					Disconnect();
 
-                    CloseOpenedChannels();
+					CloseOpenedChannels();
 					CloseMonitor();
 
 					lock(pendingUdpConnection)
@@ -52,12 +52,12 @@ namespace CLARTE.Net.Negotiation
 					}
 				}
 
-                // TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
-                // TODO: set fields of large size with null value.
+				// TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
+				// TODO: set fields of large size with null value.
 
-                state = State.DISPOSED;
-            }
-        }
+				state = State.DISPOSED;
+			}
+		}
 		#endregion
 
 		#region Base implementation
@@ -138,12 +138,12 @@ namespace CLARTE.Net.Negotiation
 
 		#region Public methods
 		public void Connect()
-        {
-            if(state == State.STARTED)
-            {
-                Debug.LogFormat("Start connection to {0}:{1}", hostname, port);
+		{
+			if(state == State.STARTED)
+			{
+				Debug.LogFormat("Start connection to {0}:{1}", hostname, port);
 
-                state = State.INITIALIZING;
+				state = State.INITIALIZING;
 
 				ConnectTcp(new Message.Negotiation.Parameters
 				{
@@ -152,29 +152,29 @@ namespace CLARTE.Net.Negotiation
 					heartbeat = defaultHeartbeat,
 					autoReconnect = false
 				});
-            }
-            else
-            {
-                Debug.LogErrorFormat("Invalid connection attempt to server when in state {0}.", state);
-            }
-        }
+			}
+			else
+			{
+				Debug.LogErrorFormat("Invalid connection attempt to server when in state {0}.", state);
+			}
+		}
 
-        public void Disconnect()
-        {
-            if (state == State.RUNNING)
-            {
-                CloseInitializedConnections();
-                state = State.STARTED;
-            }
-        }
+		public void Disconnect()
+		{
+			if (state == State.RUNNING)
+			{
+				CloseInitializedConnections();
+				state = State.STARTED;
+			}
+		}
 
-        #endregion
+		#endregion
 
-        #region Connection methods
-        protected void ConnectTcp(Message.Negotiation.Parameters param)
-        {
-            // Create a new TCP client
-            Connection.Tcp connection = new Connection.Tcp(this, param, DisconnectionHandler, new TcpClient());
+		#region Connection methods
+		protected void ConnectTcp(Message.Negotiation.Parameters param)
+		{
+			// Create a new TCP client
+			Connection.Tcp connection = new Connection.Tcp(this, param, DisconnectionHandler, new TcpClient());
 
 			if(param.guid != Guid.Empty)
 			{
@@ -184,26 +184,26 @@ namespace CLARTE.Net.Negotiation
 				}
 			}
 
-            // Start asynchronous connection to server
-            connection.initialization = Task.Run(() => connection.client.BeginConnect(hostname, (int) port, Connected, connection));
-        }
+			// Start asynchronous connection to server
+			connection.initialization = Task.Run(() => connection.client.BeginConnect(hostname, (int) port, Connected, connection));
+		}
 
-        protected void Connected(IAsyncResult async_result)
-        {
-            try
-            {
-                // Finalize connection to server
-                Connection.Tcp connection = (Connection.Tcp) async_result.AsyncState;
+		protected void Connected(IAsyncResult async_result)
+		{
+			try
+			{
+				// Finalize connection to server
+				Connection.Tcp connection = (Connection.Tcp) async_result.AsyncState;
 
-                connection.client.EndConnect(async_result);
+				connection.client.EndConnect(async_result);
 
-                // We should be connected
-                if(connection.client.Connected)
-                {
-                    Debug.LogFormat("Connected to {0}:{1}", hostname, port);
+				// We should be connected
+				if(connection.client.Connected)
+				{
+					Debug.LogFormat("Connected to {0}:{1}", hostname, port);
 
-                    // Get the stream associated with this connection
-                    connection.stream = connection.client.GetStream();
+					// Get the stream associated with this connection
+					connection.stream = connection.client.GetStream();
 
 					Message.Base h;
 
@@ -239,41 +239,41 @@ namespace CLARTE.Net.Negotiation
 						Drop(connection, "Expected to receive connection greetings and parameters.");
 					}
 				}
-                else
-                {
-                    Drop(connection, "The connection to {0}:{1} failed.", hostname, port);
-                }
-            }
-            catch(DropException)
-            {
-                throw;
-            }
-            catch(Exception exception)
-            {
-                Debug.LogErrorFormat("{0}: {1}\n{2}", exception.GetType(), exception.Message, exception.StackTrace);
-            }
-        }
+				else
+				{
+					Drop(connection, "The connection to {0}:{1} failed.", hostname, port);
+				}
+			}
+			catch(DropException)
+			{
+				throw;
+			}
+			catch(Exception exception)
+			{
+				Debug.LogErrorFormat("{0}: {1}\n{2}", exception.GetType(), exception.Message, exception.StackTrace);
+			}
+		}
 
-        protected void Authenticated(IAsyncResult async_result)
-        {
-            try
-            {
-                // Finalize the authentication as client for the SSL stream
-                Connection.Tcp connection = (Connection.Tcp) async_result.AsyncState;
+		protected void Authenticated(IAsyncResult async_result)
+		{
+			try
+			{
+				// Finalize the authentication as client for the SSL stream
+				Connection.Tcp connection = (Connection.Tcp) async_result.AsyncState;
 
-                ((SslStream) connection.stream).EndAuthenticateAsClient(async_result);
+				((SslStream) connection.stream).EndAuthenticateAsClient(async_result);
 
-                ValidateCredentials(connection);
-            }
-            catch(DropException)
-            {
-                throw;
-            }
-            catch(Exception)
-            {
-                Debug.LogError("Authentication failed");
-            }
-        }
+				ValidateCredentials(connection);
+			}
+			catch(DropException)
+			{
+				throw;
+			}
+			catch(Exception)
+			{
+				Debug.LogError("Authentication failed");
+			}
+		}
 
 		protected void ValidateCredentials(Connection.Tcp connection)
 		{
@@ -306,13 +306,13 @@ namespace CLARTE.Net.Negotiation
 			{
 				Drop(connection, "Expected to receive credentials validation.");
 			}
-        }
+		}
 
-        protected void NegotiateChannels(Connection.Tcp connection)
-        {
-            // Check if we must negotiate other channel or just open the current one
-            if(connection.Remote == Guid.Empty)
-            {
+		protected void NegotiateChannels(Connection.Tcp connection)
+		{
+			// Check if we must negotiate other channel or just open the current one
+			if(connection.Remote == Guid.Empty)
+			{
 				connection.Send(new Message.Negotiation.Start());
 
 				Message.Base msg;
@@ -365,9 +365,9 @@ namespace CLARTE.Net.Negotiation
 				{
 					Drop(connection, "Expected to receive the new connection negotiation parameters.");
 				}
-            }
-            else
-            {
+			}
+			else
+			{
 				Message.Negotiation.Channel.TCP tcp = new Message.Negotiation.Channel.TCP
 				{
 					guid = connection.Remote,
@@ -376,64 +376,64 @@ namespace CLARTE.Net.Negotiation
 
 				connection.Send(tcp);
 
-                SaveChannel(connection);
-            }
-        }
-        #endregion
+				SaveChannel(connection);
+			}
+		}
+		#endregion
 
-        #region Internal methods
-        protected bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
-        {
-            SslPolicyErrors handled = SslPolicyErrors.None;
+		#region Internal methods
+		protected bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
+		{
+			SslPolicyErrors handled = SslPolicyErrors.None;
 
-            if(sslPolicyErrors == SslPolicyErrors.None)
-            {
-                return true;
-            }
+			if(sslPolicyErrors == SslPolicyErrors.None)
+			{
+				return true;
+			}
 
-            if((sslPolicyErrors & SslPolicyErrors.RemoteCertificateNameMismatch) != 0)
-            {
-                if(certificateValidation.allowInvalidHostname)
-                {
-                    Debug.LogWarningFormat("The name of the certificate does not match the hostname. Certificate = '{0}', hostname = '{1}'.", certificate.Subject, hostname);
-                }
-                else
-                {
-                    return false;
-                }
+			if((sslPolicyErrors & SslPolicyErrors.RemoteCertificateNameMismatch) != 0)
+			{
+				if(certificateValidation.allowInvalidHostname)
+				{
+					Debug.LogWarningFormat("The name of the certificate does not match the hostname. Certificate = '{0}', hostname = '{1}'.", certificate.Subject, hostname);
+				}
+				else
+				{
+					return false;
+				}
 
-                handled |= SslPolicyErrors.RemoteCertificateNameMismatch;
-            }
+				handled |= SslPolicyErrors.RemoteCertificateNameMismatch;
+			}
 
-            if((sslPolicyErrors & SslPolicyErrors.RemoteCertificateChainErrors) != 0)
-            {
-                if(certificateValidation.allowSelfSigned)
-                {
-                    foreach(X509ChainStatus chainStatus in chain.ChainStatus)
-                    {
-                        if(chainStatus.Status != X509ChainStatusFlags.NoError && chainStatus.Status != X509ChainStatusFlags.UntrustedRoot)
-                        {
-                            return false;
-                        }
-                    }
+			if((sslPolicyErrors & SslPolicyErrors.RemoteCertificateChainErrors) != 0)
+			{
+				if(certificateValidation.allowSelfSigned)
+				{
+					foreach(X509ChainStatus chainStatus in chain.ChainStatus)
+					{
+						if(chainStatus.Status != X509ChainStatusFlags.NoError && chainStatus.Status != X509ChainStatusFlags.UntrustedRoot)
+						{
+							return false;
+						}
+					}
 
-                    Debug.LogWarning("The root certificate is untrusted.");
-                }
-                else
-                {
-                    return false;
-                }
+					Debug.LogWarning("The root certificate is untrusted.");
+				}
+				else
+				{
+					return false;
+				}
 
-                handled |= SslPolicyErrors.RemoteCertificateChainErrors;
-            }
+				handled |= SslPolicyErrors.RemoteCertificateChainErrors;
+			}
 
-            if((sslPolicyErrors & handled) == handled)
-            {
-                return true;
-            }
+			if((sslPolicyErrors & handled) == handled)
+			{
+				return true;
+			}
 
-            return false;
-        }
+			return false;
+		}
 
 		protected void ConnectUdp(Connection.Tcp connection, Message.Negotiation.Parameters param)
 		{

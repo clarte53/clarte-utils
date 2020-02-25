@@ -20,86 +20,86 @@ namespace CLARTE.Threads
 	/// </summary>
 	public class Result : IResult
 	{
-        #region Members
-        protected ManualResetEvent waitHandle = new ManualResetEvent(false);
-        protected Action<Exception> callback;
-        protected Exception exception;
-        protected bool exceptionChecked;
-        protected bool disposed;
-        #endregion
+		#region Members
+		protected ManualResetEvent waitHandle = new ManualResetEvent(false);
+		protected Action<Exception> callback;
+		protected Exception exception;
+		protected bool exceptionChecked;
+		protected bool disposed;
+		#endregion
 
-        #region Constructors
-        /// <summary>
-        /// Create a new future result.
-        /// </summary>
-        /// <param name="callback">An optional callback to call when result is completed.</param>
-        public Result(Action<Exception> callback = null)
-        {
-            this.callback = callback;
-        }
-        #endregion
+		#region Constructors
+		/// <summary>
+		/// Create a new future result.
+		/// </summary>
+		/// <param name="callback">An optional callback to call when result is completed.</param>
+		public Result(Action<Exception> callback = null)
+		{
+			this.callback = callback;
+		}
+		#endregion
 
-        #region IDisposable implementation
-        protected virtual void Dispose(bool disposing)
-        {
-            if(!disposed)
-            {
-                if(disposing)
-                {
-                    // TODO: delete managed state (managed objects).
+		#region IDisposable implementation
+		protected virtual void Dispose(bool disposing)
+		{
+			if(!disposed)
+			{
+				if(disposing)
+				{
+					// TODO: delete managed state (managed objects).
 
-                    // If we got an exception and the user did not checked it, we display an error message before the info is lost.
-                    if(!exceptionChecked && exception != null)
-                    {
-                        Debug.LogErrorFormat("{0}: {1}\n{2}", exception.GetType(), exception.Message, exception.StackTrace);
-                    }
+					// If we got an exception and the user did not checked it, we display an error message before the info is lost.
+					if(!exceptionChecked && exception != null)
+					{
+						Debug.LogErrorFormat("{0}: {1}\n{2}", exception.GetType(), exception.Message, exception.StackTrace);
+					}
 #if NETFX_CORE
-                    waitHandle.Dispose();
+					waitHandle.Dispose();
 #else
-                    waitHandle.Close();
+					waitHandle.Close();
 #endif
-                }
+				}
 
-                // TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
-                // TODO: set fields of large size with null value.
+				// TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
+				// TODO: set fields of large size with null value.
 
-                disposed = true;
-            }
-        }
+				disposed = true;
+			}
+		}
 
-        // TODO: replace finalizer only if the above Dispose(bool disposing) function as code to free unmanaged resources.
-        ~Result()
-        {
-            Dispose(/*false*/);
-        }
+		// TODO: replace finalizer only if the above Dispose(bool disposing) function as code to free unmanaged resources.
+		~Result()
+		{
+			Dispose(/*false*/);
+		}
 
-        /// <summary>
-        /// Dispose of the thread pool. Wait for curently executing async task to complete and release all the allocated threads.
-        /// </summary>
-        /// <remarks>Note that async tasks that are planned but not started yet will be discarded.</remarks>
-        public void Dispose()
-        {
-            // Pass true in dispose method to clean managed resources too and say GC to skip finalize in next line.
-            Dispose(true);
+		/// <summary>
+		/// Dispose of the thread pool. Wait for curently executing async task to complete and release all the allocated threads.
+		/// </summary>
+		/// <remarks>Note that async tasks that are planned but not started yet will be discarded.</remarks>
+		public void Dispose()
+		{
+			// Pass true in dispose method to clean managed resources too and say GC to skip finalize in next line.
+			Dispose(true);
 
-            // If dispose is called already then say GC to skip finalize on this instance.
-            // TODO: uncomment next line if finalizer is replaced above.
-            GC.SuppressFinalize(this);
-        }
-        #endregion
+			// If dispose is called already then say GC to skip finalize on this instance.
+			// TODO: uncomment next line if finalizer is replaced above.
+			GC.SuppressFinalize(this);
+		}
+		#endregion
 
-        #region Getter / Setter
-        /// <summary>
-        /// Check whether the task is done or not.
-        /// </summary>
-        /// <remarks>The call to this property is NOT blocking. Therefore it can be used to check periodically for the task completion.</remarks>
-        /// <returns>True if the task is done, false otherwise.</returns>
-        public bool Done
+		#region Getter / Setter
+		/// <summary>
+		/// Check whether the task is done or not.
+		/// </summary>
+		/// <remarks>The call to this property is NOT blocking. Therefore it can be used to check periodically for the task completion.</remarks>
+		/// <returns>True if the task is done, false otherwise.</returns>
+		public bool Done
 		{
 			get
 			{
-                return waitHandle.WaitOne(0);
-            }
+				return waitHandle.WaitOne(0);
+			}
 		}
 
 		/// <summary>
@@ -141,7 +141,7 @@ namespace CLARTE.Threads
 		/// <remarks>The call to this property is blocking until the task is complete.</remarks>
 		public void Wait()
 		{
-            waitHandle.WaitOne();
+			waitHandle.WaitOne();
 		}
 
 		/// <summary>
@@ -161,14 +161,14 @@ namespace CLARTE.Threads
 		#endregion
 	}
 
-    /// <summary>
-    /// Specialized async result to get the return value of an async task.
-    /// </summary>
-    /// <typeparam name="T">The type of the return value.</typeparam>
-    public class Result<T> : IResult
-    {
-        #region Members
-        protected T value;
+	/// <summary>
+	/// Specialized async result to get the return value of an async task.
+	/// </summary>
+	/// <typeparam name="T">The type of the return value.</typeparam>
+	public class Result<T> : IResult
+	{
+		#region Members
+		protected T value;
 		protected Result result;
 		protected Action<T, Exception> callback;
 		#endregion
@@ -179,7 +179,7 @@ namespace CLARTE.Threads
 		/// </summary>
 		/// <param name="callback">An optional callback to call when result is completed.</param>
 		public Result(Action<T, Exception> callback = null)
-        {
+		{
 			this.callback = callback;
 
 			result = new Result();

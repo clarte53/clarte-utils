@@ -26,19 +26,19 @@ namespace CLARTE.Serialization
 	}
 
 	[StructLayout(LayoutKind.Explicit)]
-    public struct Converter16
-    {
-        [FieldOffset(0)]
+	public struct Converter16
+	{
+		[FieldOffset(0)]
 		public byte Byte1;
 
-        [FieldOffset(sizeof(byte))]
-        public byte Byte2;
+		[FieldOffset(sizeof(byte))]
+		public byte Byte2;
 
-        [FieldOffset(0)]
-        public char _char;
+		[FieldOffset(0)]
+		public char _char;
 
-        [FieldOffset(0)]
-        public short _short;
+		[FieldOffset(0)]
+		public short _short;
 
 		[FieldOffset(0)]
 		public ushort _ushort;
@@ -107,35 +107,35 @@ namespace CLARTE.Serialization
 		}
 
 		public Converter16(byte value1, byte value2)
-        {
+		{
 			_char = (char) 0;
 			_short = 0;
 			_ushort = 0;
-            Byte1 = value1;
-            Byte2 = value2;
-        }
+			Byte1 = value1;
+			Byte2 = value2;
+		}
 
-        public Converter16(char value)
-        {
-            Byte1 = 0;
-            Byte2 = 0;
-            _short = 0;
+		public Converter16(char value)
+		{
+			Byte1 = 0;
+			Byte2 = 0;
+			_short = 0;
 			_ushort = 0;
-            _char = value;
+			_char = value;
 
 			if(!Converter.isLittleEndian)
 			{
 				Converter.Swap(ref Byte1, ref Byte2);
 			}
-        }
+		}
 
-        public Converter16(short value)
-        {
-            Byte1 = 0;
-            Byte2 = 0;
-            _char = (char) 0;
+		public Converter16(short value)
+		{
+			Byte1 = 0;
+			Byte2 = 0;
+			_char = (char) 0;
 			_ushort = 0;
-            _short = value;
+			_short = value;
 
 			if(!Converter.isLittleEndian)
 			{
@@ -158,59 +158,59 @@ namespace CLARTE.Serialization
 		}
 
 		public static implicit operator char(Converter16 c)
-        {
-            return c.Char;
-        }
+		{
+			return c.Char;
+		}
 
-        public static implicit operator Converter16(char v)
-        {
-            return new Converter16(v);
-        }
+		public static implicit operator Converter16(char v)
+		{
+			return new Converter16(v);
+		}
 
-        public static implicit operator short(Converter16 c)
-        {
-            return c.Short;
-        }
+		public static implicit operator short(Converter16 c)
+		{
+			return c.Short;
+		}
 
-        public static implicit operator Converter16(short v)
-        {
-            return new Converter16(v);
-        }
+		public static implicit operator Converter16(short v)
+		{
+			return new Converter16(v);
+		}
 
-        public static implicit operator ushort(Converter16 c)
-        {
-            return c.UShort;
-        }
+		public static implicit operator ushort(Converter16 c)
+		{
+			return c.UShort;
+		}
 
-        public static implicit operator Converter16(ushort v)
-        {
-            return new Converter16(v);
-        }
-    }
+		public static implicit operator Converter16(ushort v)
+		{
+			return new Converter16(v);
+		}
+	}
 
-    [StructLayout(LayoutKind.Explicit)]
-    public struct Converter32
-    {
-        [FieldOffset(0)]
-        public byte Byte1;
+	[StructLayout(LayoutKind.Explicit)]
+	public struct Converter32
+	{
+		[FieldOffset(0)]
+		public byte Byte1;
 
-        [FieldOffset(sizeof(byte))]
-        public byte Byte2;
+		[FieldOffset(sizeof(byte))]
+		public byte Byte2;
 
-        [FieldOffset(2 * sizeof(byte))]
-        public byte Byte3;
+		[FieldOffset(2 * sizeof(byte))]
+		public byte Byte3;
 
-        [FieldOffset(3 * sizeof(byte))]
-        public byte Byte4;
+		[FieldOffset(3 * sizeof(byte))]
+		public byte Byte4;
 
-        [FieldOffset(0)]
-        public int _int;
+		[FieldOffset(0)]
+		public int _int;
 
 		[FieldOffset(0)]
 		public uint _uint;
 
 		[FieldOffset(0)]
-        public float _float;
+		public float _float;
 
 		public int Int
 		{
@@ -282,25 +282,25 @@ namespace CLARTE.Serialization
 		}
 
 		public Converter32(byte value1, byte value2, byte value3, byte value4)
-        {
-            _int = 0;
+		{
+			_int = 0;
 			_uint = 0;
-            _float = 0;
-            Byte1 = value1;
-            Byte2 = value2;
-            Byte3 = value3;
-            Byte4 = value4;
-        }
+			_float = 0;
+			Byte1 = value1;
+			Byte2 = value2;
+			Byte3 = value3;
+			Byte4 = value4;
+		}
 
-        public Converter32(int value)
-        {
-            Byte1 = 0;
-            Byte2 = 0;
-            Byte3 = 0;
-            Byte4 = 0;
+		public Converter32(int value)
+		{
+			Byte1 = 0;
+			Byte2 = 0;
+			Byte3 = 0;
+			Byte4 = 0;
 			_uint = 0;
-            _float = 0;
-            _int = value;
+			_float = 0;
+			_int = value;
 
 			if(!Converter.isLittleEndian)
 			{
@@ -327,14 +327,14 @@ namespace CLARTE.Serialization
 		}
 
 		public Converter32(float value)
-        {
-            Byte1 = 0;
-            Byte2 = 0;
-            Byte3 = 0;
-            Byte4 = 0;
-            _int = 0;
+		{
+			Byte1 = 0;
+			Byte2 = 0;
+			Byte3 = 0;
+			Byte4 = 0;
+			_int = 0;
 			_uint = 0;
-            _float = value;
+			_float = value;
 
 			if(!Converter.isLittleEndian)
 			{
@@ -343,54 +343,54 @@ namespace CLARTE.Serialization
 			}
 		}
 
-        public static implicit operator int(Converter32 c)
-        {
-            return c.Int;
-        }
+		public static implicit operator int(Converter32 c)
+		{
+			return c.Int;
+		}
 
-        public static implicit operator Converter32(int v)
-        {
-            return new Converter32(v);
-        }
+		public static implicit operator Converter32(int v)
+		{
+			return new Converter32(v);
+		}
 
-        public static implicit operator uint(Converter32 c)
-        {
-            return c.UInt;
-        }
+		public static implicit operator uint(Converter32 c)
+		{
+			return c.UInt;
+		}
 
-        public static implicit operator Converter32(uint v)
-        {
-            return new Converter32(v);
-        }
+		public static implicit operator Converter32(uint v)
+		{
+			return new Converter32(v);
+		}
 
-        public static implicit operator float(Converter32 c)
-        {
-            return c.Float;
-        }
+		public static implicit operator float(Converter32 c)
+		{
+			return c.Float;
+		}
 
-        public static implicit operator Converter32(float v)
-        {
-            return new Converter32(v);
-        }
-    }
+		public static implicit operator Converter32(float v)
+		{
+			return new Converter32(v);
+		}
+	}
 
-    [StructLayout(LayoutKind.Explicit)]
-    public struct Converter64
-    {
-        [FieldOffset(0)]
-        public int Int1;
+	[StructLayout(LayoutKind.Explicit)]
+	public struct Converter64
+	{
+		[FieldOffset(0)]
+		public int Int1;
 
-        [FieldOffset(sizeof(int))]
-        public int Int2;
+		[FieldOffset(sizeof(int))]
+		public int Int2;
 
-        [FieldOffset(0)]
-        public long _long;
+		[FieldOffset(0)]
+		public long _long;
 
 		[FieldOffset(0)]
 		public ulong _ulong;
 
 		[FieldOffset(0)]
-        public double _double;
+		public double _double;
 
 		public long Long
 		{
@@ -474,21 +474,21 @@ namespace CLARTE.Serialization
 		}
 
 		public Converter64(int value1, int value2)
-        {
-            _long = 0;
+		{
+			_long = 0;
 			_ulong = 0;
-            _double = 0;
-            Int1 = value1;
-            Int2 = value2;
+			_double = 0;
+			Int1 = value1;
+			Int2 = value2;
 		}
 
-        public Converter64(long value)
-        {
-            Int1 = 0;
-            Int2 = 0;
+		public Converter64(long value)
+		{
+			Int1 = 0;
+			Int2 = 0;
 			_ulong = 0;
-            _double = 0;
-            _long = value;
+			_double = 0;
+			_long = value;
 
 			if(!Converter.isLittleEndian)
 			{
@@ -517,12 +517,12 @@ namespace CLARTE.Serialization
 		}
 
 		public Converter64(double value)
-        {
-            Int1 = 0;
-            Int2 = 0;
-            _long = 0;
+		{
+			Int1 = 0;
+			Int2 = 0;
+			_long = 0;
 			_ulong = 0;
-            _double = value;
+			_double = value;
 
 			if(!Converter.isLittleEndian)
 			{
@@ -533,54 +533,54 @@ namespace CLARTE.Serialization
 			}
 		}
 
-        public static implicit operator long(Converter64 c)
-        {
-            return c.Long;
-        }
+		public static implicit operator long(Converter64 c)
+		{
+			return c.Long;
+		}
 
-        public static implicit operator Converter64(long v)
-        {
-            return new Converter64(v);
-        }
+		public static implicit operator Converter64(long v)
+		{
+			return new Converter64(v);
+		}
 
-        public static implicit operator ulong(Converter64 c)
-        {
-            return c.ULong;
-        }
+		public static implicit operator ulong(Converter64 c)
+		{
+			return c.ULong;
+		}
 
-        public static implicit operator Converter64(ulong v)
-        {
-            return new Converter64(v);
-        }
+		public static implicit operator Converter64(ulong v)
+		{
+			return new Converter64(v);
+		}
 
-        public static implicit operator double(Converter64 c)
-        {
-            return c.Double;
-        }
+		public static implicit operator double(Converter64 c)
+		{
+			return c.Double;
+		}
 
-        public static implicit operator Converter64(double v)
-        {
-            return new Converter64(v);
-        }
-    }
+		public static implicit operator Converter64(double v)
+		{
+			return new Converter64(v);
+		}
+	}
 
-    [StructLayout(LayoutKind.Explicit)]
-    public struct Converter128
-    {
-        [FieldOffset(0)]
-        public int Int1;
+	[StructLayout(LayoutKind.Explicit)]
+	public struct Converter128
+	{
+		[FieldOffset(0)]
+		public int Int1;
 
-        [FieldOffset(sizeof(int))]
-        public int Int2;
+		[FieldOffset(sizeof(int))]
+		public int Int2;
 
-        [FieldOffset(2 * sizeof(int))]
-        public int Int3;
+		[FieldOffset(2 * sizeof(int))]
+		public int Int3;
 
-        [FieldOffset(3 * sizeof(int))]
-        public int Int4;
+		[FieldOffset(3 * sizeof(int))]
+		public int Int4;
 
-        [FieldOffset(0)]
-        public decimal _decimal;
+		[FieldOffset(0)]
+		public decimal _decimal;
 
 		public decimal Decimal
 		{
@@ -616,21 +616,21 @@ namespace CLARTE.Serialization
 		}
 
 		public Converter128(int value1, int value2, int value3, int value4)
-        {
-            _decimal = 0;
-            Int1 = value1;
-            Int2 = value2;
-            Int3 = value3;
-            Int4 = value4;
-        }
+		{
+			_decimal = 0;
+			Int1 = value1;
+			Int2 = value2;
+			Int3 = value3;
+			Int4 = value4;
+		}
 
-        public Converter128(decimal value)
-        {
-            Int1 = 0;
-            Int2 = 0;
-            Int3 = 0;
-            Int4 = 0;
-            _decimal = value;
+		public Converter128(decimal value)
+		{
+			Int1 = 0;
+			Int2 = 0;
+			Int3 = 0;
+			Int4 = 0;
+			_decimal = value;
 
 			if(!Converter.isLittleEndian)
 			{
@@ -644,14 +644,14 @@ namespace CLARTE.Serialization
 			}
 		}
 
-        public static implicit operator decimal(Converter128 c)
-        {
-            return c.Decimal;
-        }
+		public static implicit operator decimal(Converter128 c)
+		{
+			return c.Decimal;
+		}
 
-        public static implicit operator Converter128(decimal v)
-        {
-            return new Converter128(v);
-        }
-    }
+		public static implicit operator Converter128(decimal v)
+		{
+			return new Converter128(v);
+		}
+	}
 }

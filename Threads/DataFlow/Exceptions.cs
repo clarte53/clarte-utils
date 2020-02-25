@@ -5,7 +5,7 @@ namespace CLARTE.Threads.DataFlow
 	/// <summary>
 	/// Exception raised when no DataProvider is given in configuration.
 	/// </summary>
-    public class NoDataProviderException: Exception
+	public class NoDataProviderException: Exception
 	{
 		#region Constructors
 		/// <summary>

@@ -9,19 +9,19 @@ namespace CLARTE.Threads
 	{
 		#region Members
 		private static Pool threads = new Pool();
-        #endregion
+		#endregion
 
-        #region Destructors
-        ~Tasks()
-        {
-            if(threads != null)
-            {
-                threads.Dispose();
+		#region Destructors
+		~Tasks()
+		{
+			if(threads != null)
+			{
+				threads.Dispose();
 
-                threads = null;
-            }
-        }
-        #endregion
+				threads = null;
+			}
+		}
+		#endregion
 
 		#region Public methods
 		/// <summary>
@@ -45,14 +45,14 @@ namespace CLARTE.Threads
 			return threads.AddTask(task);
 		}
 
-        /// <summary>
-        /// Get the number of tasks currentlty planned or executing.
-        /// </summary>
-        /// <returns>The number of tasks.</returns>
-        public static long TaskCount()
+		/// <summary>
+		/// Get the number of tasks currentlty planned or executing.
+		/// </summary>
+		/// <returns>The number of tasks.</returns>
+		public static long TaskCount()
 		{
-            return threads.TaskCount();
-        }
-        #endregion
-    }
+			return threads.TaskCount();
+		}
+		#endregion
+	}
 }

@@ -174,7 +174,7 @@ namespace CLARTE.Serialization
 		protected static Type[] GetGenericParametersTypes(Type type)
 		{
 #if NETFX_CORE
-            Type[] element_types = (type.GetTypeInfo().IsGenericType ? type.GetTypeInfo().GetGenericArguments() : null);
+			Type[] element_types = (type.GetTypeInfo().IsGenericType ? type.GetTypeInfo().GetGenericArguments() : null);
 #else
 			Type[] element_types = (type.IsGenericType ? type.GetGenericArguments() : null);
 #endif

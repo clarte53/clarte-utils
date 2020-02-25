@@ -12,52 +12,52 @@ using UnityEngine;
 
 namespace CLARTE.Net.Negotiation
 {
-    public class Server : Base<ServerMonitorChannel, ServerChannel>
-    {
-        #region Members
-        public const uint maxSupportedVersion = 1;
+	public class Server : Base<ServerMonitorChannel, ServerChannel>
+	{
+		#region Members
+		public const uint maxSupportedVersion = 1;
 
-        public TextAsset certificate;
-        public uint port;
+		public TextAsset certificate;
+		public uint port;
 
-        protected Threads.Thread listenerThread;
+		protected Threads.Thread listenerThread;
 		protected TcpListener listener;
-        protected X509Certificate2 serverCertificate;
-        protected ManualResetEvent stopEvent;
-        #endregion
+		protected X509Certificate2 serverCertificate;
+		protected ManualResetEvent stopEvent;
+		#endregion
 
-        #region IDisposable implementation
-        protected override void Dispose(bool disposing)
-        {
-            if(state != State.DISPOSED)
-            {
-                state = State.CLOSING;
+		#region IDisposable implementation
+		protected override void Dispose(bool disposing)
+		{
+			if(state != State.DISPOSED)
+			{
+				state = State.CLOSING;
 
-                if(disposing)
-                {
-                    // TODO: delete managed state (managed objects).
+				if(disposing)
+				{
+					// TODO: delete managed state (managed objects).
 
-                    listener.Stop();
+					listener.Stop();
 
-                    stopEvent.Set();
+					stopEvent.Set();
 
-                    CloseInitializedConnections();
+					CloseInitializedConnections();
 
-                    CloseOpenedChannels();
+					CloseOpenedChannels();
 
 					CloseMonitor();
 
 					listenerThread.Join();
 
 					stopEvent.Close();
-                }
+				}
 
-                // TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
-                // TODO: set fields of large size with null value.
+				// TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
+				// TODO: set fields of large size with null value.
 
-                state = State.DISPOSED;
-            }
-        }
+				state = State.DISPOSED;
+			}
+		}
 		#endregion
 
 		#region Base implementation
@@ -97,94 +97,94 @@ namespace CLARTE.Net.Negotiation
 
 		#region MonoBehaviour callbacks
 		protected override void Awake()
-        {
-            base.Awake();
+		{
+			base.Awake();
 
-            state = State.INITIALIZING;
+			state = State.INITIALIZING;
 
-            stopEvent = new ManualResetEvent(false);
+			stopEvent = new ManualResetEvent(false);
 
-            serverCertificate = null;
+			serverCertificate = null;
 
-            // Should we use an encrypted channel?
-            if(certificate != null && certificate.bytes.Length > 0)
-            {
-                string tmp_file = string.Format("{0}{1}{2}", Application.temporaryCachePath, Path.DirectorySeparatorChar, certificate.name);
+			// Should we use an encrypted channel?
+			if(certificate != null && certificate.bytes.Length > 0)
+			{
+				string tmp_file = string.Format("{0}{1}{2}", Application.temporaryCachePath, Path.DirectorySeparatorChar, certificate.name);
 
-                File.WriteAllBytes(tmp_file, certificate.bytes);
+				File.WriteAllBytes(tmp_file, certificate.bytes);
 
-                try
-                {
+				try
+				{
 #if !UNITY_WSA
-                    // Import the certificate
-                    serverCertificate = new X509Certificate2(tmp_file);
+					// Import the certificate
+					serverCertificate = new X509Certificate2(tmp_file);
 #else
-                    // At the moment, SslStream is not working on Hololens platform.
-                    // Indeed, at the moment, player capabilities does not provide a way to authorize access to the trusted root certificates store.
-                    throw new NotSupportedException("SSL streams are not supported on Hololens.");
+					// At the moment, SslStream is not working on Hololens platform.
+					// Indeed, at the moment, player capabilities does not provide a way to authorize access to the trusted root certificates store.
+					throw new NotSupportedException("SSL streams are not supported on Hololens.");
 #endif
-                }
-                catch(Exception)
-                {
-                    Debug.LogWarningFormat("Invalid certificate file '{0}'. Encryption is disabled.", certificate.name);
+				}
+				catch(Exception)
+				{
+					Debug.LogWarningFormat("Invalid certificate file '{0}'. Encryption is disabled.", certificate.name);
 
-                    serverCertificate = null;
-                }
+					serverCertificate = null;
+				}
 
-                File.Delete(tmp_file);
-            }
+				File.Delete(tmp_file);
+			}
 
 			listener = new TcpListener(IPAddress.Any, (int) port);
-            listener.Start();
+			listener.Start();
 
-            listenerThread = new Threads.Thread(Listen);
-            listenerThread.Start();
+			listenerThread = new Threads.Thread(Listen);
+			listenerThread.Start();
 
-            Debug.LogFormat("Started server on port {0}", port);
+			Debug.LogFormat("Started server on port {0}", port);
 
-            state = State.RUNNING;
-        }
+			state = State.RUNNING;
+		}
 
-        protected override void OnValidate()
-        {
-            base.OnValidate();
+		protected override void OnValidate()
+		{
+			base.OnValidate();
 
-            if(channels != null)
-            {
-                foreach(ServerChannel channel in channels)
-                {
-                    if(!channel.parameters.disableHeartbeat && channel.parameters.heartbeat == 0)
-                    {
-                        channel.type = Channel.Type.TCP;
-                        channel.parameters.heartbeat = 2f;
-                    }
-                }
-            }
-        }
-        #endregion
+			if(channels != null)
+			{
+				foreach(ServerChannel channel in channels)
+				{
+					if(!channel.parameters.disableHeartbeat && channel.parameters.heartbeat == 0)
+					{
+						channel.type = Channel.Type.TCP;
+						channel.parameters.heartbeat = 2f;
+					}
+				}
+			}
+		}
+		#endregion
 
-        #region Connection methods
-        protected void Listen()
-        {
-            while(state < State.CLOSING && !stopEvent.WaitOne(0))
-            {
-                // Listen for new connections
-                IAsyncResult context = listener.BeginAcceptTcpClient(AcceptClient, null);
+		#region Connection methods
+		protected void Listen()
+		{
+			while(state < State.CLOSING && !stopEvent.WaitOne(0))
+			{
+				// Listen for new connections
+				IAsyncResult context = listener.BeginAcceptTcpClient(AcceptClient, null);
 
-                // Wait for next connection or exit signal
-                if(WaitHandle.WaitAny(new[] { stopEvent, context.AsyncWaitHandle }) == 0)
-                {
-                    return;
-                }
-            }
-        }
+				// Wait for next connection or exit signal
+				if(WaitHandle.WaitAny(new[] { stopEvent, context.AsyncWaitHandle }) == 0)
+				{
+					return;
+				}
+			}
+		}
 
-        protected void AcceptClient(IAsyncResult async_result)
-        {
-            try
-            {
-                if(state == State.RUNNING)
-                {
+		protected void AcceptClient(IAsyncResult async_result)
+		{
+			try
+			{
+				if(state == State.RUNNING)
+				{
 					Message.Negotiation.Parameters param = new Message.Negotiation.Parameters
 					{
 						guid = Guid.Empty,
@@ -193,32 +193,32 @@ namespace CLARTE.Net.Negotiation
 						autoReconnect = !negotiation.parameters.disableAutoReconnect
 					};
 
-                    // Get the new connection
-                    Connection.Tcp connection = new Connection.Tcp(this, param, DisconnectionHandler, listener.EndAcceptTcpClient(async_result));
+					// Get the new connection
+					Connection.Tcp connection = new Connection.Tcp(this, param, DisconnectionHandler, listener.EndAcceptTcpClient(async_result));
 
-                    lock(initializedConnections)
-                    {
-                        initializedConnections.Add(connection);
-                    }
+					lock(initializedConnections)
+					{
+						initializedConnections.Add(connection);
+					}
 
-                    connection.initialization = Task.Run(() => Connected(connection));
-                }
-            }
-            catch(Exception exception)
-            {
-                Debug.LogErrorFormat("{0}: {1}\n{2}", exception.GetType(), exception.Message, exception.StackTrace);
-            }
-        }
+					connection.initialization = Task.Run(() => Connected(connection));
+				}
+			}
+			catch(Exception exception)
+			{
+				Debug.LogErrorFormat("{0}: {1}\n{2}", exception.GetType(), exception.Message, exception.StackTrace);
+			}
+		}
 
-        protected void Connected(Connection.Tcp connection)
-        {
-            try
-            {
-                // We should be connected
-                if(connection.client.Connected)
-                {
-                    // Get the stream associated with this connection
-                    connection.stream = connection.client.GetStream();
+		protected void Connected(Connection.Tcp connection)
+		{
+			try
+			{
+				// We should be connected
+				if(connection.client.Connected)
+				{
+					// Get the stream associated with this connection
+					connection.stream = connection.client.GetStream();
 
 					Message.Connection.Parameters header = new Message.Connection.Parameters
 					{
@@ -242,47 +242,47 @@ namespace CLARTE.Net.Negotiation
 						// No encryption, the channel stay as is
 						ValidateCredentials(connection);
 					}	
-                }
-                else
-                {
-                    Debug.LogError("The connection from the client failed.");
-                }
-            }
-            catch(DropException)
-            {
-                throw;
-            }
-            catch(Exception exception)
-            {
-                Debug.LogErrorFormat("{0}: {1}\n{2}", exception.GetType(), exception.Message, exception.StackTrace);
-            }
-        }
+				}
+				else
+				{
+					Debug.LogError("The connection from the client failed.");
+				}
+			}
+			catch(DropException)
+			{
+				throw;
+			}
+			catch(Exception exception)
+			{
+				Debug.LogErrorFormat("{0}: {1}\n{2}", exception.GetType(), exception.Message, exception.StackTrace);
+			}
+		}
 
-        protected void Authenticated(IAsyncResult async_result)
-        {
-            Connection.Tcp connection = null;
+		protected void Authenticated(IAsyncResult async_result)
+		{
+			Connection.Tcp connection = null;
 
-            try
-            {
-                // Finalize the authentication as server for the SSL stream
-                connection = (Connection.Tcp) async_result.AsyncState;
+			try
+			{
+				// Finalize the authentication as server for the SSL stream
+				connection = (Connection.Tcp) async_result.AsyncState;
 
-                ((SslStream) connection.stream).EndAuthenticateAsServer(async_result);
+				((SslStream) connection.stream).EndAuthenticateAsServer(async_result);
 
-                ValidateCredentials(connection);
-            }
-            catch(DropException)
-            {
-                throw;
-            }
-            catch(Exception)
-            {
-                Drop(connection, "Authentication failed.");
-            }
-        }
+				ValidateCredentials(connection);
+			}
+			catch(DropException)
+			{
+				throw;
+			}
+			catch(Exception)
+			{
+				Drop(connection, "Authentication failed.");
+			}
+		}
 
-        protected void ValidateCredentials(Connection.Tcp connection)
-        {
+		protected void ValidateCredentials(Connection.Tcp connection)
+		{
 			Message.Base req;
 
 			if(connection.Receive(out req) && req.IsType<Message.Connection.Request>())
@@ -329,7 +329,7 @@ namespace CLARTE.Net.Negotiation
 			{
 				Drop(connection, "Expected to receive negotiation connection request.");
 			}
-        }
+		}
 
 		protected void NegotiateChannels(Connection.Tcp connection)
 		{
@@ -390,9 +390,9 @@ namespace CLARTE.Net.Negotiation
 			{
 				Drop(connection, "Expected to receive some negotiation command.");
 			}
-        }
-        #endregion
-    }
+		}
+		#endregion
+	}
 }
 
 #endif // !NETFX_CORE

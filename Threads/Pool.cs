@@ -15,14 +15,14 @@ namespace CLARTE.Threads
 		protected ManualResetEvent addEvent;
 		protected object taskCountMutex;
 		protected int taskCount; // We can not use the length of the tasks queue because when the lasts task is removed from the queue, it is still executed and WaitForTasksCompletion should continue to wait.
-        #endregion
+		#endregion
 
-        #region Constructors / Destructors
-        /// <summary>
-        /// Create a new thread pool for oneshot tasks.
-        /// </summary>
-        /// <param name="nb_threads">The number of worker threads to span. If zero, the worker is started in (nb_cpu_cores - 1) threads.</param>
-        public Pool(uint nb_threads = 0)
+		#region Constructors / Destructors
+		/// <summary>
+		/// Create a new thread pool for oneshot tasks.
+		/// </summary>
+		/// <param name="nb_threads">The number of worker threads to span. If zero, the worker is started in (nb_cpu_cores - 1) threads.</param>
+		public Pool(uint nb_threads = 0)
 		{
 			tasks = new Queue<Task>();
 
@@ -30,8 +30,8 @@ namespace CLARTE.Threads
 
 			taskCountMutex = new object();
 
-            Init(new Descriptor(Worker, new ManualResetEvent[] { addEvent }, nb_threads));
-        }
+			Init(new Descriptor(Worker, new ManualResetEvent[] { addEvent }, nb_threads));
+		}
 		#endregion
 
 		#region Worker

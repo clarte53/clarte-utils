@@ -5,8 +5,8 @@ using System.Collections;
 
 namespace CLARTE.Backport.Collections
 {
-    public interface IStructuralComparable
+	public interface IStructuralComparable
 	{
-        Int32 CompareTo(Object other, IComparer comparer);
-    }
+		Int32 CompareTo(Object other, IComparer comparer);
+	}
 }

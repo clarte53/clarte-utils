@@ -9,65 +9,65 @@ using InternalThread = System.Threading.Thread;
 
 namespace CLARTE.Threads
 {
-    public class Thread
-    {
-        #region Members
+	public class Thread
+	{
+		#region Members
 #if !NETFX_CORE
-        protected static int? mainThreadID;
+		protected static int? mainThreadID;
 #endif
-        protected InternalThread thread;
-        #endregion
+		protected InternalThread thread;
+		#endregion
 
-        #region Constructors
+		#region Constructors
 #if !NETFX_CORE
-        static Thread()
-        {
-            mainThreadID = InternalThread.CurrentThread.ManagedThreadId;
-        }
+		static Thread()
+		{
+			mainThreadID = InternalThread.CurrentThread.ManagedThreadId;
+		}
 #endif
 
-        public Thread(Action start)
-        {
+		public Thread(Action start)
+		{
 #if NETFX_CORE
-            thread = new InternalThread(start, System.Threading.Tasks.TaskCreationOptions.LongRunning);
+			thread = new InternalThread(start, System.Threading.Tasks.TaskCreationOptions.LongRunning);
 #else
-            thread = new InternalThread(new System.Threading.ThreadStart(start));
+			thread = new InternalThread(new System.Threading.ThreadStart(start));
 #endif
-        }
-        #endregion
+		}
+		#endregion
 
-        #region Public methods
-        public void Start()
-        {
-            if(thread != null)
-            {
-                thread.Start();
-            }
-        }
+		#region Public methods
+		public void Start()
+		{
+			if(thread != null)
+			{
+				thread.Start();
+			}
+		}
 
-        public void Join()
-        {
-            if(thread != null)
-            {
+		public void Join()
+		{
+			if(thread != null)
+			{
 #if NETFX_CORE
-                thread.Wait();
+				thread.Wait();
 #else
-                thread.Join();
+				thread.Join();
 #endif
-            }
-        }
+			}
+		}
 
-        public static bool IsMainThread
-        {
-            get
-            {
+		public static bool IsMainThread
+		{
+			get
+			{
 #if NETFX_CORE
-                return !InternalThread.CurrentId.HasValue;
+				return !InternalThread.CurrentId.HasValue;
 #else
-                return (InternalThread.CurrentThread.ManagedThreadId == mainThreadID);
+				return (InternalThread.CurrentThread.ManagedThreadId == mainThreadID);
 #endif
-            }
-        }
-        #endregion
-    }
+			}
+		}
+		#endregion
+	}
 }

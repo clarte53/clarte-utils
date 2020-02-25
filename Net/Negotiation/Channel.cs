@@ -35,14 +35,14 @@ namespace CLARTE.Net.Negotiation
 	}
 
 	[Serializable]
-    public class BaseChannel
-    {
-        #region Members
-        public Events.ConnectionCallback onConnected;
-        public Events.DisconnectionCallback onDisconnected;
+	public class BaseChannel
+	{
+		#region Members
+		public Events.ConnectionCallback onConnected;
+		public Events.DisconnectionCallback onDisconnected;
 		public Events.ExceptionCallback onException;
-        #endregion
-    }
+		#endregion
+	}
 
 	[Serializable]
 	public class Channel : BaseChannel
@@ -74,7 +74,7 @@ namespace CLARTE.Net.Negotiation
 	}
 
 	[Serializable]
-    public class ServerChannel : Channel
+	public class ServerChannel : Channel
 	{
 		#region Members
 		public Type type;

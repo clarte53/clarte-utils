@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace CLARTE.Threads.DataFlow.Unity
 {
-    public abstract class DataWorker<InputType, OutputType>: MonoBehaviour, IMonoBehaviourDataProvider<OutputType> where InputType : ICloneable
+	public abstract class DataWorker<InputType, OutputType>: MonoBehaviour, IMonoBehaviourDataProvider<OutputType> where InputType : ICloneable
 	{
 		#region Members
 		/// <summary>
@@ -14,7 +14,7 @@ namespace CLARTE.Threads.DataFlow.Unity
 		/// <summary>
 		/// Optional barrier to wait at.
 		/// </summary>
-        [SerializeField] protected DataBarrier DataBarrier;
+		[SerializeField] protected DataBarrier DataBarrier;
 
 		/// <summary>
 		/// Timeout used to raise exception if no data have been received in a given amount of time.
@@ -52,18 +52,18 @@ namespace CLARTE.Threads.DataFlow.Unity
 		#region MonoBehaviour callbacks
 		protected virtual void OnValidate()
 		{
-            if (DataProvider != null)
+			if (DataProvider != null)
 			{
-                IMonoBehaviourDataProvider<InputType> monoprovider = DataProvider.GetComponent<IMonoBehaviourDataProvider<InputType>>();
+				IMonoBehaviourDataProvider<InputType> monoprovider = DataProvider.GetComponent<IMonoBehaviourDataProvider<InputType>>();
 
-                if (monoprovider == null)
+				if (monoprovider == null)
 				{
-                    DataProvider = null;
-                }
-            }
-        }
+					DataProvider = null;
+				}
+			}
+		}
 
-        protected void Awake()
+		protected void Awake()
 		{
 			// Create worker
 			worker = new DataFlow.DataWorker<InputType, OutputType>
@@ -74,31 +74,31 @@ namespace CLARTE.Threads.DataFlow.Unity
 
 			if (DataBarrier != null && enabled)
 			{
-                worker.RegisterBarrier(DataBarrier.barrier);
-            }
-        }
+				worker.RegisterBarrier(DataBarrier.barrier);
+			}
+		}
 
-        protected virtual void Start()
+		protected virtual void Start()
 		{
-            if (DataProvider != null)
+			if (DataProvider != null)
 			{
 				IMonoBehaviourDataProvider<InputType> monoProvider = DataProvider.GetComponent<IMonoBehaviourDataProvider<InputType>>();
 
-                monoProvider.Provider.ProvideDataEvent += worker.EnqeueTask;
-            }
+				monoProvider.Provider.ProvideDataEvent += worker.EnqeueTask;
+			}
 			else
 			{
-                throw new NoDataProviderException("You have to set a DataProvider in Unity or in Awake.");
-            }
-        }
+				throw new NoDataProviderException("You have to set a DataProvider in Unity or in Awake.");
+			}
+		}
 
-        protected virtual void Update()
+		protected virtual void Update()
 		{
-            if (worker.HasException)
+			if (worker.HasException)
 			{
-                worker.Throw();
-            }
-        }
+				worker.Throw();
+			}
+		}
 		#endregion
 	}
 }

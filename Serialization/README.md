@@ -11,7 +11,7 @@ relative to serialization:
   class is split into multiple partial class in order to make the code
   base more manageable. It also contains sub-classes:
   - 'Buffer' is an helper type that encapsulate a byte array for the
-    serialization / deserialization process. The underlying arrays are
+	serialization / deserialization process. The underlying arrays are
 	managed by the serializer in a pool, reducing the need for memory
 	allocations. Resize of the buffer array are therefore done in a very
 	efficient way. However, this means that the returned byte array after
@@ -24,7 +24,7 @@ relative to serialization:
 	serialized data himself. This choice was made based on performance
 	concern, to avoid unnecessary copies and allocation wherever possible.
   - 'IDMap' is an helper class that allows some sort of compression inside
-    of the serialized stream. When values are often repeated, this map
+	of the serialized stream. When values are often repeated, this map
 	allows to serialize them as indexes, with a binary representation of
 	1, 2 or 4 bytes depending on the number of index values. The map is
 	streamed during serialization, with the values serializaded only once

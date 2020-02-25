@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace CLARTE.Threads.DataFlow.Unity
 {
-    public abstract class DataProvider<OuptputType>: MonoBehaviour, IMonoBehaviourDataProvider<OuptputType>
+	public abstract class DataProvider<OuptputType>: MonoBehaviour, IMonoBehaviourDataProvider<OuptputType>
 	{
 		#region Members
 		/// <summary>
@@ -42,23 +42,23 @@ namespace CLARTE.Threads.DataFlow.Unity
 			};
 		}
 
-        protected virtual void Start()
+		protected virtual void Start()
 		{
-            DataCreator.Start();
-        }
+			DataCreator.Start();
+		}
 
-        protected virtual void Update()
+		protected virtual void Update()
 		{
-            if (DataCreator.HasException)
+			if (DataCreator.HasException)
 			{
-                DataCreator.Stop();
-            }
-        }
+				DataCreator.Stop();
+			}
+		}
 
-        protected virtual void OnDestroy()
+		protected virtual void OnDestroy()
 		{
-            DataCreator.Stop();
-        }
+			DataCreator.Stop();
+		}
 		#endregion
 	}
 }

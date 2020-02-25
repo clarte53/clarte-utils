@@ -33,13 +33,13 @@ namespace CLARTE.Dev.Profiling
 			
 			if(write_immediately)
 			{
-                using(FileStream file = new FileStream(filename, FileMode.Append, FileAccess.Write, FileShare.None))
-                {
-                    using(StreamWriter stream = new StreamWriter(file))
-                    {
-                        stream.WriteLine(log_str);
-                    }
-                }
+				using(FileStream file = new FileStream(filename, FileMode.Append, FileAccess.Write, FileShare.None))
+				{
+					using(StreamWriter stream = new StreamWriter(file))
+					{
+						stream.WriteLine(log_str);
+					}
+				}
 			}
 		}
 

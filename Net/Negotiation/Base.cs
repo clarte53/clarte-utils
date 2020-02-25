@@ -10,47 +10,47 @@ using CLARTE.Serialization;
 
 namespace CLARTE.Net.Negotiation
 {
-    public abstract class Base : MonoBehaviour
-    {
-        protected enum State
-        {
-            STARTED,
-            INITIALIZING,
-            RUNNING,
-            CLOSING,
-            DISPOSED
-        }
+	public abstract class Base : MonoBehaviour
+	{
+		protected enum State
+		{
+			STARTED,
+			INITIALIZING,
+			RUNNING,
+			CLOSING,
+			DISPOSED
+		}
 
-        protected class DropException : Exception
-        {
-            public DropException(string message) : base(message)
-            {
+		protected class DropException : Exception
+		{
+			public DropException(string message) : base(message)
+			{
 
-            }
-        }
+			}
+		}
 
-        [Serializable]
-        public class Credentials
-        {
-            #region Members
-            public string username;
-            public string password;
-            #endregion
-        }
+		[Serializable]
+		public class Credentials
+		{
+			#region Members
+			public string username;
+			public string password;
+			#endregion
+		}
 
-        [Serializable]
-        public class PortRange
-        {
-            #region Members
-            public const ushort maxPoolSize = 1024;
-            // Avoid IANA system or well-known ports that requires admin privileges
-            public const ushort minAvailablePort = 1024;
-            public const ushort maxavailablePort = 65535;
+		[Serializable]
+		public class PortRange
+		{
+			#region Members
+			public const ushort maxPoolSize = 1024;
+			// Avoid IANA system or well-known ports that requires admin privileges
+			public const ushort minAvailablePort = 1024;
+			public const ushort maxavailablePort = 65535;
 
-            public ushort minPort = minAvailablePort;
-            public ushort maxPort = maxavailablePort;
-            #endregion
-        }
+			public ushort minPort = minAvailablePort;
+			public ushort maxPort = maxavailablePort;
+			#endregion
+		}
 
 		protected class UdpConnectionParams
 		{
@@ -60,25 +60,25 @@ namespace CLARTE.Net.Negotiation
 			public ushort localPort;
 		}
 
-        #region Members
-        protected static readonly TimeSpan defaultHeartbeat = new TimeSpan(5 * TimeSpan.TicksPerSecond);
+		#region Members
+		protected static readonly TimeSpan defaultHeartbeat = new TimeSpan(5 * TimeSpan.TicksPerSecond);
 
-        public List<PortRange> openPorts;
+		public List<PortRange> openPorts;
 
 		protected Binary serializer;
-        protected Dictionary<Guid, Connection.Base[]> openedChannels;
-        protected HashSet<Connection.Tcp> initializedConnections;
-        protected HashSet<ushort> availablePorts;
+		protected Dictionary<Guid, Connection.Base[]> openedChannels;
+		protected HashSet<Connection.Tcp> initializedConnections;
+		protected HashSet<ushort> availablePorts;
 		protected Connection.Tcp monitor;
 		protected State state;
-        #endregion
+		#endregion
 
-        #region Abstract methods
-        protected abstract void Dispose(bool disposing);
+		#region Abstract methods
+		protected abstract void Dispose(bool disposing);
 		protected abstract void Reconnect(Connection.Base connection);
 		protected abstract void OnMonitorReceive(IPAddress address, Guid guid, ushort channel, byte[] data);
 		public abstract ushort NbChannels { get; }
-        public abstract IEnumerable<Channel> Channels { get; }
+		public abstract IEnumerable<Channel> Channels { get; }
 		#endregion
 
 		#region Clean-up helpers
@@ -98,11 +98,11 @@ namespace CLARTE.Net.Negotiation
 		}
 
 		protected void CloseInitializedConnections()
-        {
-            lock(initializedConnections)
-            {
-                foreach(Connection.Tcp connection in initializedConnections)
-                {
+		{
+			lock(initializedConnections)
+			{
+				foreach(Connection.Tcp connection in initializedConnections)
+				{
 					if(connection != null)
 					{
 						if(connection.initialization != null)
@@ -112,35 +112,35 @@ namespace CLARTE.Net.Negotiation
 
 						connection.Close();
 					}
-                }
+				}
 
-                initializedConnections.Clear();
-            }
-        }
+				initializedConnections.Clear();
+			}
+		}
 
-        protected void CloseOpenedChannels()
-        {
-            lock(openedChannels)
-            {
-                foreach(KeyValuePair<Guid, Connection.Base[]> pair in openedChannels)
-                {
-                    foreach(Connection.Base connection in pair.Value)
-                    {
+		protected void CloseOpenedChannels()
+		{
+			lock(openedChannels)
+			{
+				foreach(KeyValuePair<Guid, Connection.Base[]> pair in openedChannels)
+				{
+					foreach(Connection.Base connection in pair.Value)
+					{
 						if(connection != null)
 						{
 							connection.Close();
 						}
-                    }
-                }
+					}
+				}
 
-                openedChannels.Clear();
-            }
-        }
+				openedChannels.Clear();
+			}
+		}
 
-        protected void Close(Connection.Base connection)
-        {
-            if(connection != null)
-            {
+		protected void Close(Connection.Base connection)
+		{
+			if(connection != null)
+			{
 				if(connection is Connection.Tcp)
 				{
 					lock(initializedConnections)
@@ -163,9 +163,9 @@ namespace CLARTE.Net.Negotiation
 					}
 				}
 
-                connection.Close();
-            }
-        }
+				connection.Close();
+			}
+		}
 
 		protected void DisconnectionHandler(Connection.Base connection)
 		{
@@ -178,91 +178,91 @@ namespace CLARTE.Net.Negotiation
 		}
 
 		protected void Drop(Connection.Tcp connection, string message, params object[] values)
-        {
-            string error_message = string.Format(message, values);
+		{
+			string error_message = string.Format(message, values);
 
-            if(!error_message.EndsWith("."))
-            {
-                error_message += ".";
-            }
+			if(!error_message.EndsWith("."))
+			{
+				error_message += ".";
+			}
 
-            error_message += " Dropping connection.";
+			error_message += " Dropping connection.";
 
-            Debug.LogError(error_message);
+			Debug.LogError(error_message);
 
-            Close(connection);
+			Close(connection);
 
-            throw new DropException(error_message);
-        }
-        #endregion
+			throw new DropException(error_message);
+		}
+		#endregion
 
-        #region MonoBehaviour callbacks
-        protected virtual void Awake()
-        {
-            state = State.STARTED;
+		#region MonoBehaviour callbacks
+		protected virtual void Awake()
+		{
+			state = State.STARTED;
 
-            // Initialize singletons while in unity thread, if necessary
-            Threads.APC.MonoBehaviourCall.Instance.GetType();
+			// Initialize singletons while in unity thread, if necessary
+			Threads.APC.MonoBehaviourCall.Instance.GetType();
 			Pattern.Factory<Message.Base, byte>.Initialize(Pattern.Factory.ByteConverter);
 
 			serializer = new Binary();
 
-            openedChannels = new Dictionary<Guid, Connection.Base[]>();
+			openedChannels = new Dictionary<Guid, Connection.Base[]>();
 
-            initializedConnections = new HashSet<Connection.Tcp>();
+			initializedConnections = new HashSet<Connection.Tcp>();
 
-            availablePorts = new HashSet<ushort>();
+			availablePorts = new HashSet<ushort>();
 
-            foreach(PortRange range in openPorts)
-            {
-                if(availablePorts.Count < PortRange.maxPoolSize)
-                {
-                    ushort start = Math.Min(range.minPort, range.maxPort);
-                    ushort end = Math.Max(range.minPort, range.maxPort);
+			foreach(PortRange range in openPorts)
+			{
+				if(availablePorts.Count < PortRange.maxPoolSize)
+				{
+					ushort start = Math.Min(range.minPort, range.maxPort);
+					ushort end = Math.Max(range.minPort, range.maxPort);
 
-                    start = Math.Max(start, PortRange.minAvailablePort);
-                    end = Math.Min(end, PortRange.maxavailablePort);
+					start = Math.Max(start, PortRange.minAvailablePort);
+					end = Math.Min(end, PortRange.maxavailablePort);
 
-                    // Ok because start >= PortRange.minAvailablePort, i.e. > 0
-                    end = Math.Min(end, (ushort) (start + (PortRange.maxPoolSize - availablePorts.Count - 1)));
+					// Ok because start >= PortRange.minAvailablePort, i.e. > 0
+					end = Math.Min(end, (ushort) (start + (PortRange.maxPoolSize - availablePorts.Count - 1)));
 
-                    for(ushort port = start; port <= end; port++)
-                    {
-                        availablePorts.Add(port);
-                    }
-                }
-            }
-        }
+					for(ushort port = start; port <= end; port++)
+					{
+						availablePorts.Add(port);
+					}
+				}
+			}
+		}
 
-        protected void OnDestroy()
-        {
-            Dispose(true);
-        }
+		protected void OnDestroy()
+		{
+			Dispose(true);
+		}
 
-        protected virtual void OnValidate()
-        {
-            if(openPorts == null)
-            {
-                openPorts = new List<PortRange>();
-            }
+		protected virtual void OnValidate()
+		{
+			if(openPorts == null)
+			{
+				openPorts = new List<PortRange>();
+			}
 
-            if(openPorts.Count <= 0)
-            {
-                openPorts.Add(new PortRange());
-            }
+			if(openPorts.Count <= 0)
+			{
+				openPorts.Add(new PortRange());
+			}
 
-            foreach(PortRange range in openPorts)
-            {
-                if(range.minPort == 0 && range.maxPort == 0)
-                {
-                    range.minPort = PortRange.minAvailablePort;
-                    range.maxPort = PortRange.maxavailablePort;
-                }
-            }
-        }
-        #endregion
+			foreach(PortRange range in openPorts)
+			{
+				if(range.minPort == 0 && range.maxPort == 0)
+				{
+					range.minPort = PortRange.minAvailablePort;
+					range.maxPort = PortRange.maxavailablePort;
+				}
+			}
+		}
+		#endregion
 
-        #region Public methods
+		#region Public methods
 		public Binary Serializer
 		{
 			get
@@ -271,104 +271,104 @@ namespace CLARTE.Net.Negotiation
 			}
 		}
 
-        public bool Ready(Guid remote, ushort channel)
-        {
-            Connection.Base[] channels;
-            bool result;
+		public bool Ready(Guid remote, ushort channel)
+		{
+			Connection.Base[] channels;
+			bool result;
 
-            lock(openedChannels)
-            {
-                result = state == State.RUNNING && openedChannels.TryGetValue(remote, out channels) && channel < channels.Length && channels[channel] != null && channels[channel].Connected();
-            }
+			lock(openedChannels)
+			{
+				result = state == State.RUNNING && openedChannels.TryGetValue(remote, out channels) && channel < channels.Length && channels[channel] != null && channels[channel].Connected();
+			}
 
-            return result;
-        }
+			return result;
+		}
 
-        public bool Ready(Guid remote)
-        {
-            Connection.Base[] channels;
-            bool result;
+		public bool Ready(Guid remote)
+		{
+			Connection.Base[] channels;
+			bool result;
 
-            lock(openedChannels)
-            {
-                result = state == State.RUNNING && openedChannels.TryGetValue(remote, out channels) && channels.All(x => x != null && x.Connected());
-            }
+			lock(openedChannels)
+			{
+				result = state == State.RUNNING && openedChannels.TryGetValue(remote, out channels) && channels.All(x => x != null && x.Connected());
+			}
 
-            return result;
-        }
+			return result;
+		}
 
-        public bool Ready()
-        {
-            bool result;
+		public bool Ready()
+		{
+			bool result;
 
-            lock(openedChannels)
-            {
-                result = state == State.RUNNING && openedChannels.All(p => p.Value.All(x => x != null && x.Connected()));
-            }
+			lock(openedChannels)
+			{
+				result = state == State.RUNNING && openedChannels.All(p => p.Value.All(x => x != null && x.Connected()));
+			}
 
-            return result;
-        }
+			return result;
+		}
 
-        public void Send(Guid remote, ushort channel, byte[] data)
-        {
-            if(state == State.RUNNING)
-            {
-                Connection.Base[] client_channels;
-                Connection.Base client_channel;
+		public void Send(Guid remote, ushort channel, byte[] data)
+		{
+			if(state == State.RUNNING)
+			{
+				Connection.Base[] client_channels;
+				Connection.Base client_channel;
 
-                lock(openedChannels)
-                {
-                    if(!openedChannels.TryGetValue(remote, out client_channels))
-                    {
-                        throw new ArgumentException(string.Format("No connection with remote '{0}'. Nothing sent.", remote), "remote");
-                    }
+				lock(openedChannels)
+				{
+					if(!openedChannels.TryGetValue(remote, out client_channels))
+					{
+						throw new ArgumentException(string.Format("No connection with remote '{0}'. Nothing sent.", remote), "remote");
+					}
 
-                    if(channel >= client_channels.Length || client_channels[channel] == null)
-                    {
-                        throw new ArgumentException(string.Format("Invalid channel. No channel with index '{0}'", channel), "channel");
-                    }
+					if(channel >= client_channels.Length || client_channels[channel] == null)
+					{
+						throw new ArgumentException(string.Format("Invalid channel. No channel with index '{0}'", channel), "channel");
+					}
 
-                    client_channel = client_channels[channel];
-                }
+					client_channel = client_channels[channel];
+				}
 
-                client_channel.SendAsync(data);
-            }
-            else
-            {
-                Debug.LogWarningFormat("Can not send data when in state {0}. Nothing sent.", state);
-            }
-        }
+				client_channel.SendAsync(data);
+			}
+			else
+			{
+				Debug.LogWarningFormat("Can not send data when in state {0}. Nothing sent.", state);
+			}
+		}
 
-        public void SendOthers(Guid remote, ushort channel, byte[] data)
-        {
-            if(state == State.RUNNING)
-            {
-                lock(openedChannels)
-                {
-                    foreach(KeyValuePair<Guid, Connection.Base[]> pair in openedChannels)
-                    {
-                        if(remote == Guid.Empty || pair.Key != remote)
-                        {
-                            if(channel >= pair.Value.Length || pair.Value[channel] == null)
-                            {
-                                throw new ArgumentException(string.Format("Invalid channel. No channel with index '{0}'", channel), "channel");
-                            }
+		public void SendOthers(Guid remote, ushort channel, byte[] data)
+		{
+			if(state == State.RUNNING)
+			{
+				lock(openedChannels)
+				{
+					foreach(KeyValuePair<Guid, Connection.Base[]> pair in openedChannels)
+					{
+						if(remote == Guid.Empty || pair.Key != remote)
+						{
+							if(channel >= pair.Value.Length || pair.Value[channel] == null)
+							{
+								throw new ArgumentException(string.Format("Invalid channel. No channel with index '{0}'", channel), "channel");
+							}
 
-                            pair.Value[channel].SendAsync(data);
-                        }
-                    }
-                }
-            }
-            else
-            {
-                Debug.LogWarningFormat("Can not send data when in state {0}. Nothing sent.", state);
-            }
-        }
+							pair.Value[channel].SendAsync(data);
+						}
+					}
+				}
+			}
+			else
+			{
+				Debug.LogWarningFormat("Can not send data when in state {0}. Nothing sent.", state);
+			}
+		}
 
-        public void SendAll(ushort channel, byte[] data)
-        {
-            SendOthers(Guid.Empty, channel, data);
-        }
+		public void SendAll(ushort channel, byte[] data)
+		{
+			SendOthers(Guid.Empty, channel, data);
+		}
 
 		protected void ReservePort(ushort port)
 		{
@@ -379,39 +379,39 @@ namespace CLARTE.Net.Negotiation
 		}
 
 		public void ReleasePort(ushort port)
-        {
-            lock(availablePorts)
-            {
-                availablePorts.Add(port);
-            }
-        }
-        #endregion
-    }
+		{
+			lock(availablePorts)
+			{
+				availablePorts.Add(port);
+			}
+		}
+		#endregion
+	}
 
-    public abstract class Base<T, U> : Base where T : MonitorChannel where U : Channel
-    {
+	public abstract class Base<T, U> : Base where T : MonitorChannel where U : Channel
+	{
 		#region Members
 		public T negotiation;
 		public List<U> channels;
-        public Credentials credentials;
-        #endregion
+		public Credentials credentials;
+		#endregion
 
-        #region Public methods
-        public override ushort NbChannels
-        {
-            get
-            {
-                return (ushort) (channels != null ? channels.Count : 0);
-            }
-        }
+		#region Public methods
+		public override ushort NbChannels
+		{
+			get
+			{
+				return (ushort) (channels != null ? channels.Count : 0);
+			}
+		}
 
-        public override IEnumerable<Channel> Channels
-        {
-            get
-            {
-                return (IEnumerable<Channel>) channels;
-            }
-        }
+		public override IEnumerable<Channel> Channels
+		{
+			get
+			{
+				return (IEnumerable<Channel>) channels;
+			}
+		}
 		#endregion
 
 		#region Shared network methods
@@ -540,7 +540,7 @@ namespace CLARTE.Net.Negotiation
 				Debug.LogError("No available local port for UDP connection.");
 			}
 	
-        }
+		}
 
 		protected void SaveMonitor(Connection.Tcp connection)
 		{
@@ -555,53 +555,53 @@ namespace CLARTE.Net.Negotiation
 			}
 		}
 
-        protected void SaveChannel(Connection.Base connection)
-        {
-            // Remove initialized TCP connection from the pool of connections in initialization
-            if(connection is Connection.Tcp)
-            {
-                lock(initializedConnections)
-                {
-                    initializedConnections.Remove((Connection.Tcp) connection);
-                }
-            }
+		protected void SaveChannel(Connection.Base connection)
+		{
+			// Remove initialized TCP connection from the pool of connections in initialization
+			if(connection is Connection.Tcp)
+			{
+				lock(initializedConnections)
+				{
+					initializedConnections.Remove((Connection.Tcp) connection);
+				}
+			}
 
-            if(connection.Channel < channels.Count)
-            {
-                Channel channel = channels[connection.Channel];
+			if(connection.Channel < channels.Count)
+			{
+				Channel channel = channels[connection.Channel];
 
-                // Save callbacks for the connection
-                connection.SetEvents(channel);
+				// Save callbacks for the connection
+				connection.SetEvents(channel);
 
-                // Save the connection
-                lock(openedChannels)
-                {
-                    Connection.Base[] client_channels;
+				// Save the connection
+				lock(openedChannels)
+				{
+					Connection.Base[] client_channels;
 
-                    if(!openedChannels.TryGetValue(connection.Remote, out client_channels))
-                    {
-                        client_channels = new Connection.Base[channels.Count];
+					if(!openedChannels.TryGetValue(connection.Remote, out client_channels))
+					{
+						client_channels = new Connection.Base[channels.Count];
 
-                        openedChannels.Add(connection.Remote, client_channels);
-                    }
+						openedChannels.Add(connection.Remote, client_channels);
+					}
 
-                    client_channels[connection.Channel] = connection;
-                }
+					client_channels[connection.Channel] = connection;
+				}
 
-                Debug.LogFormat("{0} channel {1} on {2} success.", connection.GetType(), connection.Channel, connection.Remote);
+				Debug.LogFormat("{0} channel {1} on {2} success.", connection.GetType(), connection.Channel, connection.Remote);
 
-                connection.Listen();
-            }
-            else
-            {
-                // No channel defined for this index. This should never happen as index are checked during port negotiation
-                Debug.LogErrorFormat("No channel defined with index '{0}'.", connection.Channel);
+				connection.Listen();
+			}
+			else
+			{
+				// No channel defined for this index. This should never happen as index are checked during port negotiation
+				Debug.LogErrorFormat("No channel defined with index '{0}'.", connection.Channel);
 
-                connection.Close();
-            }
-        }
-        #endregion
-    }
+				connection.Close();
+			}
+		}
+		#endregion
+	}
 }
 
 #endif //!NETFX_CORE

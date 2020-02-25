@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace CLARTE.Threads.DataFlow.Unity
 {
-    public abstract class DataConsumer<InputType>: MonoBehaviour where InputType : ICloneable
+	public abstract class DataConsumer<InputType>: MonoBehaviour where InputType : ICloneable
 	{
 		#region Members
 		/// <summary>
@@ -38,18 +38,18 @@ namespace CLARTE.Threads.DataFlow.Unity
 		#region MonoBehaviour callbacks
 		protected virtual void OnValidate()
 		{
-            if (DataProvider != null)
+			if (DataProvider != null)
 			{
-                IMonoBehaviourDataProvider<InputType> monoprovider = DataProvider.GetComponent<IMonoBehaviourDataProvider<InputType>>();
+				IMonoBehaviourDataProvider<InputType> monoprovider = DataProvider.GetComponent<IMonoBehaviourDataProvider<InputType>>();
 
-                if (monoprovider == null)
+				if (monoprovider == null)
 				{
-                    DataProvider = null;
-                }
-            }
-        }
+					DataProvider = null;
+				}
+			}
+		}
 
-        protected void Awake()
+		protected void Awake()
 		{
 			// Create consumer
 			consumer = new DataFlow.DataConsumer<InputType>
@@ -60,31 +60,31 @@ namespace CLARTE.Threads.DataFlow.Unity
 
 			if (DataBarrier != null && enabled)
 			{
-                consumer.RegisterBarrier(DataBarrier.barrier);
-            }
-        }
+				consumer.RegisterBarrier(DataBarrier.barrier);
+			}
+		}
 
-        protected virtual void Start()
+		protected virtual void Start()
 		{
-            if (DataProvider != null)
+			if (DataProvider != null)
 			{
 				IMonoBehaviourDataProvider<InputType> monoProvider = DataProvider.GetComponent<IMonoBehaviourDataProvider<InputType>>();
 
-                monoProvider.Provider.ProvideDataEvent += consumer.EnqeueTask;
-            }
+				monoProvider.Provider.ProvideDataEvent += consumer.EnqeueTask;
+			}
 			else
 			{
-                throw new NoDataProviderException("You have to set a DataProvider in Unity or in Awake.");
-            }
-        }
+				throw new NoDataProviderException("You have to set a DataProvider in Unity or in Awake.");
+			}
+		}
 
-        protected virtual void Update()
+		protected virtual void Update()
 		{
-            if (consumer.HasException)
+			if (consumer.HasException)
 			{
-                consumer.Throw();
-            }
-        }
+				consumer.Throw();
+			}
+		}
 		#endregion
 	}
 }

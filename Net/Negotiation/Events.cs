@@ -7,19 +7,19 @@ using CLARTE.Serialization;
 
 namespace CLARTE.Net.Negotiation
 {
-    public static class Events
-    {
-        [Serializable]
-        public class ConnectionCallback : UnityEvent<IPAddress, Guid, ushort>
-        {
+	public static class Events
+	{
+		[Serializable]
+		public class ConnectionCallback : UnityEvent<IPAddress, Guid, ushort>
+		{
 
-        }
+		}
 
-        [Serializable]
-        public class DisconnectionCallback : UnityEvent<IPAddress, Guid, ushort>
-        {
+		[Serializable]
+		public class DisconnectionCallback : UnityEvent<IPAddress, Guid, ushort>
+		{
 
-        }
+		}
 
 		[Serializable]
 		public class ExceptionCallback : UnityEvent<IPAddress, Guid, ushort, Exception>
@@ -28,23 +28,23 @@ namespace CLARTE.Net.Negotiation
 		}
 
 		[Serializable]
-        public class ReceiveCallback : UnityEvent<IPAddress, Guid, ushort, byte[]>
-        {
+		public class ReceiveCallback : UnityEvent<IPAddress, Guid, ushort, byte[]>
+		{
 
-        }
+		}
 
-        [Serializable]
-        public class ReceiveDeserializedCallback : UnityEvent<IPAddress, Guid, ushort, IBinarySerializable>
-        {
+		[Serializable]
+		public class ReceiveDeserializedCallback : UnityEvent<IPAddress, Guid, ushort, IBinarySerializable>
+		{
 
-        }
+		}
 
-        [Serializable]
-        public class ReceiveProgressCallback : UnityEvent<IPAddress, Guid, ushort, float>
-        {
+		[Serializable]
+		public class ReceiveProgressCallback : UnityEvent<IPAddress, Guid, ushort, float>
+		{
 
-        }
-    }
+		}
+	}
 }
 
 #endif // !NETFX_CORE

@@ -22,7 +22,7 @@
 	/// </summary>
 	/// <typeparam name="InputType">The type of transformed data.</typeparam>
 	/// <param name="data">The transformed data.</param>
-    public delegate void ConsumerDataDelegate<InputType>(InputType data);
+	public delegate void ConsumerDataDelegate<InputType>(InputType data);
 
 	/// <summary>
 	/// Delegate function to clone data when multiple consumers are linked to the same output of a provider. 
@@ -44,8 +44,8 @@
 		/// <summary>
 		/// The list of registered output receivers for this provider.
 		/// </summary>
-        event ProvideDataDelegate<OutputType> ProvideDataEvent;
-    }
+		event ProvideDataDelegate<OutputType> ProvideDataEvent;
+	}
 
 	/// <summary>
 	/// Interface for data providers based on Unity MonoBehaviours.
@@ -56,7 +56,7 @@
 		/// <summary>
 		/// Getter for associated IDataProvider.
 		/// </summary>
-        IDataProvider<OuptputType> Provider { get; }
-    }
+		IDataProvider<OuptputType> Provider { get; }
+	}
 	#endregion
 }
