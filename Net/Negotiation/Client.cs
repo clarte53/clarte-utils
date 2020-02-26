@@ -43,7 +43,6 @@ namespace CLARTE.Net.Negotiation
 
 					Disconnect();
 
-					CloseOpenedChannels();
 					CloseMonitor();
 
 					lock(pendingUdpConnection)
@@ -164,6 +163,7 @@ namespace CLARTE.Net.Negotiation
 			if (state == State.RUNNING)
 			{
 				CloseInitializedConnections();
+				CloseOpenedChannels();
 				state = State.STARTED;
 			}
 		}
