@@ -233,6 +233,11 @@ namespace CLARTE.Net.Negotiation
 					}
 				}
 			}
+
+			foreach(Discovery.Broadcaster broadcaster in FindObjectsOfType<Discovery.Broadcaster>())
+			{
+				availablePorts.Remove(broadcaster.port);
+			}
 		}
 
 		protected void OnDestroy()
