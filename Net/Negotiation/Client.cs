@@ -25,7 +25,7 @@ namespace CLARTE.Net.Negotiation
 
 		public CertificateValidation certificateValidation;
 		public string hostname = "localhost";
-		public uint port;
+		public ushort port;
 
 		protected HashSet<UdpConnectionParams> pendingUdpConnection;
 		#endregion
@@ -164,6 +164,7 @@ namespace CLARTE.Net.Negotiation
 			if (state == State.RUNNING)
 			{
 				CloseInitializedConnections();
+
 				state = State.STARTED;
 			}
 		}

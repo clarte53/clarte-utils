@@ -18,7 +18,7 @@ namespace CLARTE.Net.Negotiation
 		public const uint maxSupportedVersion = 1;
 
 		public TextAsset certificate;
-		public uint port;
+		public ushort port;
 
 		protected Threads.Thread listenerThread;
 		protected TcpListener listener;
@@ -99,6 +99,8 @@ namespace CLARTE.Net.Negotiation
 		protected override void Awake()
 		{
 			base.Awake();
+
+			availablePorts.Remove(port);
 
 			state = State.INITIALIZING;
 

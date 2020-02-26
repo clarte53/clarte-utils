@@ -45,10 +45,10 @@ namespace CLARTE.Net.Negotiation
 			public const ushort maxPoolSize = 1024;
 			// Avoid IANA system or well-known ports that requires admin privileges
 			public const ushort minAvailablePort = 1024;
-			public const ushort maxavailablePort = 65535;
+			public const ushort maxAvailablePort = 65535;
 
 			public ushort minPort = minAvailablePort;
-			public ushort maxPort = maxavailablePort;
+			public ushort maxPort = maxAvailablePort;
 			#endregion
 		}
 
@@ -159,6 +159,7 @@ namespace CLARTE.Net.Negotiation
 						{
 							connections[connection.Channel] = null;
 						}
+
 						openedChannels.Remove(connection.Remote);
 					}
 				}
@@ -221,7 +222,7 @@ namespace CLARTE.Net.Negotiation
 					ushort end = Math.Max(range.minPort, range.maxPort);
 
 					start = Math.Max(start, PortRange.minAvailablePort);
-					end = Math.Min(end, PortRange.maxavailablePort);
+					end = Math.Min(end, PortRange.maxAvailablePort);
 
 					// Ok because start >= PortRange.minAvailablePort, i.e. > 0
 					end = Math.Min(end, (ushort) (start + (PortRange.maxPoolSize - availablePorts.Count - 1)));
@@ -256,7 +257,7 @@ namespace CLARTE.Net.Negotiation
 				if(range.minPort == 0 && range.maxPort == 0)
 				{
 					range.minPort = PortRange.minAvailablePort;
-					range.maxPort = PortRange.maxavailablePort;
+					range.maxPort = PortRange.maxAvailablePort;
 				}
 			}
 		}
