@@ -3,94 +3,119 @@ using System.Collections.Generic;
 using System.Net;
 using UnityEngine;
 using CLARTE.Serialization;
+using System.Collections;
 
 namespace CLARTE.Net.Discovery
 {
 	[RequireComponent(typeof(Broadcaster))]
-	public abstract class Discover<T> : MonoBehaviour where T : Enum
+	public class Discover : MonoBehaviour, IEnumerable<Remote>
 	{
-		public class Remote
+		[Serializable]
+		public class Service
 		{
 			#region Members
-			protected IPEndPoint endPoint;
-			protected T type;
+			public string identifier;
+			public Negotiation.Server server;
+			#endregion
+		}
+
+		protected class Datagram : IBinarySerializable
+		{
+			#region Members
+			public bool valid;
+			public bool connected;
+			public ushort port;
+			public string identifier;
 			#endregion
 
 			#region Constructors
-			public Remote(T type, IPAddress ip, ushort port)
+			public Datagram(bool connected, ushort port, string identifier)
 			{
-				this.type = type;
+				this.connected = connected;
+				this.port = port;
+				this.identifier = identifier;
 
-				endPoint = new IPEndPoint(ip, port);
+				valid = true;
 			}
 			#endregion
 
-			#region Getters / Setters
-			public IPAddress IPAddress
+			#region IBinarySerializable implementation
+			public uint FromBytes(Binary serializer, Binary.Buffer buffer, uint start)
 			{
-				get
-				{
-					return new IPAddress(endPoint.Address.GetAddressBytes(), endPoint.Address.ScopeId);
-				}
+				uint read = 0;
+
+				read += serializer.FromBytes(buffer, start + read, out connected);
+				read += serializer.FromBytes(buffer, start + read, out port);
+				read += serializer.FromBytes(buffer, start + read, out identifier);
+
+				byte computed_checksum = ComputeControlSum(buffer.Data, start, read);
+
+				byte received_checksum;
+
+				read += serializer.FromBytes(buffer, start + read, out received_checksum);
+
+				valid = (received_checksum == computed_checksum);
+
+				return read;
 			}
 
-			public ushort Port
+			public uint ToBytes(Binary serializer, ref Binary.Buffer buffer, uint start)
 			{
-				get
-				{
-					return (ushort) endPoint.Port;
-				}
-			}
+				uint written = 0;
 
-			public T Type
-			{
-				get
-				{
-					return type;
-				}
+				written += serializer.ToBytes(ref buffer, start + written, connected);
+				written += serializer.ToBytes(ref buffer, start + written, port);
+				written += serializer.ToBytes(ref buffer, start + written, identifier);
+				written += serializer.ToBytes(ref buffer, start + written, ComputeControlSum(buffer.Data, start, written));
+
+				return written;
 			}
 			#endregion
 
-			#region Overloads for use as HashSet keys
-			public override bool Equals(object comparand)
+			#region Internal methods
+			protected static byte ComputeControlSum(byte[] data, uint start, uint size)
 			{
-				if(!(comparand is Remote))
+				byte result = 0;
+
+				uint end = start + size;
+
+				for(uint i = start; i < end; i++)
 				{
-					return false;
-				}
-				if(((Remote) comparand).endPoint.Equals(endPoint))
-				{
-					return ((Remote) comparand).type.Equals(type);
+					result ^= data[i];
 				}
 
-				return false;
-			}
-
-			public override int GetHashCode()
-			{
-				return endPoint.GetHashCode() ^ type.GetHashCode();
+				return result;
 			}
 			#endregion
 		}
 
 		#region Members
-		protected const ushort beaconBufferSize = 5;
+		public Events.OnDiscoveredCallback onDiscovered;
+		public Events.OnLostCallback onLost;
+		public List<Service> advertise;
 
-		public T type;
-		public Negotiation.Server server;
-
+		protected Binary serializer;
 		protected Broadcaster broadcast;
 		protected HashSet<Remote> discovered;
 		#endregion
 
-		#region Abstract methods
-		protected abstract void OnDiscovered(T type, IPAddress ip, ushort port);
-		protected abstract void OnLost(T type, IPAddress ip, ushort port);
+		#region IEnumerable implementation
+		public IEnumerator<Remote> GetEnumerator()
+		{
+			return discovered.GetEnumerator();
+		}
+
+		IEnumerator IEnumerable.GetEnumerator()
+		{
+			return GetEnumerator();
+		}
 		#endregion
 
 		#region MonoBehaviour callbacks
 		protected void Awake()
 		{
+			serializer = new Binary();
+
 			discovered = new HashSet<Remote>();
 
 			broadcast = GetComponent<Broadcaster>();
@@ -107,64 +132,61 @@ namespace CLARTE.Net.Discovery
 		#region Internal methods
 		protected void OnReceive(IPAddress ip, int port, byte[] datagram)
 		{
-			if(datagram.Length == beaconBufferSize && ComputeControlSum(datagram) == datagram[datagram.Length - 1])
+			if(datagram != null && datagram.Length > 0)
 			{
-				bool connected = datagram[0] == 1;
-				T remote_type = (T) Enum.ToObject(typeof(T), datagram[1]);
-				ushort remote_port = new Converter16(datagram[2], datagram[3]).UShort;
+				Datagram deserialized = null;
 
-				Remote remote = new Remote(remote_type, ip, remote_port);
-
-				bool already_discovered = discovered.Contains(remote);
-
-				if(connected && !already_discovered)
+				try
 				{
-					discovered.Add(remote);
-
-					OnDiscovered(remote_type, ip, remote_port);
+					deserialized = serializer.Deserialize(datagram) as Datagram;
 				}
-				else if(!connected && already_discovered)
-				{
-					discovered.Remove(remote);
+				catch(Binary.DeserializationException) { }
 
-					OnLost(remote_type, ip, remote_port);
+				if(deserialized != null)
+				{
+					Remote remote = new Remote(deserialized.identifier, ip, deserialized.port);
+
+					bool already_discovered = discovered.Contains(remote);
+
+					if(deserialized.connected && !already_discovered)
+					{
+						discovered.Add(remote);
+
+						onDiscovered.Invoke(deserialized.identifier, ip, deserialized.port);
+					}
+					else if(!deserialized.connected && already_discovered)
+					{
+						discovered.Remove(remote);
+
+						onLost.Invoke(deserialized.identifier, ip, deserialized.port);
+					}
 				}
 			}
 		}
 
 		protected void SendBeacon(bool connected)
 		{
-			if(server != null)
+			if(advertise != null)
 			{
-				if((ulong) ((object) type) > 255)
+				foreach(Service service in advertise)
 				{
-					throw new ArgumentException("The type enum values must be in range [0, 255]", "type");
+					if(service.server != null && !string.IsNullOrEmpty(service.identifier))
+					{
+						byte[] data = null;
+
+						try
+						{
+							data = serializer.Serialize(new Datagram(connected, service.server.port, service.identifier));
+						}
+						catch(Binary.SerializationException) { }
+
+						if(data != null && data.Length > 0)
+						{
+							broadcast.Send(data, data.Length);
+						}
+					}
 				}
-
-				Converter16 port_bytes = new Converter16(server.port);
-
-				byte[] buffer = new byte[beaconBufferSize];
-
-				buffer[0] = (byte) (connected ? 0x1 : 0x0);
-				buffer[1] = (byte) ((object) type);
-				buffer[2] = port_bytes.Byte1;
-				buffer[3] = port_bytes.Byte2;
-				buffer[4] = ComputeControlSum(buffer);
-
-				broadcast.Send(buffer, beaconBufferSize);
 			}
-		}
-
-		protected byte ComputeControlSum(byte[] data)
-		{
-			byte result = 0;
-
-			for(int i = 0; i < data.Length - 1; i++)
-			{
-				result ^= data[i];
-			}
-
-			return result;
 		}
 		#endregion
 	}
