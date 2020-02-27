@@ -67,15 +67,21 @@ namespace CLARTE.Net.Discovery
 		#region Internal methods
 		protected void Listener()
 		{
-			IPEndPoint from = new IPEndPoint(0, 0);
-
 			while(!stop.WaitOne(0))
 			{
-				byte[] datagram = udp.Receive(ref from);
+				System.Threading.Tasks.Task<UdpReceiveResult> t = udp.ReceiveAsync();
 
-				if(datagram.Length > 0)
+				while(!t.Wait(100) && !stop.WaitOne(0)) { }
+
+				if(t.Wait(0))
 				{
-					Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceive.Invoke(from.Address, from.Port, datagram));
+					byte[] datagram = t.Result.Buffer;
+					IPEndPoint from = t.Result.RemoteEndPoint;
+
+					if(datagram.Length > 0)
+					{
+						Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceive.Invoke(from.Address, from.Port, datagram));
+					}
 				}
 			}
 		}
