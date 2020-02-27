@@ -26,6 +26,16 @@ namespace CLARTE.Net.Negotiation
 		protected ManualResetEvent stopEvent;
 		#endregion
 
+		#region Getters / Setters
+		public bool Started
+		{
+			get
+			{
+				return state == State.RUNNING;
+			}
+		}
+		#endregion
+
 		#region IDisposable implementation
 		protected override void Dispose(bool disposing)
 		{

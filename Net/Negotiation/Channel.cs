@@ -11,7 +11,7 @@ namespace CLARTE.Net.Negotiation
 	{
 		#region Members
 		[Range(0.1f, 300f)]
-		public float heartbeat; // In seconds
+		public float heartbeat = 2f; // In seconds
 		public bool disableHeartbeat;
 		public bool disableAutoReconnect;
 		#endregion

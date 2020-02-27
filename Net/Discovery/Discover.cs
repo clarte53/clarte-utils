@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Threading;
 using UnityEngine;
 using CLARTE.Serialization;
 using System.Collections;
@@ -93,8 +94,12 @@ namespace CLARTE.Net.Discovery
 		public Events.OnDiscoveredCallback onDiscovered;
 		public Events.OnLostCallback onLost;
 		public List<Service> advertise;
+		[Range(0.1f, 300f)]
+		public float heartbeat = 2f; // In seconds
 
 		protected Binary serializer;
+		protected Threads.Thread thread;
+		protected ManualResetEvent stop;
 		protected Broadcaster broadcast;
 		protected HashSet<Remote> discovered;
 		#endregion
@@ -116,16 +121,31 @@ namespace CLARTE.Net.Discovery
 		{
 			serializer = new Binary();
 
+			stop = new ManualResetEvent(false);
+
 			discovered = new HashSet<Remote>();
 
 			broadcast = GetComponent<Broadcaster>();
 
 			broadcast.onReceive.AddListener(OnReceive);
+
+			thread = new Threads.Thread(Sender);
+
+			thread.Start();
 		}
 
 		protected void OnDestroy()
 		{
+			stop.Set();
+
+			thread.Join();
+
+			stop.Dispose();
+
 			SendBeacon(false);
+
+			thread = null;
+			stop = null;
 		}
 		#endregion
 
@@ -176,7 +196,7 @@ namespace CLARTE.Net.Discovery
 
 						try
 						{
-							data = serializer.Serialize(new Datagram(connected, service.server.port, service.identifier));
+							data = serializer.Serialize(new Datagram(connected && service.server.Started, service.server.port, service.identifier));
 						}
 						catch(Binary.SerializationException) { }
 
@@ -186,6 +206,14 @@ namespace CLARTE.Net.Discovery
 						}
 					}
 				}
+			}
+		}
+
+		protected void Sender()
+		{
+			while(!stop.WaitOne((int) (heartbeat * 1000)))
+			{
+				SendBeacon(true);
 			}
 		}
 		#endregion
