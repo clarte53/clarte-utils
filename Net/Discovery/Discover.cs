@@ -30,6 +30,14 @@ namespace CLARTE.Net.Discovery
 			#endregion
 
 			#region Constructors
+			public Datagram() // Required for Binary deserialization
+			{
+				valid = false;
+				connected = false;
+				port = 0;
+				identifier = null;
+			}
+
 			public Datagram(bool connected, ushort port, string identifier)
 			{
 				this.connected = connected;
