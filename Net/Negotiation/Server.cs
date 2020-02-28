@@ -244,7 +244,9 @@ namespace CLARTE.Net.Negotiation
 					if(serverCertificate != null)
 					{
 						// Create the SSL wraping stream
-						connection.stream = new SslStream(connection.stream);
+						connection.stream = new SslStream(connection.stream, false, new RemoteCertificateValidationCallback(
+							(sender, certificate, chain, sslPolicyErrors) => (sslPolicyErrors & SslPolicyErrors.RemoteCertificateNotAvailable) == SslPolicyErrors.RemoteCertificateNotAvailable
+						), null, EncryptionPolicy.RequireEncryption);
 
 						// Authenticate with the client
 						((SslStream) connection.stream).BeginAuthenticateAsServer(serverCertificate, Authenticated, connection);
