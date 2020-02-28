@@ -18,6 +18,7 @@ namespace CLARTE.Net.Discovery
 		#region Members
 		public ReceiveCallback onReceive;
 		public ushort port = 65535;
+		public bool broadcastToLocalhost = false;
 
 		protected UdpClient udp;
 		protected IPEndPoint broadcastAddress;
@@ -32,7 +33,10 @@ namespace CLARTE.Net.Discovery
 
 			udp = new UdpClient(new IPEndPoint(IPAddress.Any, port));
 
-			udp.Client.MulticastLoopback = false;
+			if(!broadcastToLocalhost)
+			{
+				udp.Client.MulticastLoopback = false;
+			}
 
 			stop = new ManualResetEvent(false);
 
