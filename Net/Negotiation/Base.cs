@@ -594,8 +594,6 @@ namespace CLARTE.Net.Negotiation
 					client_channels[connection.Channel] = connection;
 				}
 
-				Debug.LogFormat("{0} channel {1} on {2} success.", connection.GetType(), connection.Channel, connection.Remote);
-
 				connection.Listen();
 			}
 			else

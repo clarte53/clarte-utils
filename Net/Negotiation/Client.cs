@@ -140,8 +140,6 @@ namespace CLARTE.Net.Negotiation
 		{
 			if(state == State.STARTED)
 			{
-				Debug.LogFormat("Start connection to {0}:{1}", hostname, port);
-
 				state = State.INITIALIZING;
 
 				ConnectTcp(new Message.Negotiation.Parameters
@@ -202,8 +200,6 @@ namespace CLARTE.Net.Negotiation
 				// We should be connected
 				if(connection.client.Connected)
 				{
-					Debug.LogFormat("Connected to {0}:{1}", hostname, port);
-
 					// Get the stream associated with this connection
 					connection.stream = connection.client.GetStream();
 
