@@ -44,7 +44,7 @@ namespace CLARTE.Net.Negotiation
 			#region Members
 			public const ushort maxPoolSize = 1024;
 			// Avoid IANA system or well-known ports that requires admin privileges
-			public const ushort minAvailablePort = 1024;
+			public const ushort minAvailablePort = 4096;
 			public const ushort maxAvailablePort = 65535;
 
 			public ushort minPort = minAvailablePort;
