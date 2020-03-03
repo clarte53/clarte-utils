@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -22,6 +23,7 @@ namespace CLARTE.Net.Discovery
 
 		protected UdpClient udp;
 		protected IPEndPoint broadcastAddress;
+		protected HashSet<IPAddress> localAddresses;
 		protected Threads.Thread thread;
 		protected ManualResetEvent stop;
 		#endregion
@@ -33,8 +35,20 @@ namespace CLARTE.Net.Discovery
 
 			udp = new UdpClient(new IPEndPoint(IPAddress.Any, port));
 
+			localAddresses = new HashSet<IPAddress>();
+
 			if(!broadcastToLocalhost)
 			{
+				IPHostEntry host = Dns.GetHostEntry(Dns.GetHostName());
+
+				foreach(IPAddress ip in host.AddressList)
+				{
+					if(ip.AddressFamily == AddressFamily.InterNetwork)
+					{
+						localAddresses.Add(ip);
+					}
+				}
+
 				udp.Client.MulticastLoopback = false;
 			}
 
@@ -82,7 +96,7 @@ namespace CLARTE.Net.Discovery
 					byte[] datagram = t.Result.Buffer;
 					IPEndPoint from = t.Result.RemoteEndPoint;
 
-					if(datagram.Length > 0)
+					if(datagram.Length > 0 && (broadcastToLocalhost || !localAddresses.Contains(from.Address)))
 					{
 						Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceive.Invoke(from.Address, from.Port, datagram));
 					}
