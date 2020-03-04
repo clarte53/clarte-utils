@@ -104,18 +104,31 @@ namespace CLARTE.Net.Discovery
 		public List<Service> advertise;
 		[Range(0.1f, 300f)]
 		public float heartbeat = 2f; // In seconds
+		[Range(1, 10)]
+		public ushort lostAfterMissedHeartbeat = 2;
 
 		protected Binary serializer;
-		protected Threads.Thread thread;
-		protected ManualResetEvent stop;
+		protected Threads.Thread sender;
+		protected Threads.Thread cleaner;
+		protected ManualResetEvent stopSender;
+		protected ManualResetEvent stopCleaner;
 		protected Broadcaster broadcast;
-		protected HashSet<Remote> discovered;
+		protected Dictionary<Remote, long> discovered;
+		protected List<Remote> remotesEnumerator;
+		protected List<Remote> pendingLost;
 		#endregion
 
 		#region IEnumerable implementation
 		public IEnumerator<Remote> GetEnumerator()
 		{
-			return discovered.GetEnumerator();
+			remotesEnumerator.Clear();
+
+			lock(discovered)
+			{
+				remotesEnumerator.AddRange(discovered.Keys);
+			}
+
+			return remotesEnumerator.GetEnumerator();
 		}
 
 		IEnumerator IEnumerable.GetEnumerator()
@@ -129,31 +142,41 @@ namespace CLARTE.Net.Discovery
 		{
 			serializer = new Binary();
 
-			stop = new ManualResetEvent(false);
+			stopSender = new ManualResetEvent(false);
+			stopCleaner = new ManualResetEvent(false);
 
-			discovered = new HashSet<Remote>();
+			discovered = new Dictionary<Remote, long>();
+			remotesEnumerator = new List<Remote>();
+			pendingLost = new List<Remote>();
 
 			broadcast = GetComponent<Broadcaster>();
 
 			broadcast.onReceive.AddListener(OnReceive);
 
-			thread = new Threads.Thread(Sender);
+			sender = new Threads.Thread(Sender);
+			cleaner = new Threads.Thread(Cleaner);
 
-			thread.Start();
+			sender.Start();
+			cleaner.Start();
 		}
 
 		protected void OnDestroy()
 		{
-			stop.Set();
-
-			thread.Join();
-
-			stop.Dispose();
+			stopSender.Set();
+			stopCleaner.Set();
 
 			SendBeacon(false);
 
-			thread = null;
-			stop = null;
+			sender.Join();
+			cleaner.Join();
+
+			stopSender.Dispose();
+			stopCleaner.Dispose();
+
+			sender = null;
+			cleaner = null;
+			stopSender = null;
+			stopCleaner = null;
 		}
 		#endregion
 
@@ -174,17 +197,38 @@ namespace CLARTE.Net.Discovery
 				{
 					Remote remote = new Remote(deserialized.identifier, ip, deserialized.port);
 
-					bool already_discovered = discovered.Contains(remote);
+					bool already_discovered;
 
-					if(deserialized.connected && !already_discovered)
+					lock(discovered)
 					{
-						discovered.Add(remote);
+						already_discovered = discovered.ContainsKey(remote);
+					}
 
-						onDiscovered.Invoke(deserialized.identifier, ip, deserialized.port);
+					if(deserialized.connected)
+					{
+						if(already_discovered)
+						{
+							lock(discovered)
+							{
+								discovered[remote] = GetCurrentTime();
+							}
+						}
+						else
+						{
+							lock(discovered)
+							{
+								discovered.Add(remote, GetCurrentTime());
+							}
+
+							onDiscovered.Invoke(deserialized.identifier, ip, deserialized.port);
+						}
 					}
 					else if(!deserialized.connected && already_discovered)
 					{
-						discovered.Remove(remote);
+						lock(discovered)
+						{
+							discovered.Remove(remote);
+						}
 
 						onLost.Invoke(deserialized.identifier, ip, deserialized.port);
 					}
@@ -223,10 +267,44 @@ namespace CLARTE.Net.Discovery
 
 		protected void Sender()
 		{
-			while(!stop.WaitOne((int) (heartbeat * 1000)))
+			while(!stopSender.WaitOne((int) (heartbeat * 1000)))
 			{
 				SendBeacon(true);
 			}
+		}
+
+		protected void Cleaner()
+		{
+			while(!stopCleaner.WaitOne((int) (heartbeat * 1000)))
+			{
+				pendingLost.Clear();
+
+				lock(discovered)
+				{
+					foreach(KeyValuePair<Remote, long> pair in discovered)
+					{
+						if(GetCurrentTime() - pair.Value >= (lostAfterMissedHeartbeat + 1) * 1000 * heartbeat)
+						{
+							pendingLost.Add(pair.Key);
+						}
+					}
+
+					foreach(Remote lost in pendingLost)
+					{
+						discovered.Remove(lost);
+					}
+				}
+
+				foreach(Remote lost in pendingLost)
+				{
+					onLost.Invoke(lost.Type, lost.IPAddress, lost.Port);
+				}
+			}
+		}
+
+		protected long GetCurrentTime()
+		{
+			return DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
 		}
 		#endregion
 	}
