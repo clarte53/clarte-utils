@@ -95,6 +95,16 @@ namespace CLARTE.Net.Negotiation
 		protected Base network;
 		#endregion
 
+		#region Members
+		public Base Network
+		{
+			get
+			{
+				return network;
+			}
+		}
+		#endregion
+
 		#region MonoBehaviour callbacks
 		protected void Awake()
 		{
