@@ -119,6 +119,8 @@ namespace CLARTE.Serialization
 				throw new NotSupportedException(string.Format("The size of types '{0}' and '{1}' does not match. (4 * {2} != {3})", "float", "decimal", floatSize, decimalSize));
 			}
 #pragma warning restore 0162
+
+			InitTypeMapper(out typeToId, out idToType);
 		}
 		#endregion
 

@@ -115,7 +115,11 @@ namespace CLARTE.Serialization
 
 			if(!mapping.TryGetValue(type, out result))
 			{
-				if(typeof(IBinarySerializable).IsAssignableFrom(type))
+				if(typeof(IBinaryTypeMapped).IsAssignableFrom(type))
+				{
+					result = SupportedTypes.BINARY_TYPE_MAPPED;
+				}
+				else if(typeof(IBinarySerializable).IsAssignableFrom(type))
 				{
 					result = SupportedTypes.BINARY_SERIALIZABLE;
 				}
@@ -356,6 +360,16 @@ namespace CLARTE.Serialization
 				case SupportedTypes.BINARY_SERIALIZABLE:
 					{
 						IBinarySerializable v;
+
+						read = FromBytes(buffer, start, out v);
+
+						value = v;
+					}
+
+					break;
+				case SupportedTypes.BINARY_TYPE_MAPPED:
+					{
+						IBinaryTypeMapped v;
 
 						read = FromBytes(buffer, start, out v);
 
@@ -618,6 +632,9 @@ namespace CLARTE.Serialization
 					break;
 				case SupportedTypes.BINARY_SERIALIZABLE:
 					written = ToBytes(ref buffer, start, (IBinarySerializable) value);
+					break;
+				case SupportedTypes.BINARY_TYPE_MAPPED:
+					written = ToBytes(ref buffer, start, (IBinaryTypeMapped) value);
 					break;
 				case SupportedTypes.UNITY_VECTOR2:
 					written = ToBytes(ref buffer, start, (Vector2) value);
