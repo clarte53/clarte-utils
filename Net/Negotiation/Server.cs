@@ -53,9 +53,15 @@ namespace CLARTE.Net.Negotiation
 		{
 			if(state == State.RUNNING || state == State.CLOSING)
 			{
-				listener.Stop();
+				if(listener != null)
+				{
+					listener.Stop();
+				}
 
-				stopEvent.Set();
+				if(stopEvent != null)
+				{
+					stopEvent.Set();
+				}
 
 				CloseInitializedConnections();
 
@@ -63,9 +69,15 @@ namespace CLARTE.Net.Negotiation
 
 				CloseMonitor();
 
-				listenerThread.Join();
+				if(listenerThread != null)
+				{
+					listenerThread.Join();
+				}
 
-				stopEvent.Close();
+				if(stopEvent != null)
+				{
+					stopEvent.Close();
+				}
 
 				serverCertificate = null;
 				listenerThread = null;
