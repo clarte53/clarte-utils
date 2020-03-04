@@ -204,7 +204,11 @@ namespace CLARTE.Net.Discovery
 
 						try
 						{
-							data = serializer.Serialize(new Datagram(connected && service.server.Started, service.server.port, service.identifier));
+							data = serializer.Serialize(new Datagram(
+								connected && service.server.CurrentState == Negotiation.Base.State.RUNNING,
+								service.server.port,
+								service.identifier
+							));
 						}
 						catch(Binary.SerializationException) { }
 

@@ -12,7 +12,7 @@ namespace CLARTE.Net.Negotiation
 {
 	public abstract class Base : MonoBehaviour
 	{
-		protected enum State
+		public enum State
 		{
 			STARTED,
 			INITIALIZING,
@@ -77,6 +77,7 @@ namespace CLARTE.Net.Negotiation
 		protected abstract void Dispose(bool disposing);
 		protected abstract void Reconnect(Connection.Base connection);
 		protected abstract void OnMonitorReceive(IPAddress address, Guid guid, ushort channel, byte[] data);
+		public abstract void Disconnect();
 		public abstract ushort NbChannels { get; }
 		public abstract IEnumerable<Channel> Channels { get; }
 		#endregion
@@ -240,6 +241,14 @@ namespace CLARTE.Net.Negotiation
 			}
 		}
 
+		protected void OnDisable()
+		{
+			if(state == State.RUNNING)
+			{
+				Disconnect();
+			}
+		}
+
 		protected void OnDestroy()
 		{
 			Dispose(true);
@@ -269,6 +278,14 @@ namespace CLARTE.Net.Negotiation
 		#endregion
 
 		#region Public methods
+		public State CurrentState
+		{
+			get
+			{
+				return state;
+			}
+		}
+
 		public Binary Serializer
 		{
 			get

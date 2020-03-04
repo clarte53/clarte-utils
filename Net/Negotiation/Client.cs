@@ -42,13 +42,6 @@ namespace CLARTE.Net.Negotiation
 					// TODO: delete managed state (managed objects).
 
 					Disconnect();
-
-					CloseMonitor();
-
-					lock(pendingUdpConnection)
-					{
-						pendingUdpConnection.Clear();
-					}
 				}
 
 				// TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
@@ -60,6 +53,25 @@ namespace CLARTE.Net.Negotiation
 		#endregion
 
 		#region Base implementation
+		public override void Disconnect()
+		{
+			if(state == State.RUNNING || state == State.CLOSING)
+			{
+				CloseInitializedConnections();
+
+				CloseOpenedChannels();
+
+				CloseMonitor();
+
+				lock(pendingUdpConnection)
+				{
+					pendingUdpConnection.Clear();
+				}
+
+				state = State.STARTED;
+			}
+		}
+
 		protected override void Reconnect(Connection.Base connection)
 		{
 			if(state == State.RUNNING && connection != null && connection.AutoReconnect)
@@ -133,6 +145,14 @@ namespace CLARTE.Net.Negotiation
 
 			base.Awake();
 		}
+
+		protected void OnEnable()
+		{
+			if(state == Base.State.STARTED && !string.IsNullOrEmpty(hostname) && port != 0)
+			{
+				Connect();
+			}
+		}
 		#endregion
 
 		#region Public methods
@@ -155,19 +175,6 @@ namespace CLARTE.Net.Negotiation
 				Debug.LogErrorFormat("Invalid connection attempt to server when in state {0}.", state);
 			}
 		}
-
-		public void Disconnect()
-		{
-			if (state == State.RUNNING)
-			{
-				CloseInitializedConnections();
-
-				CloseOpenedChannels();
-
-				state = State.STARTED;
-			}
-		}
-
 		#endregion
 
 		#region Connection methods

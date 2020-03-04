@@ -26,16 +26,6 @@ namespace CLARTE.Net.Negotiation
 		protected ManualResetEvent stopEvent;
 		#endregion
 
-		#region Getters / Setters
-		public bool Started
-		{
-			get
-			{
-				return state == State.RUNNING;
-			}
-		}
-		#endregion
-
 		#region IDisposable implementation
 		protected override void Dispose(bool disposing)
 		{
@@ -47,19 +37,7 @@ namespace CLARTE.Net.Negotiation
 				{
 					// TODO: delete managed state (managed objects).
 
-					listener.Stop();
-
-					stopEvent.Set();
-
-					CloseInitializedConnections();
-
-					CloseOpenedChannels();
-
-					CloseMonitor();
-
-					listenerThread.Join();
-
-					stopEvent.Close();
+					Disconnect();
 				}
 
 				// TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
@@ -71,6 +49,32 @@ namespace CLARTE.Net.Negotiation
 		#endregion
 
 		#region Base implementation
+		public override void Disconnect()
+		{
+			if(state == State.RUNNING || state == State.CLOSING)
+			{
+				listener.Stop();
+
+				stopEvent.Set();
+
+				CloseInitializedConnections();
+
+				CloseOpenedChannels();
+
+				CloseMonitor();
+
+				listenerThread.Join();
+
+				stopEvent.Close();
+
+				serverCertificate = null;
+				listenerThread = null;
+				stopEvent = null;
+
+				state = State.STARTED;
+			}
+		}
+
 		protected override void Reconnect(Connection.Base connection)
 		{
 			if(connection == monitor)
@@ -106,55 +110,12 @@ namespace CLARTE.Net.Negotiation
 		#endregion
 
 		#region MonoBehaviour callbacks
-		protected override void Awake()
+		protected void OnEnable()
 		{
-			base.Awake();
-
-			availablePorts.Remove(port);
-
-			state = State.INITIALIZING;
-
-			stopEvent = new ManualResetEvent(false);
-
-			serverCertificate = null;
-
-			// Should we use an encrypted channel?
-			if(certificate != null && certificate.bytes.Length > 0)
+			if(state == Base.State.STARTED)
 			{
-				string tmp_file = string.Format("{0}{1}{2}", Application.temporaryCachePath, Path.DirectorySeparatorChar, certificate.name);
-
-				File.WriteAllBytes(tmp_file, certificate.bytes);
-
-				try
-				{
-#if !UNITY_WSA
-					// Import the certificate
-					serverCertificate = new X509Certificate2(tmp_file);
-#else
-					// At the moment, SslStream is not working on Hololens platform.
-					// Indeed, at the moment, player capabilities does not provide a way to authorize access to the trusted root certificates store.
-					throw new NotSupportedException("SSL streams are not supported on Hololens.");
-#endif
-				}
-				catch(Exception)
-				{
-					Debug.LogWarningFormat("Invalid certificate file '{0}'. Encryption is disabled.", certificate.name);
-
-					serverCertificate = null;
-				}
-
-				File.Delete(tmp_file);
+				Listen();
 			}
-
-			listener = new TcpListener(IPAddress.Any, (int) port);
-			listener.Start();
-
-			listenerThread = new Threads.Thread(Listen);
-			listenerThread.Start();
-
-			Debug.LogFormat("Started server on port {0}", port);
-
-			state = State.RUNNING;
 		}
 
 		protected override void OnValidate()
@@ -176,18 +137,72 @@ namespace CLARTE.Net.Negotiation
 		#endregion
 
 		#region Connection methods
-		protected void Listen()
+		public void Listen()
 		{
-			while(state < State.CLOSING && !stopEvent.WaitOne(0))
+			if(state == State.STARTED)
 			{
-				// Listen for new connections
-				IAsyncResult context = listener.BeginAcceptTcpClient(AcceptClient, null);
+				state = State.INITIALIZING;
 
-				// Wait for next connection or exit signal
-				if(WaitHandle.WaitAny(new[] { stopEvent, context.AsyncWaitHandle }) == 0)
+				availablePorts.Remove(port);
+
+				stopEvent = new ManualResetEvent(false);
+
+				serverCertificate = null;
+
+				// Should we use an encrypted channel?
+				if(certificate != null && certificate.bytes.Length > 0)
 				{
-					return;
+					string tmp_file = string.Format("{0}{1}{2}", Application.temporaryCachePath, Path.DirectorySeparatorChar, certificate.name);
+
+					File.WriteAllBytes(tmp_file, certificate.bytes);
+
+					try
+					{
+#if !UNITY_WSA
+						// Import the certificate
+						serverCertificate = new X509Certificate2(tmp_file);
+#else
+						// At the moment, SslStream is not working on Hololens platform.
+						// Indeed, at the moment, player capabilities does not provide a way to authorize access to the trusted root certificates store.
+						throw new NotSupportedException("SSL streams are not supported on Hololens.");
+#endif
+					}
+					catch(Exception)
+					{
+						Debug.LogWarningFormat("Invalid certificate file '{0}'. Encryption is disabled.", certificate.name);
+
+						serverCertificate = null;
+					}
+
+					File.Delete(tmp_file);
 				}
+
+				listener = new TcpListener(IPAddress.Any, (int) port);
+				listener.Start();
+
+				listenerThread = new Threads.Thread(() =>
+				{
+					while(state < State.CLOSING && !stopEvent.WaitOne(0))
+					{
+					// Listen for new connections
+					IAsyncResult context = listener.BeginAcceptTcpClient(AcceptClient, null);
+
+					// Wait for next connection or exit signal
+					if(WaitHandle.WaitAny(new[] { stopEvent, context.AsyncWaitHandle }) == 0)
+						{
+							return;
+						}
+					}
+				});
+				listenerThread.Start();
+
+				Debug.LogFormat("Started server on port {0}", port);
+
+				state = State.RUNNING;
+			}
+			else
+			{
+				Debug.LogErrorFormat("Invalid initialization attempt of server when in state {0}.", state);
 			}
 		}
 
@@ -195,7 +210,7 @@ namespace CLARTE.Net.Negotiation
 		{
 			try
 			{
-				if(state == State.RUNNING)
+				if(state == State.RUNNING && listener.Server.IsBound)
 				{
 					Message.Negotiation.Parameters param = new Message.Negotiation.Parameters
 					{
