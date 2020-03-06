@@ -142,36 +142,52 @@ namespace CLARTE.Net.Discovery
 		{
 			serializer = new Binary();
 
-			stopSender = new ManualResetEvent(false);
-			stopCleaner = new ManualResetEvent(false);
-
 			discovered = new Dictionary<Remote, long>();
 			remotesEnumerator = new List<Remote>();
 			pendingLost = new List<Remote>();
 
 			broadcast = GetComponent<Broadcaster>();
-
-			broadcast.onReceive.AddListener(OnReceive);
-
-			sender = new Threads.Thread(Sender);
-			cleaner = new Threads.Thread(Cleaner);
-
-			sender.Start();
-			cleaner.Start();
 		}
 
-		protected void OnDestroy()
+		protected void OnEnable()
 		{
-			stopSender.Set();
-			stopCleaner.Set();
+			if(sender == null)
+			{
+				stopSender = new ManualResetEvent(false);
+				stopCleaner = new ManualResetEvent(false);
 
-			SendBeacon(false);
+				broadcast.onReceive.AddListener(OnReceive);
 
-			sender.Join();
-			cleaner.Join();
+				sender = new Threads.Thread(Sender);
+				cleaner = new Threads.Thread(Cleaner);
 
-			stopSender.Dispose();
-			stopCleaner.Dispose();
+				sender.Start();
+				cleaner.Start();
+			}
+		}
+
+		public void OnDisable()
+		{
+			stopSender?.Set();
+			stopCleaner?.Set();
+
+			if(sender != null)
+			{
+				SendBeacon(false);
+			}
+
+			if(broadcast != null)
+			{
+				broadcast.onReceive.RemoveListener(OnReceive);
+			}
+
+			sender?.Join();
+			cleaner?.Join();
+
+			stopSender?.Dispose();
+			stopCleaner?.Dispose();
+
+			discovered.Clear();
 
 			sender = null;
 			cleaner = null;
