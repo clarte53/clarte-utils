@@ -23,7 +23,7 @@ namespace CLARTE.Net.Discovery
 		{
 			get
 			{
-				return new IPAddress(endPoint.Address.GetAddressBytes(), endPoint.Address.ScopeId);
+				return endPoint.Address;
 			}
 		}
 

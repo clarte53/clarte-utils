@@ -104,8 +104,8 @@ namespace CLARTE.Net.Discovery
 		public List<Service> advertise;
 		[Range(0.1f, 300f)]
 		public float heartbeat = 2f; // In seconds
-		[Range(1, 10)]
-		public ushort lostAfterMissedHeartbeat = 2;
+		[Range(1, 100)]
+		public ushort lostAfterMissedHeartbeat = 15;
 
 		protected Binary serializer;
 		protected Threads.Thread sender;
@@ -297,7 +297,7 @@ namespace CLARTE.Net.Discovery
 
 				foreach(Remote lost in pendingLost)
 				{
-					onLost.Invoke(lost.Type, lost.IPAddress, lost.Port);
+					Threads.APC.MonoBehaviourCall.Instance.Call(() => onLost.Invoke(lost.Type, lost.IPAddress, lost.Port));
 				}
 			}
 		}
