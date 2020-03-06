@@ -189,20 +189,28 @@ namespace CLARTE.Net.Negotiation
 					File.Delete(tmp_file);
 				}
 
-				listener = new TcpListener(IPAddress.Any, (int) port);
+				listener = new TcpListener(IPAddress.Any, port);
 				listener.Start();
 
 				listenerThread = new Threads.Thread(() =>
 				{
 					while(state < State.CLOSING && !stopEvent.WaitOne(0))
 					{
-					// Listen for new connections
-					IAsyncResult context = listener.BeginAcceptTcpClient(AcceptClient, null);
-
-					// Wait for next connection or exit signal
-					if(WaitHandle.WaitAny(new[] { stopEvent, context.AsyncWaitHandle }) == 0)
+						try
 						{
-							return;
+							// Listen for new connections
+							IAsyncResult context = listener.BeginAcceptTcpClient(AcceptClient, null);
+
+							// Wait for next connection or exit signal
+							if(WaitHandle.WaitAny(new[] { stopEvent, context.AsyncWaitHandle }) == 0)
+							{
+								return;
+							}
+						}
+						catch(InvalidOperationException)
+						{
+							// Happens when disposing of listener while listening for new connection.
+							// Nothing to do, just exit the thread to close cleanly.
 						}
 					}
 				});
@@ -222,7 +230,7 @@ namespace CLARTE.Net.Negotiation
 		{
 			try
 			{
-				if(state == State.RUNNING && listener.Server.IsBound)
+				if(state == State.RUNNING && listener != null && listener.Server != null && listener.Server.IsBound)
 				{
 					Message.Negotiation.Parameters param = new Message.Negotiation.Parameters
 					{
@@ -242,6 +250,11 @@ namespace CLARTE.Net.Negotiation
 
 					connection.initialization = Task.Run(() => Connected(connection));
 				}
+			}
+			catch(ObjectDisposedException)
+			{
+				// Can happen rarely because the atomicity between IsBound and EndAcceptTcpClient is not verified. Therefore the
+				// listener can be disposed in this time frame. In this case, we have nothing to do. Just exit to close cleanly the listener.
 			}
 			catch(Exception exception)
 			{
