@@ -9,14 +9,22 @@ using System.Collections;
 namespace CLARTE.Net.Discovery
 {
 	[RequireComponent(typeof(Broadcaster))]
-	public class Discover : MonoBehaviour, IEnumerable<Remote>
+	public class Discover : MonoBehaviour, IEnumerable<KeyValuePair<IPEndPoint, IServiceInfo>>
 	{
 		[Serializable]
 		public class Service
 		{
 			#region Members
-			public string identifier;
 			public Negotiation.Server server;
+			public IServiceInfoProvider info;
+			#endregion
+		}
+
+		protected class Info
+		{
+			#region Members
+			public IServiceInfo info;
+			public long lastSeen;
 			#endregion
 		}
 
@@ -24,25 +32,25 @@ namespace CLARTE.Net.Discovery
 		{
 			#region Members
 			public bool valid;
-			public bool connected;
+			public bool exist;
 			public ushort port;
-			public string identifier;
+			public IServiceInfo info;
 			#endregion
 
 			#region Constructors
 			public Datagram() // Required for Binary deserialization
 			{
 				valid = false;
-				connected = false;
+				exist = false;
 				port = 0;
-				identifier = null;
+				info = null;
 			}
 
-			public Datagram(bool connected, ushort port, string identifier)
+			public Datagram(bool exist, ushort port, IServiceInfo info)
 			{
-				this.connected = connected;
+				this.exist = exist;
 				this.port = port;
-				this.identifier = identifier;
+				this.info = info;
 
 				valid = true;
 			}
@@ -53,9 +61,13 @@ namespace CLARTE.Net.Discovery
 			{
 				uint read = 0;
 
-				read += serializer.FromBytes(buffer, start + read, out connected);
+				IBinaryTypeMapped i;
+
+				read += serializer.FromBytes(buffer, start + read, out exist);
 				read += serializer.FromBytes(buffer, start + read, out port);
-				read += serializer.FromBytes(buffer, start + read, out identifier);
+				read += serializer.FromBytes(buffer, start + read, out i);
+
+				info = (IServiceInfo) i;
 
 				byte computed_checksum = ComputeControlSum(buffer.Data, start, read);
 
@@ -72,9 +84,9 @@ namespace CLARTE.Net.Discovery
 			{
 				uint written = 0;
 
-				written += serializer.ToBytes(ref buffer, start + written, connected);
+				written += serializer.ToBytes(ref buffer, start + written, exist);
 				written += serializer.ToBytes(ref buffer, start + written, port);
-				written += serializer.ToBytes(ref buffer, start + written, identifier);
+				written += serializer.ToBytes(ref buffer, start + written, info);
 				written += serializer.ToBytes(ref buffer, start + written, ComputeControlSum(buffer.Data, start, written));
 
 				return written;
@@ -113,19 +125,22 @@ namespace CLARTE.Net.Discovery
 		protected ManualResetEvent stopSender;
 		protected ManualResetEvent stopCleaner;
 		protected Broadcaster broadcast;
-		protected Dictionary<Remote, long> discovered;
-		protected List<Remote> remotesEnumerator;
-		protected List<Remote> pendingLost;
+		protected Dictionary<IPEndPoint, Info> discovered;
+		protected List<KeyValuePair<IPEndPoint, IServiceInfo>> remotesEnumerator;
+		protected List<KeyValuePair<IPEndPoint, IServiceInfo>> pendingLost;
 		#endregion
 
 		#region IEnumerable implementation
-		public IEnumerator<Remote> GetEnumerator()
+		public IEnumerator<KeyValuePair<IPEndPoint, IServiceInfo>> GetEnumerator()
 		{
 			remotesEnumerator.Clear();
 
 			lock(discovered)
 			{
-				remotesEnumerator.AddRange(discovered.Keys);
+				foreach(KeyValuePair<IPEndPoint, Info> pair in discovered)
+				{
+					remotesEnumerator.Add(new KeyValuePair<IPEndPoint, IServiceInfo>(pair.Key, pair.Value.info));
+				}
 			}
 
 			return remotesEnumerator.GetEnumerator();
@@ -142,9 +157,9 @@ namespace CLARTE.Net.Discovery
 		{
 			serializer = new Binary();
 
-			discovered = new Dictionary<Remote, long>();
-			remotesEnumerator = new List<Remote>();
-			pendingLost = new List<Remote>();
+			discovered = new Dictionary<IPEndPoint, Info>();
+			remotesEnumerator = new List<KeyValuePair<IPEndPoint, IServiceInfo>>();
+			pendingLost = new List<KeyValuePair<IPEndPoint, IServiceInfo>>();
 
 			broadcast = GetComponent<Broadcaster>();
 		}
@@ -201,81 +216,84 @@ namespace CLARTE.Net.Discovery
 		{
 			if(datagram != null && datagram.Length > 0)
 			{
-				Datagram deserialized = null;
-
 				try
 				{
-					deserialized = serializer.Deserialize(datagram) as Datagram;
+					serializer.Deserialize(datagram, d =>
+					{
+						Datagram deserialized = d as Datagram;
+
+						if(deserialized != null)
+						{
+							IPEndPoint endpoint = new IPEndPoint(ip, deserialized.port);
+
+							bool already_discovered;
+
+							lock(discovered)
+							{
+								already_discovered = discovered.ContainsKey(endpoint);
+							}
+
+							if(deserialized.exist)
+							{
+								if(already_discovered)
+								{
+									lock(discovered)
+									{
+										Info info = discovered[endpoint];
+
+										info.info = deserialized.info;
+										info.lastSeen = GetCurrentTime();
+									}
+								}
+								else
+								{
+									lock(discovered)
+									{
+										discovered.Add(endpoint, new Info { info = deserialized.info, lastSeen = GetCurrentTime() });
+									}
+
+									Threads.APC.MonoBehaviourCall.Instance.Call(() => onDiscovered.Invoke(ip, deserialized.port, deserialized.info));
+								}
+							}
+							else if(!deserialized.exist && already_discovered)
+							{
+								lock(discovered)
+								{
+									discovered.Remove(endpoint);
+								}
+
+								Threads.APC.MonoBehaviourCall.Instance.Call(() => onLost.Invoke(ip, deserialized.port, deserialized.info));
+							}
+						}
+					});
 				}
 				catch(Binary.DeserializationException) { }
-
-				if(deserialized != null)
-				{
-					Remote remote = new Remote(deserialized.identifier, ip, deserialized.port);
-
-					bool already_discovered;
-
-					lock(discovered)
-					{
-						already_discovered = discovered.ContainsKey(remote);
-					}
-
-					if(deserialized.connected)
-					{
-						if(already_discovered)
-						{
-							lock(discovered)
-							{
-								discovered[remote] = GetCurrentTime();
-							}
-						}
-						else
-						{
-							lock(discovered)
-							{
-								discovered.Add(remote, GetCurrentTime());
-							}
-
-							onDiscovered.Invoke(deserialized.identifier, ip, deserialized.port);
-						}
-					}
-					else if(!deserialized.connected && already_discovered)
-					{
-						lock(discovered)
-						{
-							discovered.Remove(remote);
-						}
-
-						onLost.Invoke(deserialized.identifier, ip, deserialized.port);
-					}
-				}
 			}
 		}
 
-		protected void SendBeacon(bool connected)
+		protected void SendBeacon(bool exist)
 		{
 			if(advertise != null)
 			{
 				foreach(Service service in advertise)
 				{
-					if(service.server != null && !string.IsNullOrEmpty(service.identifier))
+					if(service.server != null)
 					{
-						byte[] data = null;
-
 						try
 						{
-							data = serializer.Serialize(new Datagram(
-								connected && service.server.CurrentState == Negotiation.Base.State.RUNNING,
-								service.server.port,
-								service.identifier
-							));
+							IServiceInfo info = service.info.ServiceInfo;
+
+							info.Active = exist && service.server.CurrentState == Negotiation.Base.State.RUNNING;
+
+							serializer.Serialize(new Datagram(exist, service.server.port, info), (data, size) =>
+							{
+								if(data != null && size > 0)
+								{
+									broadcast.Send(data, (int) size);
+								}
+							});
 						}
 						catch(Binary.SerializationException) { }
-
-						if(data != null && data.Length > 0)
-						{
-							broadcast.Send(data, data.Length);
-						}
 					}
 				}
 			}
@@ -297,23 +315,23 @@ namespace CLARTE.Net.Discovery
 
 				lock(discovered)
 				{
-					foreach(KeyValuePair<Remote, long> pair in discovered)
+					foreach(KeyValuePair<IPEndPoint, Info> pair in discovered)
 					{
-						if(GetCurrentTime() - pair.Value >= (lostAfterMissedHeartbeat + 1) * 1000 * heartbeat)
+						if(GetCurrentTime() - pair.Value.lastSeen >= (lostAfterMissedHeartbeat + 1) * 1000 * heartbeat)
 						{
-							pendingLost.Add(pair.Key);
+							pendingLost.Add(new KeyValuePair<IPEndPoint, IServiceInfo>(pair.Key, pair.Value.info));
 						}
 					}
 
-					foreach(Remote lost in pendingLost)
+					foreach(KeyValuePair<IPEndPoint, IServiceInfo> lost in pendingLost)
 					{
-						discovered.Remove(lost);
+						discovered.Remove(lost.Key);
 					}
 				}
 
-				foreach(Remote lost in pendingLost)
+				foreach(KeyValuePair<IPEndPoint, IServiceInfo> lost in pendingLost)
 				{
-					Threads.APC.MonoBehaviourCall.Instance.Call(() => onLost.Invoke(lost.Type, lost.IPAddress, lost.Port));
+					Threads.APC.MonoBehaviourCall.Instance.Call(() => onLost.Invoke(lost.Key.Address, (ushort) lost.Key.Port, lost.Value));
 				}
 			}
 		}
