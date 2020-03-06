@@ -87,7 +87,7 @@ namespace CLARTE.Serialization
 
 			Type type;
 
-			if(idToType.TryGetValue(type_id, out type))
+			if(type_id != 0 && idToType.TryGetValue(type_id, out type))
 			{
 				CallDefaultConstructor(type, out value);
 
@@ -116,13 +116,20 @@ namespace CLARTE.Serialization
 
 			uint type_id;
 
-			if(value != null && typeToId.TryGetValue(value.GetType(), out type_id))
+			if(value != null)
 			{
-				CheckDefaultConstructor(value.GetType());
+				if(typeToId.TryGetValue(value.GetType(), out type_id) && type_id != 0)
+				{
+					CheckDefaultConstructor(value.GetType());
 
-				written = ToBytes(ref buffer, start, type_id);
+					written = ToBytes(ref buffer, start, type_id);
 
-				written += value.ToBytes(this, ref buffer, start + written);
+					written += value.ToBytes(this, ref buffer, start + written);
+				}
+				else
+				{
+					throw new SerializationException(string.Format("Type '{0}' does not have a valid mapped ID", value.GetType()), new Exception());
+				}
 			}
 			else
 			{
