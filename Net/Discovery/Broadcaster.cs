@@ -64,9 +64,11 @@ namespace CLARTE.Net.Discovery
 			stop.Set();
 
 			thread.Join();
-
+			
+			udp.Dispose();
 			stop.Dispose();
 
+			udp = null;
 			thread = null;
 			stop = null;
 		}
