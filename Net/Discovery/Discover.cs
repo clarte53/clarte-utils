@@ -185,13 +185,13 @@ namespace CLARTE.Net.Discovery
 
 		public void OnDisable()
 		{
-			stopSender?.Set();
-			stopCleaner?.Set();
-
 			if(sender != null)
 			{
 				SendBeacon(false);
 			}
+
+			stopSender?.Set();
+			stopCleaner?.Set();
 
 			if(broadcast != null)
 			{
@@ -220,68 +220,65 @@ namespace CLARTE.Net.Discovery
 			{
 				try
 				{
-					serializer.Deserialize(datagram, d =>
+					Datagram deserialized = serializer.Deserialize(datagram) as Datagram;
+
+					if(deserialized != null)
 					{
-						Datagram deserialized = d as Datagram;
+						IPEndPoint endpoint = new IPEndPoint(ip, deserialized.port);
 
-						if(deserialized != null)
+						bool already_discovered;
+
+						lock(discovered)
 						{
-							IPEndPoint endpoint = new IPEndPoint(ip, deserialized.port);
+							already_discovered = discovered.ContainsKey(endpoint);
+						}
 
-							bool already_discovered;
-
-							lock(discovered)
-							{
-								already_discovered = discovered.ContainsKey(endpoint);
-							}
-
-							if(deserialized.exist)
-							{
-								if(already_discovered)
-								{
-									lock(discovered)
-									{
-										Info info = discovered[endpoint];
-
-										bool active = info.info.Active;
-
-										info.info = deserialized.info;
-										info.lastSeen = GetCurrentTime();
-
-										if(deserialized.info.Active != active)
-										{
-											if(deserialized.info.Active)
-											{
-												Threads.APC.MonoBehaviourCall.Instance.Call(() => onActive.Invoke(ip, deserialized.port, deserialized.info));
-											}
-											else
-											{
-												Threads.APC.MonoBehaviourCall.Instance.Call(() => onInactive.Invoke(ip, deserialized.port, deserialized.info));
-											}
-										}
-									}
-								}
-								else
-								{
-									lock(discovered)
-									{
-										discovered.Add(endpoint, new Info { info = deserialized.info, lastSeen = GetCurrentTime() });
-									}
-
-									Threads.APC.MonoBehaviourCall.Instance.Call(() => onDiscovered.Invoke(ip, deserialized.port, deserialized.info));
-								}
-							}
-							else if(!deserialized.exist && already_discovered)
+						if(deserialized.exist)
+						{
+							if(already_discovered)
 							{
 								lock(discovered)
 								{
-									discovered.Remove(endpoint);
+									Info info = discovered[endpoint];
+
+									bool active = info.info.Active;
+
+									info.info = deserialized.info;
+									info.lastSeen = GetCurrentTime();
+
+									if(deserialized.info.Active != active)
+									{
+										if(deserialized.info.Active)
+										{
+											Threads.APC.MonoBehaviourCall.Instance.Call(() => onActive.Invoke(ip, deserialized.port, deserialized.info));
+										}
+										else
+										{
+											Threads.APC.MonoBehaviourCall.Instance.Call(() => onInactive.Invoke(ip, deserialized.port, deserialized.info));
+										}
+									}
+								}
+							}
+							else
+							{
+								lock(discovered)
+								{
+									discovered.Add(endpoint, new Info { info = deserialized.info, lastSeen = GetCurrentTime() });
 								}
 
-								Threads.APC.MonoBehaviourCall.Instance.Call(() => onLost.Invoke(ip, deserialized.port, deserialized.info));
+								Threads.APC.MonoBehaviourCall.Instance.Call(() => onDiscovered.Invoke(ip, deserialized.port, deserialized.info));
 							}
 						}
-					});
+						else if(!deserialized.exist && already_discovered)
+						{
+							lock(discovered)
+							{
+								discovered.Remove(endpoint);
+							}
+
+							Threads.APC.MonoBehaviourCall.Instance.Call(() => onLost.Invoke(ip, deserialized.port, deserialized.info));
+						}
+					}
 				}
 				catch(Binary.DeserializationException) { }
 			}
@@ -301,15 +298,16 @@ namespace CLARTE.Net.Discovery
 
 							info.Active = exist && service.server.CurrentState == Negotiation.Base.State.RUNNING;
 
-							serializer.Serialize(new Datagram(exist, service.server.port, info), (data, size) =>
+							byte[] data = serializer.Serialize(new Datagram(exist, service.server.port, info));
+
+							if(data != null && data.Length > 0)
 							{
-								if(data != null && size > 0)
-								{
-									broadcast.Send(data, (int) size);
-								}
-							});
+								broadcast.Send(data, data.Length);
+							}
 						}
-						catch(Binary.SerializationException) { }
+						catch(Binary.SerializationException e) {
+							Debug.LogErrorFormat("{1}: {2}\n{3}", e.GetType(), e.Message, e.StackTrace);
+						}
 					}
 				}
 			}
