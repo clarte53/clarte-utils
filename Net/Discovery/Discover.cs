@@ -113,6 +113,8 @@ namespace CLARTE.Net.Discovery
 		#region Members
 		public Events.OnDiscoveredCallback onDiscovered;
 		public Events.OnLostCallback onLost;
+		public Events.OnActiveCallback onActive;
+		public Events.OnInactiveCallback onInactive;
 		public List<Service> advertise;
 		[Range(0.1f, 300f)]
 		public float heartbeat = 2f; // In seconds
@@ -241,8 +243,22 @@ namespace CLARTE.Net.Discovery
 									{
 										Info info = discovered[endpoint];
 
+										bool active = info.info.Active;
+
 										info.info = deserialized.info;
 										info.lastSeen = GetCurrentTime();
+
+										if(deserialized.info.Active != active)
+										{
+											if(deserialized.info.Active)
+											{
+												Threads.APC.MonoBehaviourCall.Instance.Call(() => onActive.Invoke(ip, deserialized.port, deserialized.info));
+											}
+											else
+											{
+												Threads.APC.MonoBehaviourCall.Instance.Call(() => onInactive.Invoke(ip, deserialized.port, deserialized.info));
+											}
+										}
 									}
 								}
 								else

@@ -17,5 +17,17 @@ namespace CLARTE.Net.Discovery
 		{
 
 		}
+
+		[Serializable]
+		public class OnActiveCallback : UnityEvent<IPAddress, ushort, IServiceInfo>
+		{
+
+		}
+
+		[Serializable]
+		public class OnInactiveCallback : UnityEvent<IPAddress, ushort, IServiceInfo>
+		{
+
+		}
 	}
 }
