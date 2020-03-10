@@ -102,6 +102,42 @@ namespace CLARTE.Serialization
 		}
 
 		/// <summary>
+		/// Deserialize into an existing IBinaryTypeMapped object.
+		/// </summary>
+		/// <param name="buffer">The buffer containing the serialized data.</param>
+		/// <param name="start">The start index in the buffer of the serialized object.</param>
+		/// <param name="value">The deserialized object.</param>
+		/// <returns>The number of deserialized bytes.</returns>
+		public uint FromBytesOverwrite(Buffer buffer, uint start, IBinaryTypeMapped value)
+		{
+			uint type_id;
+
+			CheckDeserializationParameters(buffer, start);
+
+			uint read = FromBytes(buffer, start, out type_id);
+
+			Type type;
+
+			if(type_id != 0 && idToType.TryGetValue(type_id, out type))
+			{
+				if(!type.IsAssignableFrom(value.GetType()))
+				{
+					throw new FormatException("The type of IBinaryTypeMapped object does not match the provided object.");
+				}
+
+				read += value.FromBytes(this, buffer, start + read);
+			}
+			else
+			{
+				// Nothing to do: we got nothing to deserialize and the value already exists, so returning null is not an option.
+				// It would be great to notify the user, but we do have a mecanism for that, and raising an exception would stop
+				// the deserialization, but this should just be a warning.
+			}
+
+			return read;
+		}
+
+		/// <summary>
 		/// Serialize a IBinaryTypeMapped object.
 		/// </summary>
 		/// <param name="buffer">The buffer where to serialize the data.</param>
