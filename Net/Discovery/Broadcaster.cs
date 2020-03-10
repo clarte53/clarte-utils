@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Threading;
 using UnityEngine;
@@ -16,158 +18,81 @@ namespace CLARTE.Net.Discovery
 
 		}
 
-		protected class UDP : IDisposable
-		{
-			#region Members
-			protected UdpClient udp;
-			protected HashSet<IPAddress> localAddresses;
-			protected Threads.Thread thread;
-			protected ManualResetEvent stop;
-			protected ReceiveCallback onReceive;
-			protected bool broadcastToLocalhost;
-			#endregion
-
-			#region Constructors
-			public UDP(IPEndPoint endpoint, HashSet<IPAddress> local_addresses, ReceiveCallback receive_callback, bool broadcast_to_localhost)
-			{
-				localAddresses = local_addresses;
-				onReceive = receive_callback;
-				broadcastToLocalhost = broadcast_to_localhost;
-
-				udp = new UdpClient(endpoint);
-
-				if(!broadcastToLocalhost)
-				{
-					udp.Client.MulticastLoopback = false;
-				}
-
-				stop = new ManualResetEvent(false);
-
-				thread = new Threads.Thread(Listener);
-
-				thread.Start();
-			}
-			#endregion
-
-			#region IDisposable implementation
-			private bool isDisposed = false;
-
-			protected virtual void Dispose(bool disposing)
-			{
-				if(!isDisposed)
-				{
-					if(disposing)
-					{
-						// TODO: clear managed state
-					}
-
-					// TODO: clear non managed states and replace finalizer below.
-					// TODO: set large fields to null.
-
-					stop.Set();
-
-					thread.Join();
-
-					udp.Dispose();
-
-					stop.Dispose();
-
-					thread = null;
-					stop = null;
-
-					isDisposed = true;
-				}
-			}
-
-			~UDP()
-			{
-				Dispose(false);
-			}
-
-			public void Dispose()
-			{
-				Dispose(true);
-
-				GC.SuppressFinalize(this);
-			}
-			#endregion
-
-			#region Public methods
-			public void Send(IPEndPoint endpoint, byte[] datagram, int size)
-			{
-				udp.SendAsync(datagram, size, endpoint);
-			}
-			#endregion
-
-			#region Internal methods
-			protected void Listener()
-			{
-				while(!stop.WaitOne(0))
-				{
-					System.Threading.Tasks.Task<UdpReceiveResult> t = udp.ReceiveAsync();
-
-					while(!t.Wait(100) && !stop.WaitOne(0)) { }
-
-					if(t.Wait(0))
-					{
-						byte[] datagram = t.Result.Buffer;
-						IPEndPoint from = t.Result.RemoteEndPoint;
-
-						if(datagram.Length > 0 && (broadcastToLocalhost || !localAddresses.Contains(from.Address)))
-						{
-							Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceive.Invoke(from.Address, from.Port, datagram));
-						}
-					}
-				}
-			}
-			#endregion
-		}
-
 		#region Members
 		public ReceiveCallback onReceive;
 		public ushort port = 65535;
 		public bool broadcastToLocalhost = false;
 
-		protected List<UDP> udpClients;
-		protected IPEndPoint broadcastAddress;
+		protected UdpClient udp;
 		protected HashSet<IPAddress> localAddresses;
+		protected List<IPEndPoint> broadcastAddresses;
+		protected Threads.Thread thread;
+		protected ManualResetEvent stop;
 		#endregion
 
 		#region MonoBehaviour callbacks
 		protected void Awake()
 		{
-			broadcastAddress = new IPEndPoint(IPAddress.Broadcast, port);
-
 			localAddresses = new HashSet<IPAddress>();
+			broadcastAddresses = new List<IPEndPoint>();
 
-			IPHostEntry host = Dns.GetHostEntry(Dns.GetHostName());
-
-			foreach(IPAddress ip in host.AddressList)
+			foreach(NetworkInterface net in NetworkInterface.GetAllNetworkInterfaces())
 			{
-				if(ip.AddressFamily == AddressFamily.InterNetwork)
+				if(net != null && (net.NetworkInterfaceType == NetworkInterfaceType.Wireless80211 || net.NetworkInterfaceType == NetworkInterfaceType.Ethernet))
 				{
-					localAddresses.Add(ip);
+					foreach(UnicastIPAddressInformation unicast_info in net.GetIPProperties().UnicastAddresses)
+					{
+						if(unicast_info.Address.AddressFamily == AddressFamily.InterNetwork)
+						{
+							byte[] address = unicast_info.Address.GetAddressBytes();
+							byte[] mask = unicast_info.IPv4Mask.GetAddressBytes();
+
+							for(int i = 0; i < address.Length && i < mask.Length; i++)
+							{
+								address[i] |= (byte) ~mask[i];
+							}
+
+							IPAddress broadcast = new IPAddress(address);
+
+							localAddresses.Add(unicast_info.Address);
+							broadcastAddresses.Add(new IPEndPoint(broadcast, port));
+						}
+					}
 				}
 			}
 
-			udpClients = new List<UDP>(localAddresses.Count);
-
-			foreach(IPAddress ip in localAddresses)
+			udp = new UdpClient()
 			{
-				udpClients.Add(new UDP(new IPEndPoint(ip, port), localAddresses, onReceive, broadcastToLocalhost));
-			}
+				ExclusiveAddressUse = !broadcastToLocalhost,
+				EnableBroadcast = true
+			};
+
+			// To send/receive on the same host.
+			udp.Client.MulticastLoopback = broadcastToLocalhost;
+			udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, broadcastToLocalhost);
+
+			udp.Client.Bind(new IPEndPoint(IPAddress.Any, port));
+
+			stop = new ManualResetEvent(false);
+
+			thread = new Threads.Thread(Listener);
+
+			thread.Start();
 		}
 
 		protected void OnDestroy()
 		{
-			foreach(UDP udp in udpClients)
-			{
-				udp.Dispose();
-			}
+			stop.Set();
 
-			udpClients.Clear();
+			thread.Join();
 
-			udpClients = null;
+			udp.Dispose();
+
+			stop.Dispose();
+
+			udp = null;
+			thread = null;
+			stop = null;
 		}
 		#endregion
 
@@ -176,9 +101,32 @@ namespace CLARTE.Net.Discovery
 		{
 			if(size > 0 && size <= datagram.Length)
 			{
-				foreach(UDP udp in udpClients)
+				foreach(IPEndPoint broadcast in broadcastAddresses)
 				{
-					udp.Send(broadcastAddress, datagram, size);
+					udp.SendAsync(datagram, size, broadcast);
+				}
+			}
+		}
+		#endregion
+
+		#region Internal methods
+		protected void Listener()
+		{
+			while(!stop.WaitOne(0))
+			{
+				System.Threading.Tasks.Task<UdpReceiveResult> t = udp.ReceiveAsync();
+
+				while(!t.Wait(100) && !stop.WaitOne(0)) { }
+
+				if(t.Wait(0))
+				{
+					byte[] datagram = t.Result.Buffer;
+					IPEndPoint from = t.Result.RemoteEndPoint;
+
+					if(datagram.Length > 0 && (broadcastToLocalhost || !localAddresses.Contains(from.Address)))
+					{
+						Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceive.Invoke(from.Address, from.Port, datagram));
+					}
 				}
 			}
 		}
