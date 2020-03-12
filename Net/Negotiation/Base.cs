@@ -89,7 +89,12 @@ namespace CLARTE.Net.Negotiation
 			{
 				foreach(KeyValuePair<Guid, Connection.Tcp> pair in monitors)
 				{
-					CloseMonitor(pair.Key);
+					if(pair.Value.initialization != null)
+					{
+						pair.Value.initialization.Wait();
+					}
+
+					pair.Value.Close();
 				}
 
 				monitors.Clear();
