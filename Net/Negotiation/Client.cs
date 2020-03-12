@@ -61,7 +61,7 @@ namespace CLARTE.Net.Negotiation
 
 				CloseOpenedChannels();
 
-				CloseMonitor();
+				CloseMonitors();
 
 				lock(pendingUdpConnection)
 				{
@@ -76,10 +76,8 @@ namespace CLARTE.Net.Negotiation
 		{
 			if(state == State.RUNNING && connection != null && connection.AutoReconnect)
 			{
-				if(connection == monitor)
+				if(connection != null && CloseMonitor(connection.Remote))
 				{
-					CloseMonitor();
-
 					Connect();
 				}
 				else
@@ -92,7 +90,14 @@ namespace CLARTE.Net.Negotiation
 					}
 					else if(typeof(Connection.Udp).IsAssignableFrom(type))
 					{
-						ConnectUdp(monitor, connection.Parameters);
+						if(monitors.TryGetValue(connection.Remote, out Connection.Tcp monitor))
+						{
+							ConnectUdp(monitor, connection.Parameters);
+						}
+						else
+						{
+							Debug.LogErrorFormat("No monitor channel with guid '{0}' to reconnect UDP channel {1}", connection.Remote, connection.Channel);
+						}
 					}
 				}
 			}
@@ -192,7 +197,7 @@ namespace CLARTE.Net.Negotiation
 			}
 
 			// Start asynchronous connection to server
-			connection.initialization = Task.Run(() => connection.client.BeginConnect(hostname, (int) port, Connected, connection));
+			connection.initialization = Task.Run(() => connection.client.BeginConnect(hostname, port, Connected, connection));
 		}
 
 		protected void Connected(IAsyncResult async_result)
