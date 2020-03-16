@@ -48,12 +48,12 @@ namespace CLARTE.Scenario
 
 			set
 			{
+				state = value;
+
 				foreach(Validator v in children)
 				{
-					v.State = value;
+					v.State = state;
 				}
-
-				state = value;
 			}
 		}
 
@@ -68,12 +68,16 @@ namespace CLARTE.Scenario
 
 			foreach(Validator v in children)
 			{
-				if(v != null && v.State == ValidatorState.VALIDATED)
+				if(v != null)
 				{
 					v.ComputeScore(out float child_score, out float child_weight);
 
-					score += child_score;
 					weight += child_weight;
+
+					if(v.State == ValidatorState.VALIDATED)
+					{
+						score += child_score;
+					}
 				}
 			}
 

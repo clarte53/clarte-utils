@@ -5,6 +5,10 @@ namespace CLARTE.Scenario
 {
 	public class AnyValidator : GroupValidator<HashSet<Validator>>
 	{
+		#region Members
+		protected Validator validated;
+		#endregion
+
 		#region Validator implementation
 		public override ValidatorState State
 		{
@@ -14,7 +18,7 @@ namespace CLARTE.Scenario
 				{
 					case ValidatorState.ENABLED:
 					case ValidatorState.HIGHLIGHTED:
-						bool validated = false;
+						validated = null;
 
 						foreach(Validator v in children)
 						{
@@ -22,17 +26,17 @@ namespace CLARTE.Scenario
 							{
 								State = ValidatorState.FAILED;
 
-								validated = false;
+								validated = null;
 
 								break;
 							}
-							else if(v.State == ValidatorState.VALIDATED)
+							else if(v.State == ValidatorState.VALIDATED && validated == null)
 							{
-								validated = true;
+								validated = v;
 							}
 						}
 
-						if(validated)
+						if(validated != null)
 						{
 							State = ValidatorState.VALIDATED;
 						}
@@ -47,12 +51,14 @@ namespace CLARTE.Scenario
 
 			set
 			{
+				state = value;
+
+				validated = null;
+
 				foreach(Validator v in children)
 				{
-					v.State = value;
+					v.State = state;
 				}
-
-				state = value;
 			}
 		}
 
@@ -63,14 +69,11 @@ namespace CLARTE.Scenario
 
 		public override void ComputeScore(out float score, out float weight)
 		{
-			foreach(Validator v in children)
+			if(validated != null && validated.State == ValidatorState.VALIDATED)
 			{
-				if(v != null && v.State == ValidatorState.VALIDATED)
-				{
-					v.ComputeScore(out score, out weight);
+				validated.ComputeScore(out score, out weight);
 
-					return;
-				}
+				return;
 			}
 
 			score = 0;
