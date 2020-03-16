@@ -66,10 +66,10 @@ namespace CLARTE.Net.Negotiation
 		public List<PortRange> openPorts;
 
 		protected Binary serializer;
+		protected Dictionary<Guid, Connection.Tcp> monitors;
 		protected Dictionary<Guid, Connection.Base[]> openedChannels;
 		protected HashSet<Connection.Tcp> initializedConnections;
 		protected HashSet<ushort> availablePorts;
-		protected Connection.Tcp monitor;
 		protected State state;
 		#endregion
 
@@ -83,9 +83,27 @@ namespace CLARTE.Net.Negotiation
 		#endregion
 
 		#region Clean-up helpers
-		protected void CloseMonitor()
+		protected void CloseMonitors()
 		{
-			if(monitor != null)
+			if(monitors != null)
+			{
+				foreach(KeyValuePair<Guid, Connection.Tcp> pair in monitors)
+				{
+					if(pair.Value.initialization != null)
+					{
+						pair.Value.initialization.Wait();
+					}
+
+					pair.Value.Close();
+				}
+
+				monitors.Clear();
+			}
+		}
+
+		protected bool CloseMonitor(Guid guid)
+		{
+			if(monitors.TryGetValue(guid, out Connection.Tcp monitor) && monitor != null)
 			{
 				if(monitor.initialization != null)
 				{
@@ -94,8 +112,12 @@ namespace CLARTE.Net.Negotiation
 
 				monitor.Close();
 
-				monitor = null;
+				monitors.Remove(guid);
+
+				return true;
 			}
+
+			return false;
 		}
 
 		protected void CloseInitializedConnections()
@@ -209,6 +231,7 @@ namespace CLARTE.Net.Negotiation
 
 			serializer = new Binary();
 
+			monitors = new Dictionary<Guid, Connection.Tcp>();
 			openedChannels = new Dictionary<Guid, Connection.Base[]>();
 
 			initializedConnections = new HashSet<Connection.Tcp>();
@@ -567,14 +590,21 @@ namespace CLARTE.Net.Negotiation
 
 		protected void SaveMonitor(Connection.Tcp connection)
 		{
-			if(monitor == null)
+			if(monitors != null)
 			{
-				monitor = connection;
+				if(monitors.ContainsKey(connection.Remote))
+				{
+					Debug.LogErrorFormat("A monitor channel already exist for guid '{0}'. Replacing the monitor channel.", connection.Remote);
 
-				monitor.SetEvents(negotiation);
-				monitor.SetEvents(OnMonitorReceive);
+					CloseMonitor(connection.Remote);
+				}
 
-				monitor.Listen();
+				monitors[connection.Remote] = connection;
+
+				connection.SetEvents(negotiation);
+				connection.SetEvents(OnMonitorReceive);
+
+				connection.Listen();
 			}
 		}
 

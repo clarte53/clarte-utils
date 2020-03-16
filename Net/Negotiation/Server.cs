@@ -67,7 +67,7 @@ namespace CLARTE.Net.Negotiation
 
 				CloseOpenedChannels();
 
-				CloseMonitor();
+				CloseMonitors();
 
 				if(listenerThread != null)
 				{
@@ -89,9 +89,9 @@ namespace CLARTE.Net.Negotiation
 
 		protected override void Reconnect(Connection.Base connection)
 		{
-			if(connection == monitor)
+			if(connection != null)
 			{
-				CloseMonitor();
+				CloseMonitor(connection.Remote);
 			}
 		}
 
@@ -114,9 +114,18 @@ namespace CLARTE.Net.Negotiation
 					autoReconnect = !channel_parameters.parameters.disableAutoReconnect
 				};
 
-				UdpConnectionParams udp_param = SendUdpParams(monitor, param);
+				Connection.Tcp monitor;
 
-				ConnectUdp(udp_param, response);
+				if(monitors.TryGetValue(param.guid, out monitor))
+				{
+					UdpConnectionParams udp_param = SendUdpParams(monitor, param);
+
+					ConnectUdp(udp_param, response);
+				}
+				else
+				{
+					Debug.LogErrorFormat("No monitor channel with guid '{0}' to send UDP negotiation for channel {1}", param.guid, param.channel);
+				}
 			}
 		}
 		#endregion
