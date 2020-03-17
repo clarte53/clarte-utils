@@ -84,7 +84,7 @@ namespace CLARTE.Scenario
 
 		protected void OnTriggerEnter(Collider other)
 		{
-			if(IsEnabled() && match != null && match.IsMatching(other))
+			if(IsEnabled())
 			{
 				inZone.Add(other, new Point(other.transform, timeNotMoving));
 			}
@@ -97,7 +97,7 @@ namespace CLARTE.Scenario
 
 		protected void OnTriggerStay(Collider other)
 		{
-			if(IsEnabled() && inZone.TryGetValue(other, out Point p))
+			if(IsEnabled() && match != null && match.IsMatching(other) && inZone.TryGetValue(other, out Point p))
 			{
 				if(p.IsNotMoving(other.transform))
 				{
