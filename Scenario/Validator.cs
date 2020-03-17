@@ -35,7 +35,7 @@ namespace CLARTE.Scenario
 		#endregion
 
 		#region Public methods
-		public void Validate()
+		public virtual void Validate()
 		{
 			ComputeScore(out score, out scoreWeight);
 
