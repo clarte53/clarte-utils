@@ -6,20 +6,29 @@ namespace CLARTE.Scenario
 {
 	[RequireComponent(typeof(Collider))]
 	[RequireComponent(typeof(Rigidbody))]
-	public abstract class ZoneValidator : Validator
+	public class ZoneValidator : Validator
 	{
+		public abstract class Match : ScriptableObject
+		{
+			public abstract bool IsMatching(Collider collider);
+		}
+
 		protected class Point
 		{
 			#region Members
-			public Vector3 position;
-			public Quaternion rotation;
-			public Vector3 scale;
+			protected Vector3 position;
+			protected Quaternion rotation;
+			protected Vector3 scale;
+			protected ushort notMovingCount;
+			protected ushort notMovingThreshold;
 			#endregion
 
 			#region Constructors
-			public Point(Transform t)
+			public Point(Transform t, float time_not_moving)
 			{
 				Transform = t;
+				notMovingCount = 0;
+				notMovingThreshold = (ushort) (time_not_moving / Time.fixedDeltaTime);
 			}
 			#endregion
 
@@ -36,23 +45,32 @@ namespace CLARTE.Scenario
 			#endregion
 
 			#region Pubplic methods
-			public bool IsMoving(Transform t)
+			public bool IsNotMoving(Transform t)
 			{
 				float dp = (position - t.position).sqrMagnitude;
 				float dr = Quaternion.Angle(rotation, t.rotation);
 				float ds = (scale - t.lossyScale).sqrMagnitude;
 
-				return dp > Vector3.kEpsilon || dr > Quaternion.kEpsilon || ds > Vector3.kEpsilon;
+				if(dp > Vector3.kEpsilon || dr > Quaternion.kEpsilon || ds > Vector3.kEpsilon)
+				{
+					notMovingCount = 0;
+				}
+				else
+				{
+					notMovingCount++;
+				}
+
+				return notMovingCount >= notMovingThreshold;
 			}
 			#endregion
 		}
 
 		#region Members
-		protected Dictionary<Collider, Point> inZone;
-		#endregion
+		public Match match;
+		[Range(0.1f, 10f)]
+		public float timeNotMoving = 1f; // In seconds
 
-		#region Abstract methods
-		protected abstract bool Match(Collider collider);
+		protected Dictionary<Collider, Point> inZone;
 		#endregion
 
 		#region MonoBehaviour callbacks
@@ -66,9 +84,9 @@ namespace CLARTE.Scenario
 
 		protected void OnTriggerEnter(Collider other)
 		{
-			if(IsEnabled() && Match(other))
+			if(IsEnabled() && match != null && match.IsMatching(other))
 			{
-				inZone.Add(other, new Point(other.transform));
+				inZone.Add(other, new Point(other.transform, timeNotMoving));
 			}
 		}
 
@@ -81,7 +99,7 @@ namespace CLARTE.Scenario
 		{
 			if(IsEnabled() && inZone.TryGetValue(other, out Point p))
 			{
-				if(!p.IsMoving(other.transform))
+				if(p.IsNotMoving(other.transform))
 				{
 					State = ValidatorState.VALIDATED;
 
