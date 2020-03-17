@@ -37,9 +37,11 @@ namespace CLARTE.Scenario
 		#region Public methods
 		public virtual void Validate()
 		{
+			ValidatorState s = State; // State must be called before ComputeScore, and even if the validator is the root
+
 			ComputeScore(out score, out scoreWeight);
 
-			transform.parent.GetComponent<Validator>()?.Notify(this, State);
+			transform.parent?.GetComponent<Validator>()?.Notify(this, s);
 		}
 		#endregion
 	}
