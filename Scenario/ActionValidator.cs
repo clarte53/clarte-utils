@@ -1,7 +1,10 @@
 ﻿using System;
+using UnityEngine;
+using CLARTE.Rendering.Highlight;
 
 namespace CLARTE.Scenario
 {
+	[RequireComponent(typeof(IHighlight))]
 	public class ActionValidator : Validator
 	{
 		#region Validator implementation
@@ -15,6 +18,8 @@ namespace CLARTE.Scenario
 			set
 			{
 				state = value;
+
+				GetComponent<IHighlight>()?.SetHighlightEnabled(state == ValidatorState.HIGHLIGHTED);
 			}
 		}
 

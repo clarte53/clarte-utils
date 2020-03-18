@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
+using CLARTE.Rendering.Highlight;
 
 namespace CLARTE.Scenario
 {
 	[RequireComponent(typeof(Collider))]
 	[RequireComponent(typeof(Rigidbody))]
+	[RequireComponent(typeof(IHighlight))]
 	public class ZoneValidator : Validator
 	{
 		public abstract class Match : ScriptableObject
@@ -124,6 +126,8 @@ namespace CLARTE.Scenario
 			set
 			{
 				state = value;
+
+				GetComponent<IHighlight>()?.SetHighlightEnabled(state == ValidatorState.HIGHLIGHTED);
 			}
 		}
 
