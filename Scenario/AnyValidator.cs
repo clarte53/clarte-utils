@@ -38,7 +38,11 @@ namespace CLARTE.Scenario
 
 						if(validated != null)
 						{
+							Validator v = validated;
+
 							State = ValidatorState.VALIDATED;
+
+							validated = v;
 						}
 
 						break;

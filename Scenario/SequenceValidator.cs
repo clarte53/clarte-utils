@@ -60,7 +60,7 @@ namespace CLARTE.Scenario
 
 								if(current >= children.Count)
 								{
-									State = ValidatorState.VALIDATED;
+									state = ValidatorState.VALIDATED;
 								}
 
 								break;
@@ -78,7 +78,7 @@ namespace CLARTE.Scenario
 
 								if(validatedIndexes.Count == children.Count)
 								{
-									State = ValidatorState.VALIDATED;
+									state = ValidatorState.VALIDATED;
 								}
 
 								break;
