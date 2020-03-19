@@ -12,7 +12,7 @@ namespace CLARTE.Scenario
 	{
 		public abstract class Match : ScriptableObject
 		{
-			public abstract bool IsMatching(Collider collider);
+			public abstract bool IsMatching(ZoneValidator validator, Collider other);
 		}
 
 		protected class Point
@@ -99,7 +99,7 @@ namespace CLARTE.Scenario
 
 		protected void OnTriggerStay(Collider other)
 		{
-			if(IsEnabled() && match != null && match.IsMatching(other) && inZone.TryGetValue(other, out Point p))
+			if(IsEnabled() && match != null && match.IsMatching(this, other) && inZone.TryGetValue(other, out Point p))
 			{
 				if(p.IsNotMoving(other.transform))
 				{
