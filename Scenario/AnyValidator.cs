@@ -10,78 +10,86 @@ namespace CLARTE.Scenario
 		#endregion
 
 		#region Validator implementation
-		public override ValidatorState State
+		protected override void OnStateChanged(ValidatorState state)
 		{
-			get
+			switch(state)
 			{
-				switch(state)
-				{
-					case ValidatorState.ENABLED:
-					case ValidatorState.HIGHLIGHTED:
-						validated = null;
-
-						foreach(Validator v in children)
+				case ValidatorState.VALIDATED:
+					foreach(Validator v in children)
+					{
+						if(v != validated)
 						{
-							if(v == null || v.State == ValidatorState.FAILED)
-							{
-								State = ValidatorState.FAILED;
-
-								validated = null;
-
-								break;
-							}
-							else if(v.State == ValidatorState.VALIDATED && validated == null)
-							{
-								validated = v;
-							}
+							v.SetState(ValidatorState.DISABLED, false);
 						}
+					}
 
-						if(validated != null)
+					break;
+				default:
+					validated = null;
+
+					foreach(Validator v in children)
+					{
+						v.SetState(state, false);
+					}
+
+					break;
+			}
+		}
+
+		protected override void RefreshState(ValidatorState state)
+		{
+			switch(state)
+			{
+				case ValidatorState.ENABLED:
+				case ValidatorState.HIGHLIGHTED:
+				case ValidatorState.VALIDATED:
+					validated = null;
+
+					foreach(Validator v in children)
+					{
+						if(v == null || v.State == ValidatorState.FAILED)
 						{
-							Validator v = validated;
+							SetState(ValidatorState.FAILED);
 
-							State = ValidatorState.VALIDATED;
+							validated = null;
 
+							break;
+						}
+						else if(v.State == ValidatorState.VALIDATED && validated == null)
+						{
 							validated = v;
+
+							break;
 						}
+					}
 
-						break;
-					default:
-						break;
-				}
+					if(validated != null)
+					{
+						SetState(ValidatorState.VALIDATED);
+					}
+					else if(state == ValidatorState.VALIDATED)
+					{
+						SetState(Previous);
+					}
 
-				return state;
-			}
-
-			set
-			{
-				state = value;
-
-				validated = null;
-
-				foreach(Validator v in children)
-				{
-					v.State = state;
-				}
+					break;
+				default:
+					break;
 			}
 		}
 
-		public override void Notify(Validator validator, ValidatorState state)
-		{
-			Validate();
-		}
-
-		public override void ComputeScore(out float score, out float weight)
+		protected override void ComputeScore(out float score, out float weight)
 		{
 			if(validated != null && validated.State == ValidatorState.VALIDATED)
 			{
-				validated.ComputeScore(out score, out weight);
-
-				return;
+				score = validated.Score;
+				weight = validated.ScoreWeight;
 			}
-
-			score = 0;
-			weight = 1;
+			else
+			{
+				score = 0;
+				weight = 1;
+			}
 		}
 		#endregion
 	}

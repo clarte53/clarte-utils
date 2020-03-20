@@ -10,7 +10,7 @@ namespace CLARTE.Scenario
 		#endregion
 
 		#region MonoBehaviour callbacks
-		protected virtual void Awake()
+		protected override void Awake()
 		{
 			children = new T();
 
@@ -23,6 +23,8 @@ namespace CLARTE.Scenario
 					children.Add(v);
 				}
 			}
+
+			base.Awake();
 		}
 		#endregion
 	}

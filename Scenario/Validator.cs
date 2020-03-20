@@ -5,18 +5,30 @@ namespace CLARTE.Scenario
 	public abstract class Validator : MonoBehaviour
 	{
 		#region Members
-		protected ValidatorState state;
+		private ValidatorState state;
 		private float score;
 		private float scoreWeight;
 		#endregion
 
 		#region Abstract methods
-		public abstract ValidatorState State { get; set; }
-		public abstract void Notify(Validator validator, ValidatorState state);
-		public abstract void ComputeScore(out float score, out float weight);
+		protected virtual void OnStateChanged(ValidatorState state) { }
+		protected abstract void RefreshState(ValidatorState state);
+		protected abstract void ComputeScore(out float score, out float weight);
 		#endregion
 
 		#region Getters / Setters
+		protected ValidatorState Previous { get; private set; }
+
+		public ValidatorState State
+		{
+			get
+			{
+				RefreshState(state);
+
+				return state;
+			}
+		}
+
 		public float Score
 		{
 			get
@@ -34,14 +46,43 @@ namespace CLARTE.Scenario
 		}
 		#endregion
 
-		#region Public methods
-		public virtual void Validate()
+		#region MonoBehaviour callbacks
+		protected virtual void Awake()
 		{
-			ValidatorState s = State; // State must be called before ComputeScore, and even if the validator is the root
+			ForceStateChange(ValidatorState.DISABLED, false);
+		}
+		#endregion
+
+		#region Public methods
+		public void SetState(ValidatorState new_state, bool notify_parent = true)
+		{
+			if(state != new_state)
+			{
+				ForceStateChange(new_state, notify_parent);
+			}
+		}
+		#endregion
+
+		#region Internal methods
+		protected void ForceStateChange(ValidatorState new_state, bool notify_parent = true)
+		{
+			Previous = state;
+
+			state = new_state;
+
+			OnStateChanged(state);
+
+			RefreshState(state);
 
 			ComputeScore(out score, out scoreWeight);
 
-			transform.parent?.GetComponent<Validator>()?.Notify(this, s);
+			Validator parent = transform.parent?.GetComponent<Validator>();
+
+			if(notify_parent && parent != null)
+			{
+				parent.RefreshState(parent.state);
+				parent.ComputeScore(out parent.score, out parent.scoreWeight);
+			}
 		}
 		#endregion
 	}

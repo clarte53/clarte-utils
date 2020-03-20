@@ -6,63 +6,74 @@ namespace CLARTE.Scenario
 	public class AllValidator : GroupValidator<List<Validator>>
 	{
 		#region Validator implementation
-		public override ValidatorState State {
-			get
-			{
-				switch(state)
-				{
-					case ValidatorState.ENABLED:
-					case ValidatorState.HIGHLIGHTED:
-						bool validated = true;
-
-						foreach(Validator v in children)
-						{
-							if(v == null || v.State == ValidatorState.FAILED)
-							{
-								State = ValidatorState.FAILED;
-
-								validated = false;
-
-								break;
-							}
-							else if(v.State != ValidatorState.VALIDATED)
-							{
-								validated = false;
-
-								break;
-							}
-						}
-
-						if(validated)
-						{
-							State = ValidatorState.VALIDATED;
-						}
-
-						break;
-					default:
-						break;
-				}
-
-				return state;
-			}
-
-			set
-			{
-				state = value;
-
-				foreach(Validator v in children)
-				{
-					v.State = state;
-				}
-			}
-		}
-
-		public override void Notify(Validator validator, ValidatorState state)
+		protected override void OnStateChanged(ValidatorState state)
 		{
-			Validate();
+			switch(state)
+			{
+				case ValidatorState.ENABLED:
+				case ValidatorState.HIGHLIGHTED:
+					foreach(Validator v in children)
+					{
+						if(v.State != ValidatorState.VALIDATED)
+						{
+							v.SetState(state, false);
+						}
+					}
+
+					break;
+				default:
+					foreach(Validator v in children)
+					{
+						v.SetState(state, false);
+					}
+
+					break;
+			}
 		}
 
-		public override void ComputeScore(out float score, out float weight)
+		protected override void RefreshState(ValidatorState state)
+		{
+			switch(state)
+			{
+				case ValidatorState.ENABLED:
+				case ValidatorState.HIGHLIGHTED:
+				case ValidatorState.VALIDATED:
+					bool validated = true;
+
+					foreach(Validator v in children)
+					{
+						if(v == null || v.State == ValidatorState.FAILED)
+						{
+							SetState(ValidatorState.FAILED);
+
+							validated = false;
+
+							break;
+						}
+						else if(v.State != ValidatorState.VALIDATED)
+						{
+							validated = false;
+
+							break;
+						}
+					}
+
+					if(validated)
+					{
+						SetState(ValidatorState.VALIDATED);
+					}
+					else if(state == ValidatorState.VALIDATED)
+					{
+						SetState(Previous);
+					}
+
+					break;
+				default:
+					break;
+			}
+		}
+
+		protected override void ComputeScore(out float score, out float weight)
 		{
 			score = weight = 0;
 
@@ -70,13 +81,11 @@ namespace CLARTE.Scenario
 			{
 				if(v != null)
 				{
-					v.ComputeScore(out float child_score, out float child_weight);
-
-					weight += child_weight;
+					weight += v.ScoreWeight;
 
 					if(v.State == ValidatorState.VALIDATED)
 					{
-						score += child_score;
+						score += v.Score;
 					}
 				}
 			}

@@ -25,111 +25,150 @@ namespace CLARTE.Scenario
 		#region MonoBehaviour callbacks
 		protected override void Awake()
 		{
+			validated = new List<bool>(transform.childCount);
+			validatedIndexes = new List<int>(transform.childCount);
+
 			base.Awake();
 
-			validated = new List<bool>(children.Count);
-			validatedIndexes = new List<int>(children.Count);
-
-			Reset();
+			Cleanup();
 		}
 		#endregion
 
 		#region Validator implementation
-		public override ValidatorState State
+		protected override void OnStateChanged(ValidatorState state)
 		{
-			get
+			Cleanup();
+
+			switch(state)
 			{
-				switch(state)
-				{
-					case ValidatorState.ENABLED:
-					case ValidatorState.HIGHLIGHTED:
-						switch(type)
+				case ValidatorState.ENABLED:
+				case ValidatorState.HIGHLIGHTED:
+				case ValidatorState.VALIDATED:
+					int nb_children = children.Count;
+
+					current = nb_children;
+
+					for(int i = 0; i < nb_children; i++)
+					{
+						if(children[i].State == ValidatorState.VALIDATED)
 						{
-							case Type.STRICT:
-								while(current < children.Count && children[current].State == ValidatorState.VALIDATED)
+							validatedIndexes.Add(i);
+							validated[i] = true;
+						}
+						else
+						{
+							current = i;
+
+							break;
+						}
+					}
+
+					for(int i = current + 1; i < nb_children; i++)
+					{
+						children[i].SetState(type == Type.STRICT ? ValidatorState.DISABLED : state, false);
+					}
+
+					if(current < children.Count)
+					{
+						if(state != ValidatorState.VALIDATED)
+						{
+							children[current].SetState(state, false);
+						}
+						else
+						{
+							SetState(Previous);
+						}
+					}
+					else if(state != ValidatorState.VALIDATED)
+					{
+						SetState(ValidatorState.VALIDATED);
+					}
+
+					break;
+				default:
+					foreach(Validator v in children)
+					{
+						v.SetState(state, false);
+					}
+
+					break;
+			}
+		}
+
+		protected override void RefreshState(ValidatorState state)
+		{
+			switch(state)
+			{
+				case ValidatorState.ENABLED:
+				case ValidatorState.HIGHLIGHTED:
+				case ValidatorState.VALIDATED:
+					int nb_children = children.Count;
+
+					switch(type)
+					{
+						case Type.STRICT:
+							for(int i = 0; i < current && i < nb_children; i++)
+							{
+								if(children[i].State != ValidatorState.VALIDATED)
 								{
-									validatedIndexes.Add(current);
+									Reset(state);
 
-									current++;
+									return;
+								}
+							}
 
-									if(current < children.Count)
+							while(current < nb_children && children[current].State == ValidatorState.VALIDATED)
+							{
+								validatedIndexes.Add(current);
+
+								current++;
+
+								if(current < nb_children)
+								{
+									children[current].SetState(state, false);
+								}
+							}
+
+							if(current >= nb_children)
+							{
+								SetState(ValidatorState.VALIDATED);
+							}
+
+							break;
+						default:
+							for(int i = 0; i < nb_children; i++)
+							{
+								if((children[i].State == ValidatorState.VALIDATED) != validated[i])
+								{
+									if(validated[i])
 									{
-										children[current].State = state;
+										Reset(state);
+
+										return;
 									}
-								}
-
-								if(current >= children.Count)
-								{
-									state = ValidatorState.VALIDATED;
-								}
-
-								break;
-							default:
-								int count = children.Count;
-
-								for(int i = 0; i < count; i++)
-								{
-									if(children[i].State == ValidatorState.VALIDATED && !validated[i])
+									else
 									{
 										validated[i] = true;
 										validatedIndexes.Add(i);
 									}
 								}
+							}
 
-								if(validatedIndexes.Count == children.Count)
-								{
-									state = ValidatorState.VALIDATED;
-								}
+							if(validatedIndexes.Count == nb_children)
+							{
+								state = ValidatorState.VALIDATED;
+							}
 
-								break;
-						}
+							break;
+					}
 
-						break;
-					default:
-						break;
-				}
-
-				return state;
-			}
-
-			set
-			{
-				state = value;
-
-				Reset();
-
-				switch(state)
-				{
-					case ValidatorState.ENABLED:
-					case ValidatorState.HIGHLIGHTED:
-						foreach(Validator v in children)
-						{
-							v.State = type == Type.STRICT ? ValidatorState.DISABLED : state;
-						}
-
-						if(current < children.Count)
-						{
-							children[current].State = state;
-						}
-
-						break;
-					default:
-						foreach(Validator v in children)
-						{
-							v.State = state;
-						}
-
-						break;
-				}
+					break;
+				default:
+					break;
 			}
 		}
 
-		public override void Notify(Validator validator, ValidatorState state)
-		{
-			Validate();
-		}
-
-		public override void ComputeScore(out float score, out float weight)
+		protected override void ComputeScore(out float score, out float weight)
 		{
 			score = weight = 0;
 
@@ -138,12 +177,12 @@ namespace CLARTE.Scenario
 
 			for(int i = 0; i < count; i++)
 			{
-				children[i].ComputeScore(out float child_score, out float child_weight);
-
-				weight += child_weight;
+				weight += children[i].ScoreWeight;
 
 				if(i < nb_validated)
 				{
+					float child_score = children[validatedIndexes[i]].Score;
+
 					if(validatedIndexes[i] == i)
 					{
 						score += child_score;
@@ -152,14 +191,16 @@ namespace CLARTE.Scenario
 					{
 						switch(type)
 						{
+							case Type.STRICT:
+								score += child_score;
+								break;
 							case Type.SCORE_CONSTANT_PENALTY:
 								score += child_score * constantPenaltyFactor;
 								break;
 							case Type.SCORE_DISTANCE_PENALTY:
 								score += child_score / (1 + Mathf.Abs(validatedIndexes[i] - i));
 								break;
-							default:
-								break; //In strict mode, errors have a score of 0
+								
 						}
 					}
 				}
@@ -174,7 +215,7 @@ namespace CLARTE.Scenario
 		#endregion
 
 		#region Internal methods
-		protected void Reset()
+		protected void Cleanup()
 		{
 			validated.Clear();
 			validatedIndexes.Clear();
@@ -185,6 +226,11 @@ namespace CLARTE.Scenario
 			{
 				validated.Add(false);
 			}
+		}
+
+		protected void Reset(ValidatorState state)
+		{
+			ForceStateChange(state == ValidatorState.VALIDATED ? Previous : state);
 		}
 		#endregion
 	}

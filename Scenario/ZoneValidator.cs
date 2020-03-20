@@ -8,7 +8,7 @@ namespace CLARTE.Scenario
 	[RequireComponent(typeof(Collider))]
 	[RequireComponent(typeof(Rigidbody))]
 	[RequireComponent(typeof(IHighlight))]
-	public class ZoneValidator : Validator
+	public class ZoneValidator : ActionValidator
 	{
 		public abstract class Match : ScriptableObject
 		{
@@ -73,11 +73,14 @@ namespace CLARTE.Scenario
 		public float timeNotMoving = 1f; // In seconds
 
 		protected Dictionary<Collider, Point> inZone;
+		protected Collider matching;
 		#endregion
 
 		#region MonoBehaviour callbacks
-		protected void Awake()
+		protected override void Awake()
 		{
+			base.Awake();
+
 			inZone = new Dictionary<Collider, Point>();
 
 			GetComponent<Collider>().isTrigger = true;
@@ -86,28 +89,36 @@ namespace CLARTE.Scenario
 
 		protected void OnTriggerEnter(Collider other)
 		{
-			if(IsEnabled())
-			{
-				inZone.Add(other, new Point(other.transform, timeNotMoving));
-			}
+			inZone.Add(other, new Point(other.transform, timeNotMoving));
 		}
 
 		protected void OnTriggerExit(Collider other)
 		{
+			if(State == ValidatorState.VALIDATED && other == matching && inZone.TryGetValue(other, out Point p))
+			{
+				matching = null;
+
+				Reset();
+			}
+
 			inZone.Remove(other);
 		}
 
 		protected void OnTriggerStay(Collider other)
 		{
-			if(IsEnabled() && match != null && match.IsMatching(this, other) && inZone.TryGetValue(other, out Point p))
+			if(IsEnabled() && inZone.TryGetValue(other, out Point p))
 			{
-				if(p.IsNotMoving(other.transform))
+				if(match != null && match.IsMatching(this, other) && p.IsNotMoving(other.transform))
 				{
-					State = ValidatorState.VALIDATED;
-
-					inZone.Remove(other);
+					matching = other;
 
 					Validate();
+				}
+				else if(State == ValidatorState.VALIDATED)
+				{
+					matching = null;
+
+					Reset();
 				}
 
 				p.Transform = other.transform;
@@ -115,38 +126,12 @@ namespace CLARTE.Scenario
 		}
 		#endregion
 
-		#region Validator implementation
-		public override ValidatorState State
-		{
-			get
-			{
-				return state;
-			}
-
-			set
-			{
-				state = value;
-
-				GetComponent<IHighlight>()?.SetHighlightEnabled(state == ValidatorState.HIGHLIGHTED);
-			}
-		}
-
-		public override void Notify(Validator validator, ValidatorState state)
-		{
-			throw new InvalidOperationException(string.Format("Validators of type '{0}' are supposed to be terminal elements and should not hav children.", GetType()));
-		}
-
-		public override void ComputeScore(out float score, out float weight)
-		{
-			score = State == ValidatorState.VALIDATED ? 1 : 0;
-			weight = 1;
-		}
-		#endregion
-
 		#region Internal methods
 		protected bool IsEnabled()
 		{
-			return State == ValidatorState.ENABLED || State == ValidatorState.HIGHLIGHTED;
+			ValidatorState state = State;
+
+			return state == ValidatorState.ENABLED || state == ValidatorState.HIGHLIGHTED || state == ValidatorState.VALIDATED;
 		}
 		#endregion
 	}
