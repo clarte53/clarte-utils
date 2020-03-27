@@ -113,7 +113,7 @@ namespace CLARTE.Net.LMS
 
 			if(token != null)
 			{
-				request.SetRequestHeader("Authorization", string.Format("Bearer ", token));
+				request.SetRequestHeader("Authorization", string.Format("Bearer {0}", token));
 			}
 
 			request.SendWebRequest().completed += op =>
