@@ -76,7 +76,7 @@ namespace CLARTE.Net.LMS
 
 		public void Values()
 		{
-			HttpGet<List<string>>("values", l =>
+			HttpGet<string>("values", l =>
 			{
 				if(l != null)
 				{
@@ -91,6 +91,19 @@ namespace CLARTE.Net.LMS
 
 		#region Internal methods
 		protected void HttpGet<T>(string endpoint, Action<T> on_success, IReadOnlyDictionary<string, string> parameters = null)
+		{
+			HttpGet(endpoint, json => on_success(JsonUtility.FromJson<T>(json)), parameters);
+		}
+
+		protected void HttpGet<T>(string endpoint, Action<T[]> on_success, IReadOnlyDictionary<string, string> parameters = null)
+		{
+			HttpGet(endpoint, json =>
+			{
+				on_success(JsonArray.FromJson<T>(json));
+			}, parameters);
+		}
+
+		protected void HttpGet(string endpoint, Action<string> on_success, IReadOnlyDictionary<string, string> parameters = null)
 		{
 			UriBuilder builder = new UriBuilder(PlayerPrefs.GetString(urlKey));
 
@@ -131,7 +144,7 @@ namespace CLARTE.Net.LMS
 					switch(req.responseCode)
 					{
 						case 200:
-							on_success(JsonUtility.FromJson<T>(operation.webRequest.downloadHandler.text));
+							on_success(operation.webRequest.downloadHandler.text);
 							break;
 						case 401:
 							Debug.LogErrorFormat("Unauthorized access to '{0}'", req.uri);
