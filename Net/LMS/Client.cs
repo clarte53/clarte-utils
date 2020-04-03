@@ -102,6 +102,67 @@ namespace CLARTE.Net.LMS
 				{ "level", exercise.Level.ToString() },
 			});
 		}
+
+		public void AddExerciseRecord(Content.Exercise exercise, TimeSpan duration, bool success, float grade, uint nb_challenges_validated, byte[] debrief_data)
+		{
+			Dictionary<string, string> parameters = new Dictionary<string, string>
+			{
+				{ "exercise", exercise.Guid.ToString() },
+				{ "duration", ((uint) duration.TotalSeconds).ToString() },
+				{ "success", success.ToString() },
+				{ "grade", grade.ToString() },
+				{ "nb_challenges_validated", nb_challenges_validated.ToString() },
+			};
+
+			if(debrief_data != null)
+			{
+				parameters.Add("debrief_data", Convert.ToBase64String(debrief_data));
+			}
+
+			HttpGet<Entities.Exercise>("exercise/record", null, parameters);
+		}
+
+		public void AddSpectatorRecord(Content.Exercise exercise, TimeSpan duration)
+		{
+			HttpGet<Entities.Exercise>("spectator/record", null, new Dictionary<string, string>
+			{
+				{ "exercise", exercise.Guid.ToString() },
+				{ "duration", ((uint) duration.TotalSeconds).ToString() },
+			});
+		}
+
+		public void AddDebriefRecord(Content.Exercise exercise, TimeSpan duration)
+		{
+			HttpGet<Entities.Exercise>("debrief/record", null, new Dictionary<string, string>
+			{
+				{ "exercise", exercise.Guid.ToString() },
+				{ "duration", ((uint) duration.TotalSeconds).ToString() },
+			});
+		}
+
+		public void GetApplicationSummary(Content.Application application)
+		{
+			HttpGet<Entities.Exercise>("application/summary", null, new Dictionary<string, string>
+			{
+				{ "guid", application.Guid.ToString() },
+			});
+		}
+
+		public void GetModuleSummary(Content.Module module)
+		{
+			HttpGet<Entities.Exercise>("module/summary", null, new Dictionary<string, string>
+			{
+				{ "guid", module.Guid.ToString() },
+			});
+		}
+
+		public void GetExerciseSummary(Content.Exercise exercise)
+		{
+			HttpGet<Entities.Exercise>("exercise/summary", null, new Dictionary<string, string>
+			{
+				{ "guid", exercise.Guid.ToString() },
+			});
+		}
 		#endregion
 
 		#region Internal methods
