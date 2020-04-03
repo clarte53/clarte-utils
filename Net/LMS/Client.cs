@@ -22,7 +22,7 @@ namespace CLARTE.Net.LMS
 		{
 			get
 			{
-				return user != null && user.Token != null;
+				return user != null && user.token != null;
 			}
 		}
 		#endregion
@@ -63,9 +63,14 @@ namespace CLARTE.Net.LMS
 			user = null;
 		}
 
-		public void Login(string username, string password)
+		public void Login(string username, string password, Action<bool> completion_callback = null)
 		{
-			HttpGet<Entities.User>("login", x => user = x, new Dictionary<string, string>
+			HttpGet<Entities.User>("login", x =>
+			{
+				user = x;
+
+				completion_callback?.Invoke(LoggedIn);
+			}, new Dictionary<string, string>
 			{
 				{ "organization", PlayerPrefs.GetString(organizationKey) },
 				{ "username", username },
@@ -103,7 +108,7 @@ namespace CLARTE.Net.LMS
 			});
 		}
 
-		public void AddExerciseRecord(Content.Exercise exercise, TimeSpan duration, bool success, float grade, uint nb_challenges_validated, byte[] debrief_data)
+		public void AddExerciseRecord(Content.Exercise exercise, TimeSpan duration, bool success, float grade, uint nb_challenges_validated, byte[] debrief_data = null)
 		{
 			Dictionary<string, string> parameters = new Dictionary<string, string>
 			{
@@ -119,12 +124,12 @@ namespace CLARTE.Net.LMS
 				parameters.Add("debrief_data", Convert.ToBase64String(debrief_data));
 			}
 
-			HttpGet<Entities.Exercise>("exercise/record", null, parameters);
+			HttpGet<bool>("exercise/record", null, parameters);
 		}
 
 		public void AddSpectatorRecord(Content.Exercise exercise, TimeSpan duration)
 		{
-			HttpGet<Entities.Exercise>("spectator/record", null, new Dictionary<string, string>
+			HttpGet<bool>("spectator/record", null, new Dictionary<string, string>
 			{
 				{ "exercise", exercise.Guid.ToString() },
 				{ "duration", ((uint) duration.TotalSeconds).ToString() },
@@ -133,32 +138,32 @@ namespace CLARTE.Net.LMS
 
 		public void AddDebriefRecord(Content.Exercise exercise, TimeSpan duration)
 		{
-			HttpGet<Entities.Exercise>("debrief/record", null, new Dictionary<string, string>
+			HttpGet<bool>("debrief/record", null, new Dictionary<string, string>
 			{
 				{ "exercise", exercise.Guid.ToString() },
 				{ "duration", ((uint) duration.TotalSeconds).ToString() },
 			});
 		}
 
-		public void GetApplicationSummary(Content.Application application)
+		public void GetApplicationSummary(Content.Application application, Action<Entities.ApplicationSummary> result_callback)
 		{
-			HttpGet<Entities.Exercise>("application/summary", null, new Dictionary<string, string>
+			HttpGet("application/summary", result_callback, new Dictionary<string, string>
 			{
 				{ "guid", application.Guid.ToString() },
 			});
 		}
 
-		public void GetModuleSummary(Content.Module module)
+		public void GetModuleSummary(Content.Module module, Action<Entities.ModuleSummary> result_callback)
 		{
-			HttpGet<Entities.Exercise>("module/summary", null, new Dictionary<string, string>
+			HttpGet("module/summary", result_callback, new Dictionary<string, string>
 			{
 				{ "guid", module.Guid.ToString() },
 			});
 		}
 
-		public void GetExerciseSummary(Content.Exercise exercise)
+		public void GetExerciseSummary(Content.Exercise exercise, Action<Entities.ExerciseSummary> result_callback)
 		{
-			HttpGet<Entities.Exercise>("exercise/summary", null, new Dictionary<string, string>
+			HttpGet("exercise/summary", result_callback, new Dictionary<string, string>
 			{
 				{ "guid", exercise.Guid.ToString() },
 			});
@@ -200,9 +205,9 @@ namespace CLARTE.Net.LMS
 			request.SetRequestHeader("Accept", "application/json");
 			request.SetRequestHeader("Content-Type", "application/json");
 
-			if(user != null && user.Token != null)
+			if(user != null && user.token != null)
 			{
-				request.SetRequestHeader("Authorization", string.Format("Bearer {0}", user.Token));
+				request.SetRequestHeader("Authorization", string.Format("Bearer {0}", user.token));
 			}
 
 			request.SendWebRequest().completed += op =>
