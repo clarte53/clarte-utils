@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Net.Http;
 using UnityEngine;
@@ -13,9 +12,9 @@ namespace CLARTE.Net.LMS
 		private const string urlKey = "LMS_url";
 		private const string organizationKey = "LMS_organization";
 
-		public string defaultUrl = "https://localhost:5001";
+		public string defaultUrl = "https://localhost";
 
-		private string token;
+		private Entities.User user;
 		#endregion
 
 		#region Getters / Setters
@@ -23,7 +22,7 @@ namespace CLARTE.Net.LMS
 		{
 			get
 			{
-				return token != null;
+				return user != null && user.Token != null;
 			}
 		}
 		#endregion
@@ -61,12 +60,12 @@ namespace CLARTE.Net.LMS
 
 		public void Logout()
 		{
-			token = null;
+			user = null;
 		}
 
 		public void Login(string username, string password)
 		{
-			HttpGet<Entities.User>("login", user => token = user.token, new Dictionary<string, string>
+			HttpGet<Entities.User>("login", x => user = x, new Dictionary<string, string>
 			{
 				{ "organization", PlayerPrefs.GetString(organizationKey) },
 				{ "username", username },
@@ -74,35 +73,51 @@ namespace CLARTE.Net.LMS
 			});
 		}
 
-		public void Values()
+		public void RegisterApplication(Content.Application application)
 		{
-			HttpGet<string>("values", l =>
+			HttpGet<Entities.Application>("lms/application/register", null, new Dictionary<string, string>
 			{
-				if(l != null)
-				{
-					foreach(string s in l)
-					{
-						Debug.Log(s);
-					}
-				}
-			}, null);
+				{ "guid", application.Guid.ToString() },
+				{ "name", application.Name },
+			});
+		}
+
+		public void RegisterModule(Content.Module module)
+		{
+			HttpGet<Entities.Module>("lms/module/register", null, new Dictionary<string, string>
+			{
+				{ "application", module.Application.Guid.ToString() },
+				{ "guid", module.Guid.ToString() },
+				{ "name", module.Name },
+			});
+		}
+
+		public void RegisterExercise(Content.Exercise exercise)
+		{
+			HttpGet<Entities.Exercise>("lms/exercise/register", null, new Dictionary<string, string>
+			{
+				{ "module", exercise.Module.Guid.ToString() },
+				{ "guid", exercise.Guid.ToString() },
+				{ "name", exercise.Name },
+				{ "level", exercise.Level.ToString() },
+			});
 		}
 		#endregion
 
 		#region Internal methods
 		protected void HttpGet<T>(string endpoint, Action<T> on_success, IReadOnlyDictionary<string, string> parameters = null)
 		{
-			HttpGet(endpoint, json => on_success(JsonUtility.FromJson<T>(json)), parameters);
+			HttpGet(endpoint, json => on_success?.Invoke(JsonUtility.FromJson<T>(json)), parameters);
 		}
-
+		/*
 		protected void HttpGet<T>(string endpoint, Action<T[]> on_success, IReadOnlyDictionary<string, string> parameters = null)
 		{
 			HttpGet(endpoint, json =>
 			{
-				on_success(JsonArray.FromJson<T>(json));
+				on_success?.Invoke(JsonArray.FromJson<T>(json));
 			}, parameters);
 		}
-
+		*/
 		protected void HttpGet(string endpoint, Action<string> on_success, IReadOnlyDictionary<string, string> parameters = null)
 		{
 			UriBuilder builder = new UriBuilder(PlayerPrefs.GetString(urlKey));
@@ -124,9 +139,9 @@ namespace CLARTE.Net.LMS
 			request.SetRequestHeader("Accept", "application/json");
 			request.SetRequestHeader("Content-Type", "application/json");
 
-			if(token != null)
+			if(user != null && user.Token != null)
 			{
-				request.SetRequestHeader("Authorization", string.Format("Bearer {0}", token));
+				request.SetRequestHeader("Authorization", string.Format("Bearer {0}", user.Token));
 			}
 
 			request.SendWebRequest().completed += op =>

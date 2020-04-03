@@ -3,11 +3,12 @@
 namespace CLARTE.Net.LMS.Entities
 {
 	[Serializable]
-	public class Organization
+	public class Exercise
 	{
 		public long Id { get; set; }
-		public string Key { get; set; }
+		public Module Module { get; set; }
+		public Guid Guid { get; set; }
 		public string Name { get; set; }
-		public DateTime LicenseExpiration { get; set; }
+		public byte Level { get; set; }
 	}
 }
