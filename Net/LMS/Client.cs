@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Net.Http;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -124,7 +125,7 @@ namespace CLARTE.Net.LMS
 				{ "exercise", exercise.Guid.ToString() },
 				{ "duration", ((uint) duration.TotalSeconds).ToString() },
 				{ "success", success.ToString() },
-				{ "grade", grade.ToString() },
+				{ "grade", string.Format(CultureInfo.InvariantCulture, "{0:N}", grade) },
 				{ "nb_challenges_validated", nb_challenges_validated.ToString() },
 			};
 
