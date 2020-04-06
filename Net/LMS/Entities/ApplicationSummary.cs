@@ -7,8 +7,8 @@ namespace CLARTE.Net.LMS.Entities
 	{
 		public User user;
 		public Application application;
-		public TimeSpan exerciseDuration;
-		public TimeSpan spectatorDuration;
-		public TimeSpan debriefDuration;
+		public uint exerciseDuration; // In seconds
+		public uint spectatorDuration; // In seconds
+		public uint debriefDuration; // In seconds
 	}
 }

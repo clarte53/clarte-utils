@@ -7,7 +7,7 @@ namespace CLARTE.Net.LMS.Entities
 	{
 		public long id;
 		public Application application;
-		public Guid guid;
+		public string guid; // Guid
 		public string name;
 	}
 }
