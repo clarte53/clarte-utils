@@ -124,12 +124,12 @@ namespace CLARTE.Net.LMS
 				parameters.Add("debrief_data", Convert.ToBase64String(debrief_data));
 			}
 
-			HttpGet<bool>("exercise/record", null, parameters);
+			HttpGet<bool>("lms/exercise/record", null, parameters);
 		}
 
 		public void AddSpectatorRecord(Content.Exercise exercise, TimeSpan duration)
 		{
-			HttpGet<bool>("spectator/record", null, new Dictionary<string, string>
+			HttpGet<bool>("lms/spectator/record", null, new Dictionary<string, string>
 			{
 				{ "exercise", exercise.Guid.ToString() },
 				{ "duration", ((uint) duration.TotalSeconds).ToString() },
@@ -138,7 +138,7 @@ namespace CLARTE.Net.LMS
 
 		public void AddDebriefRecord(Content.Exercise exercise, TimeSpan duration)
 		{
-			HttpGet<bool>("debrief/record", null, new Dictionary<string, string>
+			HttpGet<bool>("lms/debrief/record", null, new Dictionary<string, string>
 			{
 				{ "exercise", exercise.Guid.ToString() },
 				{ "duration", ((uint) duration.TotalSeconds).ToString() },
@@ -147,7 +147,7 @@ namespace CLARTE.Net.LMS
 
 		public void GetApplicationSummary(Content.Application application, Action<Entities.ApplicationSummary> result_callback)
 		{
-			HttpGet("application/summary", result_callback, new Dictionary<string, string>
+			HttpGet("lms/application/summary", result_callback, new Dictionary<string, string>
 			{
 				{ "guid", application.Guid.ToString() },
 			});
@@ -155,7 +155,7 @@ namespace CLARTE.Net.LMS
 
 		public void GetModuleSummary(Content.Module module, Action<Entities.ModuleSummary> result_callback)
 		{
-			HttpGet("module/summary", result_callback, new Dictionary<string, string>
+			HttpGet("lms/module/summary", result_callback, new Dictionary<string, string>
 			{
 				{ "guid", module.Guid.ToString() },
 			});
@@ -163,7 +163,7 @@ namespace CLARTE.Net.LMS
 
 		public void GetExerciseSummary(Content.Exercise exercise, Action<Entities.ExerciseSummary> result_callback)
 		{
-			HttpGet("exercise/summary", result_callback, new Dictionary<string, string>
+			HttpGet("lms/exercise/summary", result_callback, new Dictionary<string, string>
 			{
 				{ "guid", exercise.Guid.ToString() },
 			});
