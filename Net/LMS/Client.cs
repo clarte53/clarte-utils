@@ -8,6 +8,12 @@ namespace CLARTE.Net.LMS
 {
 	public class Client : MonoBehaviour
 	{
+		private struct Query
+		{
+			public UnityWebRequest request;
+			public Action<string> onSuccess;
+		}
+
 		#region Members
 		private const string urlKey = "LMS_url";
 		private const string organizationKey = "LMS_organization";
@@ -15,6 +21,7 @@ namespace CLARTE.Net.LMS
 		public string defaultUrl = "https://localhost";
 
 		private Entities.User user;
+		private Queue<Query> queue;
 		#endregion
 
 		#region Getters / Setters
@@ -30,6 +37,8 @@ namespace CLARTE.Net.LMS
 		#region MonoBehaviour callbacks
 		protected void Awake()
 		{
+			queue = new Queue<Query>();
+
 			if(!PlayerPrefs.HasKey(urlKey))
 			{
 				SetLmsUrl(defaultUrl);
@@ -210,35 +219,79 @@ namespace CLARTE.Net.LMS
 				request.SetRequestHeader("Authorization", string.Format("Bearer {0}", user.token));
 			}
 
-			request.SendWebRequest().completed += op =>
+			lock(queue)
 			{
-				UnityWebRequestAsyncOperation operation = (UnityWebRequestAsyncOperation) op;
-
-				UnityWebRequest req = operation.webRequest;
-
-				if(req.isNetworkError)
+				queue.Enqueue(new Query
 				{
-					Debug.LogErrorFormat("Error while processing '{0}' request: '{1}'", req.uri, req.error);
+					request = request,
+					onSuccess = on_success
+				});
+
+				if(queue.Count == 1)
+				{
+					queue.Peek().request.SendWebRequest().completed += OnHttpGetCompleted;
+				}
+			}
+		}
+
+		protected void OnHttpGetCompleted(AsyncOperation op)
+		{
+			UnityWebRequestAsyncOperation operation = (UnityWebRequestAsyncOperation) op;
+
+			UnityWebRequest request = operation.webRequest;
+
+			Query query;
+
+			lock(queue)
+			{
+				query = queue.Peek();
+
+				if(query.request != request)
+				{
+					query.request = null;
+					query.onSuccess = null;
+				}
+			}
+
+			if(query.request != null)
+			{
+				if(request.isNetworkError)
+				{
+					Debug.LogErrorFormat("Error while processing '{0}' request: '{1}'", request.uri, request.error);
 				}
 				else
 				{
-					switch(req.responseCode)
+					switch(request.responseCode)
 					{
 						case 200:
-							on_success(operation.webRequest.downloadHandler.text);
+							query.onSuccess(operation.webRequest.downloadHandler.text);
 							break;
 						case 401:
-							Debug.LogErrorFormat("Unauthorized access to '{0}'", req.uri);
+							Debug.LogErrorFormat("Unauthorized access to '{0}'", request.uri);
 							break;
 						default:
-							Debug.LogErrorFormat("Failed to access '{0}': status = {1}", req.uri, req.responseCode);
+							Debug.LogErrorFormat("Failed to access '{0}': status = {1}", request.uri, request.responseCode);
 							break;
 					}
 				}
 
-				req.downloadHandler.Dispose();
-				req.Dispose();
-			};
+				request.downloadHandler.Dispose();
+				request.Dispose();
+			}
+			else
+			{
+				Debug.LogError("The request completed does not match the pending request. Ignoring.");
+			}
+
+			lock(queue)
+			{
+				queue.Dequeue();
+
+				if(queue.Count > 0)
+				{
+					queue.Peek().request.SendWebRequest().completed += OnHttpGetCompleted;
+				}
+			}
 		}
 		#endregion
 	}
