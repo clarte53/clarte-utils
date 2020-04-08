@@ -26,12 +26,12 @@ namespace CLARTE.Scenario
 		#endregion
 
 		#region Public methods
-		public void Validate()
+		public virtual void Validate()
 		{
 			SetState(ValidatorState.VALIDATED);
 		}
 
-		public void Reset()
+		public virtual void Reset()
 		{
 			SetState(Previous);
 		}
