@@ -15,7 +15,7 @@ namespace CLARTE.Scenario
 
 		protected override void RefreshState(ValidatorState state)
 		{
-
+			//Debug.Log(name + "//" + state);
 		}
 
 		protected override void ComputeScore(out float score, out float weight)
