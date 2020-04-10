@@ -89,7 +89,7 @@ namespace CLARTE.Scenario
 
         protected void OnTriggerEnter(Collider other)
         {
-            if (other.attachedRigidbody)
+            if (other.attachedRigidbody && !inZone.ContainsKey(other.attachedRigidbody))
                 inZone.Add(other.attachedRigidbody, new Point(other.transform, timeNotMoving));
         }
 
