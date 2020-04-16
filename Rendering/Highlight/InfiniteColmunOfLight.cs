@@ -25,6 +25,7 @@ namespace CLARTE.Rendering.Highlight
         {
             if (column != null)
             {
+                column.transform.rotation = Quaternion.identity;
                 column.SetActive(false);
                 startScale = column.transform.localScale;
             }
