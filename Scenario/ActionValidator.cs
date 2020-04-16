@@ -10,7 +10,8 @@ namespace CLARTE.Scenario
 		#region Validator implementation
 		protected override void OnStateChanged(ValidatorState state)
 		{
-			GetComponent<IHighlight>()?.SetHighlightEnabled(state == ValidatorState.HIGHLIGHTED);
+			foreach(IHighlight i in GetComponents<IHighlight>())
+				i.SetHighlightEnabled(state == ValidatorState.HIGHLIGHTED);
 		}
 
 		protected override void RefreshState(ValidatorState state)
