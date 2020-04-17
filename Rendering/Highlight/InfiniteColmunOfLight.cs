@@ -8,8 +8,10 @@ namespace CLARTE.Rendering.Highlight
     {
         #region Members
         public GameObject column;
-        public float sizeOnScreen = 500;
+        public float minDisplayDist = 4;
+        public float speed = 10;
         Vector3 startScale;
+        Transform camera;
         #endregion
 
         #region IHighlight implementation
@@ -25,6 +27,7 @@ namespace CLARTE.Rendering.Highlight
         {
             if (column != null)
             {
+                camera = Camera.main.transform;
                 column.transform.rotation = Quaternion.identity;
                 column.SetActive(false);
                 startScale = column.transform.localScale;
@@ -33,16 +36,12 @@ namespace CLARTE.Rendering.Highlight
 
         void Update()
         {
-            if (!column && !column.activeSelf)
+            if (!column || !column.activeSelf)
                 return;
 
-            Vector3 a = Camera.main.WorldToScreenPoint(column.transform.position);
-            Vector3 b = new Vector3(a.x, a.y + sizeOnScreen, a.z);
+            float fact = (camera.position-column.transform.position).magnitude;
 
-            Vector3 aa = Camera.main.ScreenToWorldPoint(a);
-            Vector3 bb = Camera.main.ScreenToWorldPoint(b);
-
-            column.transform.localScale = startScale * (aa - bb).magnitude;
+            column.transform.localScale = startScale * Mathf.Max(fact * (1 / (1 + Mathf.Exp(speed * (minDisplayDist - fact)))), 0);
         }
         #endregion
     }
