@@ -18,7 +18,7 @@ namespace CLARTE.Scenario
 			{
 				Validator v = t?.GetComponent<Validator>();
 
-				if(v != null)
+				if(v != null && t.gameObject.activeSelf)
 				{
 					children.Add(v);
 				}
