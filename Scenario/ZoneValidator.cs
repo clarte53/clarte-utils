@@ -12,7 +12,7 @@ namespace CLARTE.Scenario
     {
         public abstract class Match : ScriptableObject
         {
-            public abstract bool IsMatching(ZoneValidator validator, Rigidbody other);
+            public abstract bool IsMatching(ActionValidator validator, Rigidbody other);
         }
 
         protected class Point
