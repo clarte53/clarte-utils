@@ -151,10 +151,10 @@ namespace CLARTE.Serialization
 
 			CheckSerializationParameters(buffer, start);
 
-			int array_physical_length = array.Length;
+			int array_physical_length = array != null ? array.Length : -1;
 
 			// If array is not defined, just write the length = 0 to the stream
-			if(array == null || array_physical_length <= 0 || length == 0 || offset >= array_physical_length)
+			if(array_physical_length <= 0 || length == 0 || offset >= array_physical_length)
 			{
 				written = ToBytes(ref buffer, start, 0u);
 
@@ -225,10 +225,10 @@ namespace CLARTE.Serialization
 
 			CheckSerializationParameters(buffer, start);
 
-			int array_physical_length = array.Length;
+			int array_physical_length = array != null ? array.Length : -1;
 
 			// If array is not defined, just write the length = 0 to the stream
-			if(array == null || array_physical_length <= 0 || length == 0 || offset >= array_physical_length)
+			if(array_physical_length <= 0 || length == 0 || offset >= array_physical_length)
 			{
 				written = ToBytes(ref buffer, start, 0u);
 
