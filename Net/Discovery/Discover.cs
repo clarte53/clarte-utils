@@ -37,7 +37,7 @@ namespace CLARTE.Net.Discovery
 			#endregion
 		}
 
-		protected class Datagram : IBinarySerializable
+		protected class Datagram : IBinaryTypeMapped
 		{
 			#region Members
 			public bool valid;
@@ -65,7 +65,7 @@ namespace CLARTE.Net.Discovery
 			}
 			#endregion
 
-			#region IBinarySerializable implementation
+			#region IBinaryTypeMapped implementation
 			public uint FromBytes(Binary serializer, Binary.Buffer buffer, uint start)
 			{
 				uint read = 0;
