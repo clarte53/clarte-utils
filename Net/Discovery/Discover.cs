@@ -28,7 +28,16 @@ namespace CLARTE.Net.Discovery
 			#endregion
 		}
 
-		protected class Datagram : IBinarySerializable
+		[Serializable]
+		public class Peer
+		{
+			#region Members
+			public string ip;
+			public ushort port;
+			#endregion
+		}
+
+		protected class Datagram : IBinaryTypeMapped
 		{
 			#region Members
 			public bool valid;
@@ -56,7 +65,7 @@ namespace CLARTE.Net.Discovery
 			}
 			#endregion
 
-			#region IBinarySerializable implementation
+			#region IBinaryTypeMapped implementation
 			public uint FromBytes(Binary serializer, Binary.Buffer buffer, uint start)
 			{
 				uint read = 0;
@@ -116,6 +125,7 @@ namespace CLARTE.Net.Discovery
 		public Events.OnActiveCallback onActive;
 		public Events.OnInactiveCallback onInactive;
 		public List<Service> advertise;
+		public List<Peer> manualPeers;
 		[Range(0.1f, 300f)]
 		public float heartbeat = 2f; // In seconds
 		[Range(1, 100)]
@@ -303,6 +313,17 @@ namespace CLARTE.Net.Discovery
 							if(data != null && data.Length > 0)
 							{
 								broadcast.Send(data, data.Length);
+
+								if(manualPeers != null)
+								{
+									foreach(Peer peer in manualPeers)
+									{
+										if(IPAddress.TryParse(peer.ip, out IPAddress ip))
+										{
+											broadcast.Send(new IPEndPoint(ip, peer.port), data, data.Length);
+										}
+									}
+								}
 							}
 						}
 						catch(Binary.SerializationException e) {

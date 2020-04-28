@@ -142,15 +142,19 @@ namespace CLARTE.Serialization
 		/// <param name="buffer">The buffer where to serialize the data.</param>
 		/// <param name="start">The start index in the buffer where to serialize the data.</param>
 		/// <param name="array">The array to serialize.</param>
+		/// <param name="length">The length of the array to serialize. Default to the complete array.</param>
+		/// <param name="offset">The offset of the first element to serialize. Default to the first element.</param>
 		/// <returns>The number of serialized bytes.</returns>
-		public uint ToBytes(ref Buffer buffer, uint start, Array array)
+		public uint ToBytes(ref Buffer buffer, uint start, Array array, int length = -1, int offset = 0)
 		{
 			uint written;
 
 			CheckSerializationParameters(buffer, start);
 
+			int array_physical_length = array != null ? array.Length : -1;
+
 			// If array is not defined, just write the length = 0 to the stream
-			if(array == null || array.Length <= 0)
+			if(array_physical_length <= 0 || length == 0 || offset >= array_physical_length)
 			{
 				written = ToBytes(ref buffer, start, 0u);
 
@@ -163,7 +167,12 @@ namespace CLARTE.Serialization
 			{
 				uint type_size;
 
-				uint array_size = (uint) array.Length;
+				uint array_size = (uint) (length < 0 ? array_physical_length : length);
+
+				if(array_size + offset > array_physical_length)
+				{
+					array_size = (uint) (array_physical_length - offset);
+				}
 
 				// Get the correct type overload to use
 				Type element_type = array.GetType().GetElementType();
@@ -194,7 +203,7 @@ namespace CLARTE.Serialization
 				// Write all data in the buffer
 				for(uint i = 0; i < array_size; ++i)
 				{
-					written += ToBytesWrapper(ref buffer, start + written, array.GetValue(i), type);
+					written += ToBytesWrapper(ref buffer, start + written, array.GetValue(i + offset), type);
 				}
 			}
 
@@ -207,15 +216,19 @@ namespace CLARTE.Serialization
 		/// <param name="buffer">The buffer where to serialize the data.</param>
 		/// <param name="start">The start index in the buffer where to serialize the data.</param>
 		/// <param name="array">The array to serialize.</param>
+		/// <param name="length">The length of the array to serialize. Default to the complete array.</param>
+		/// <param name="offset">The offset of the first element to serialize. Default to the first element.</param>
 		/// <returns>The number of serialized bytes.</returns>
-		public uint ToBytes(ref Buffer buffer, uint start, byte[] array)
+		public uint ToBytes(ref Buffer buffer, uint start, byte[] array, int length = -1, int offset = 0)
 		{
 			uint written;
 
 			CheckSerializationParameters(buffer, start);
 
+			int array_physical_length = array != null ? array.Length : -1;
+
 			// If array is not defined, just write the length = 0 to the stream
-			if(array == null || array.Length <= 0)
+			if(array_physical_length <= 0 || length == 0 || offset >= array_physical_length)
 			{
 				written = ToBytes(ref buffer, start, 0u);
 
@@ -226,7 +239,12 @@ namespace CLARTE.Serialization
 			}
 			else
 			{
-				uint array_size = (uint) array.Length;
+				uint array_size = (uint) (length < 0 ? array_physical_length : length);
+
+				if(array_size + offset > array_physical_length)
+				{
+					array_size = (uint) (array_physical_length - offset);
+				}
 
 				uint array_bytes_size = array_size * byteSize;
 
@@ -245,7 +263,7 @@ namespace CLARTE.Serialization
 				ResizeBuffer(ref buffer, start + written + array_bytes_size);
 
 				// Write all data in the buffer as fast as possible
-				Array.Copy(array, 0, buffer.Data, (int) (start + written), (int) array_bytes_size);
+				Array.Copy(array, offset, buffer.Data, (int) (start + written), (int) array_bytes_size);
 
 				written += array_bytes_size;
 			}

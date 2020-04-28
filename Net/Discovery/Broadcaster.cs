@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -99,12 +98,17 @@ namespace CLARTE.Net.Discovery
 		#region Public methods
 		public void Send(byte[] datagram, int size)
 		{
+			foreach(IPEndPoint broadcast in broadcastAddresses)
+			{
+				Send(broadcast, datagram, size);
+			}
+		}
+
+		public void Send(IPEndPoint endpoint, byte[] datagram, int size)
+		{
 			if(size > 0 && size <= datagram.Length)
 			{
-				foreach(IPEndPoint broadcast in broadcastAddresses)
-				{
-					udp.SendAsync(datagram, size, broadcast);
-				}
+				udp.SendAsync(datagram, size, endpoint);
 			}
 		}
 		#endregion
