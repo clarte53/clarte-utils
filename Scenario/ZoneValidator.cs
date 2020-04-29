@@ -88,13 +88,13 @@ namespace CLARTE.Scenario
             GetComponent<Rigidbody>().isKinematic = true;
         }
 
-        protected void OnTriggerEnter(Collider other)
+        protected virtual void OnTriggerEnter(Collider other)
         {
             if (other.attachedRigidbody && !inZone.ContainsKey(other.attachedRigidbody))
                 inZone.Add(other.attachedRigidbody, new Point(other.transform, timeNotMoving));
         }
 
-        protected void OnTriggerExit(Collider other)
+        protected virtual void OnTriggerExit(Collider other)
         {
             if (!other.attachedRigidbody)
                 return;
@@ -110,7 +110,7 @@ namespace CLARTE.Scenario
             inZone.Remove(other.attachedRigidbody);
         }
 
-        protected void OnTriggerStay(Collider other)
+        protected virtual void OnTriggerStay(Collider other)
         {
             if (!other.attachedRigidbody)
                 return;
