@@ -306,21 +306,24 @@ namespace CLARTE.Net.Discovery
 						{
 							IServiceInfo info = service.info.ServiceInfo;
 
-							info.Active = exist && service.server.CurrentState == Negotiation.Base.State.RUNNING;
-
-							byte[] data = serializer.Serialize(new Datagram(exist, service.server.port, info));
-
-							if(data != null && data.Length > 0)
+							if(info != null)
 							{
-								broadcast.Send(data, data.Length);
+								info.Active = exist && service.server.CurrentState == Negotiation.Base.State.RUNNING;
 
-								if(manualPeers != null)
+								byte[] data = serializer.Serialize(new Datagram(exist, service.server.port, info));
+
+								if(data != null && data.Length > 0)
 								{
-									foreach(Peer peer in manualPeers)
+									broadcast.Send(data, data.Length);
+
+									if(manualPeers != null)
 									{
-										if(IPAddress.TryParse(peer.ip, out IPAddress ip))
+										foreach(Peer peer in manualPeers)
 										{
-											broadcast.Send(new IPEndPoint(ip, peer.port), data, data.Length);
+											if(IPAddress.TryParse(peer.ip, out IPAddress ip))
+											{
+												broadcast.Send(new IPEndPoint(ip, peer.port), data, data.Length);
+											}
 										}
 									}
 								}
