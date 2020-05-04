@@ -1,20 +1,9 @@
-﻿using System;
-using UnityEngine;
-
-namespace CLARTE.Net.LMS.Content
+﻿namespace CLARTE.Net.LMS.Content
 {
-	public abstract class Application : MonoBehaviour
+	public abstract class Application : Base
 	{
-		#region Abstract methods
-		public abstract Guid Guid { get; }
-		public abstract string Name { get; }
-		#endregion
-
-		#region MonoBehaviour callbacks
-		protected virtual void Awake()
-		{
-			FindObjectOfType<Client>()?.RegisterApplication(this);
-		}
+		#region Members
+		public string title;
 		#endregion
 	}
 }
