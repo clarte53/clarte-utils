@@ -19,14 +19,11 @@ namespace CLARTE.Net.LMS
 		private const string urlKey = "LMS_url";
 		private const string organizationKey = "LMS_organization";
 
-		public string defaultUrl = "https://localhost";
-
-		private Entities.User user;
 		private Queue<Query> queue;
 		#endregion
 
 		#region Constructors
-		public Client()
+		public Client(string defaultUrl = "https://localhost")
 		{
 			queue = new Queue<Query>();
 
@@ -38,11 +35,13 @@ namespace CLARTE.Net.LMS
 		#endregion
 
 		#region Getters / Setters
+		public Entities.User User { get; private set; }
+
 		public bool LoggedIn
 		{
 			get
 			{
-				return user != null && user.token != null;
+				return User != null && User.token != null;
 			}
 		}
 		#endregion
@@ -70,14 +69,14 @@ namespace CLARTE.Net.LMS
 
 		public void Logout()
 		{
-			user = null;
+			User = null;
 		}
 
 		public void Login(string username, string password, Action<bool> completion_callback = null)
 		{
 			HttpGet<Entities.User>("login", x =>
 			{
-				user = x;
+				User = x;
 
 				completion_callback?.Invoke(LoggedIn);
 			}, new Dictionary<string, string>
@@ -215,9 +214,9 @@ namespace CLARTE.Net.LMS
 			request.SetRequestHeader("Accept", "application/json");
 			request.SetRequestHeader("Content-Type", "application/json");
 
-			if(user != null && user.token != null)
+			if(User != null && User.token != null)
 			{
-				request.SetRequestHeader("Authorization", string.Format("Bearer {0}", user.token));
+				request.SetRequestHeader("Authorization", string.Format("Bearer {0}", User.token));
 			}
 
 			lock(queue)
