@@ -257,7 +257,7 @@ namespace CLARTE.Net.LMS
 			{
 				if(request.isNetworkError)
 				{
-					Debug.LogErrorFormat("Error while processing '{0}' request: '{1}'", request.uri, request.error);
+					Debug.LogErrorFormat("Error while processing '{0}' request: '{1}'", request.uri.GetLeftPart(UriPartial.Path), request.error);
 				}
 				else
 				{
@@ -267,10 +267,10 @@ namespace CLARTE.Net.LMS
 							query.onSuccess(operation.webRequest.downloadHandler.text);
 							break;
 						case 401:
-							Debug.LogErrorFormat("Unauthorized access to '{0}'", request.uri);
+							Debug.LogErrorFormat("Unauthorized access to '{0}'", request.uri.GetLeftPart(UriPartial.Path));
 							break;
 						default:
-							Debug.LogErrorFormat("Failed to access '{0}': status = {1}", request.uri, request.responseCode);
+							Debug.LogErrorFormat("Failed to access '{0}': status = {1}", request.uri.GetLeftPart(UriPartial.Path), request.responseCode);
 							break;
 					}
 				}
