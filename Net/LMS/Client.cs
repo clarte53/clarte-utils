@@ -19,12 +19,15 @@ namespace CLARTE.Net.LMS
 		private const string urlKey = "LMS_url";
 		private const string organizationKey = "LMS_organization";
 
+		private string defaultUrl;
 		private Queue<Query> queue;
 		#endregion
 
 		#region Constructors
-		public Client(string defaultUrl = "https://localhost")
+		public Client(string default_url = "https://localhost")
 		{
+			defaultUrl = default_url;
+
 			queue = new Queue<Query>();
 
 			if(!PlayerPrefs.HasKey(urlKey))
@@ -49,22 +52,24 @@ namespace CLARTE.Net.LMS
 		#region Public API
 		public string GetLmsUrl()
 		{
-			return PlayerPrefs.GetString(urlKey);
+			return PlayerPrefs.GetString(urlKey, defaultUrl);
 		}
 
 		public void SetLmsUrl(string url)
 		{
 			PlayerPrefs.SetString(urlKey, url);
+			PlayerPrefs.Save();
 		}
 
 		public string GetOrganization()
 		{
-			return PlayerPrefs.GetString(organizationKey);
+			return PlayerPrefs.GetString(organizationKey, null);
 		}
 
 		public void SetOrganization(string organization)
 		{
 			PlayerPrefs.SetString(organizationKey, organization);
+			PlayerPrefs.Save();
 		}
 
 		public void Logout()
