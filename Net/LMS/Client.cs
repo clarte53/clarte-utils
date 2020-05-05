@@ -79,6 +79,11 @@ namespace CLARTE.Net.LMS
 				User = x;
 
 				completion_callback?.Invoke(LoggedIn);
+			}, error =>
+			{
+				Debug.LogError(error);
+
+				completion_callback?.Invoke(false);
 			}, new Dictionary<string, string>
 			{
 				{ "organization", PlayerPrefs.GetString(organizationKey) },
@@ -89,7 +94,7 @@ namespace CLARTE.Net.LMS
 
 		public void RegisterApplication(Content.Application application)
 		{
-			HttpGet<Entities.Application>("lms/application/register", null, new Dictionary<string, string>
+			HttpGet<Entities.Application>("lms/application/register", null, Debug.LogError, new Dictionary<string, string>
 			{
 				{ "guid", application.Guid.ToString() },
 				{ "name", application.title },
@@ -98,7 +103,7 @@ namespace CLARTE.Net.LMS
 
 		public void RegisterModule(Content.Module module)
 		{
-			HttpGet<Entities.Module>("lms/module/register", null, new Dictionary<string, string>
+			HttpGet<Entities.Module>("lms/module/register", null, Debug.LogError, new Dictionary<string, string>
 			{
 				{ "application", module.application.Guid.ToString() },
 				{ "guid", module.Guid.ToString() },
@@ -108,7 +113,7 @@ namespace CLARTE.Net.LMS
 
 		public void RegisterExercise(Content.Exercise<T> exercise)
 		{
-			HttpGet<Entities.Exercise>("lms/exercise/register", null, new Dictionary<string, string>
+			HttpGet<Entities.Exercise>("lms/exercise/register", null, Debug.LogError, new Dictionary<string, string>
 			{
 				{ "module", exercise.module.Guid.ToString() },
 				{ "guid", exercise.Guid.ToString() },
@@ -133,12 +138,12 @@ namespace CLARTE.Net.LMS
 				parameters.Add("debrief_data", Convert.ToBase64String(debrief_data));
 			}
 
-			HttpGet<bool>("lms/exercise/record", null, parameters);
+			HttpGet<bool>("lms/exercise/record", null, Debug.LogError, parameters);
 		}
 
 		public void AddSpectatorRecord(Content.Exercise<T> exercise, TimeSpan duration)
 		{
-			HttpGet<bool>("lms/spectator/record", null, new Dictionary<string, string>
+			HttpGet<bool>("lms/spectator/record", null, Debug.LogError, new Dictionary<string, string>
 			{
 				{ "exercise", exercise.Guid.ToString() },
 				{ "duration", ((uint) duration.TotalSeconds).ToString() },
@@ -147,7 +152,7 @@ namespace CLARTE.Net.LMS
 
 		public void AddDebriefRecord(Content.Exercise<T> exercise, TimeSpan duration)
 		{
-			HttpGet<bool>("lms/debrief/record", null, new Dictionary<string, string>
+			HttpGet<bool>("lms/debrief/record", null, Debug.LogError, new Dictionary<string, string>
 			{
 				{ "exercise", exercise.Guid.ToString() },
 				{ "duration", ((uint) duration.TotalSeconds).ToString() },
@@ -156,7 +161,7 @@ namespace CLARTE.Net.LMS
 
 		public void GetApplicationSummary(Content.Application application, Action<Entities.ApplicationSummary> result_callback)
 		{
-			HttpGet("lms/application/summary", result_callback, new Dictionary<string, string>
+			HttpGet("lms/application/summary", result_callback, m => ErrorHandler(m, result_callback), new Dictionary<string, string>
 			{
 				{ "guid", application.Guid.ToString() },
 			});
@@ -164,7 +169,7 @@ namespace CLARTE.Net.LMS
 
 		public void GetModuleSummary(Content.Module module, Action<Entities.ModuleSummary> result_callback)
 		{
-			HttpGet("lms/module/summary", result_callback, new Dictionary<string, string>
+			HttpGet("lms/module/summary", result_callback, m => ErrorHandler(m, result_callback), new Dictionary<string, string>
 			{
 				{ "guid", module.Guid.ToString() },
 			});
@@ -172,7 +177,7 @@ namespace CLARTE.Net.LMS
 
 		public void GetExerciseSummary(Content.Exercise<T> exercise, Action<Entities.ExerciseSummary> result_callback)
 		{
-			HttpGet("lms/exercise/summary", result_callback, new Dictionary<string, string>
+			HttpGet("lms/exercise/summary", result_callback, m => ErrorHandler(m, result_callback), new Dictionary<string, string>
 			{
 				{ "guid", exercise.Guid.ToString() },
 			});
@@ -180,9 +185,16 @@ namespace CLARTE.Net.LMS
 		#endregion
 
 		#region Internal methods
-		protected void HttpGet<T>(string endpoint, Action<T> on_success, IReadOnlyDictionary<string, string> parameters = null)
+		protected void ErrorHandler<U>(string message, Action<U> result_callback) where U : class
 		{
-			HttpGet(endpoint, json => on_success?.Invoke(JsonUtility.FromJson<T>(json)), parameters);
+			Debug.LogError(message);
+
+			result_callback?.Invoke(null);
+		}
+
+		protected void HttpGet<T>(string endpoint, Action<T> on_success, Action<string> on_failure, IReadOnlyDictionary<string, string> parameters = null)
+		{
+			HttpGet(endpoint, json => on_success?.Invoke(JsonUtility.FromJson<T>(json)), on_failure, parameters);
 		}
 		/*
 		protected void HttpGet<T>(string endpoint, Action<T[]> on_success, IReadOnlyDictionary<string, string> parameters = null)
@@ -193,7 +205,7 @@ namespace CLARTE.Net.LMS
 			}, parameters);
 		}
 		*/
-		protected void HttpGet(string endpoint, Action<string> on_success, IReadOnlyDictionary<string, string> parameters = null)
+		protected void HttpGet(string endpoint, Action<string> on_success, Action<string> on_failure, IReadOnlyDictionary<string, string> parameters = null)
 		{
 			UriBuilder builder = new UriBuilder(PlayerPrefs.GetString(urlKey));
 
@@ -224,7 +236,8 @@ namespace CLARTE.Net.LMS
 				queue.Enqueue(new Query
 				{
 					request = request,
-					onSuccess = on_success
+					onSuccess = on_success,
+					onFailure = on_failure
 				});
 
 				if(queue.Count == 1)
@@ -257,20 +270,20 @@ namespace CLARTE.Net.LMS
 			{
 				if(request.isNetworkError)
 				{
-					Debug.LogErrorFormat("Error while processing '{0}' request: '{1}'", request.uri.GetLeftPart(UriPartial.Path), request.error);
+					query.onFailure?.Invoke(string.Format("Error while processing '{0}' request: '{1}'", request.uri.GetLeftPart(UriPartial.Path), request.error));
 				}
 				else
 				{
 					switch(request.responseCode)
 					{
 						case 200:
-							query.onSuccess(operation.webRequest.downloadHandler.text);
+							query.onSuccess?.Invoke(operation.webRequest.downloadHandler.text);
 							break;
 						case 401:
-							Debug.LogErrorFormat("Unauthorized access to '{0}'", request.uri.GetLeftPart(UriPartial.Path));
+							query.onFailure?.Invoke(string.Format("Unauthorized access to '{0}'", request.uri.GetLeftPart(UriPartial.Path)));
 							break;
 						default:
-							Debug.LogErrorFormat("Failed to access '{0}': status = {1}", request.uri.GetLeftPart(UriPartial.Path), request.responseCode);
+							query.onFailure?.Invoke(string.Format("Failed to access '{0}': status = {1}", request.uri.GetLeftPart(UriPartial.Path), request.responseCode));
 							break;
 					}
 				}
@@ -280,7 +293,7 @@ namespace CLARTE.Net.LMS
 			}
 			else
 			{
-				Debug.LogError("The request completed does not match the pending request. Ignoring.");
+				query.onFailure?.Invoke("The request completed does not match the pending request. Ignoring.");
 			}
 
 			lock(queue)
