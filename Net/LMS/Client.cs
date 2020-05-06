@@ -123,7 +123,7 @@ namespace CLARTE.Net.LMS
 				{ "module", exercise.module.Guid.ToString() },
 				{ "guid", exercise.Guid.ToString() },
 				{ "name", exercise.title },
-				{ "level", ((long)(object) exercise.level).ToString() },
+				{ "level", ((int)(object) exercise.level).ToString() },
 			});
 		}
 
