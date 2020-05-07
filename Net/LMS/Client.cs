@@ -98,6 +98,26 @@ namespace CLARTE.Net.LMS
 			});
 		}
 
+		public void GetUser(string username, Action<Entities.User> result_callback)
+		{
+			HttpGet(string.Format("users/{0}", username), result_callback, m => ErrorHandler(m, result_callback), null);
+		}
+
+		public void GetUser(long id, Action<Entities.User> result_callback)
+		{
+			HttpGet(string.Format("users/{0}", id.ToString()), result_callback, m => ErrorHandler(m, result_callback), null);
+		}
+
+		public void GetUsersList(Action<Entities.User[]> result_callback)
+		{
+			HttpGetArray("users/list", result_callback, m => ErrorHandler(m, result_callback), null);
+		}
+
+		public void GetGroupsList(Action<Entities.Group[]> result_callback)
+		{
+			HttpGetArray("users/groups/list", result_callback, m => ErrorHandler(m, result_callback), null);
+		}
+
 		public void RegisterApplication(Content.Application application)
 		{
 			HttpGet<Entities.Application>("lms/application/register", null, Debug.LogError, new Dictionary<string, string>
@@ -165,6 +185,36 @@ namespace CLARTE.Net.LMS
 			});
 		}
 
+		public void GetApplication(Content.Application application, Action<Entities.Application> result_callback)
+		{
+			HttpGet(string.Format("lms/application/{0}", application.Guid.ToString()), result_callback, m => ErrorHandler(m, result_callback), null);
+		}
+
+		public void GetApplication(long id, Action<Entities.Application> result_callback)
+		{
+			HttpGet(string.Format("lms/application/{0}", id.ToString()), result_callback, m => ErrorHandler(m, result_callback), null);
+		}
+
+		public void GetModule(Content.Module module, Action<Entities.Module> result_callback)
+		{
+			HttpGet(string.Format("lms/module/{0}", module.Guid.ToString()), result_callback, m => ErrorHandler(m, result_callback), null);
+		}
+
+		public void GetModule(long id, Action<Entities.Module> result_callback)
+		{
+			HttpGet(string.Format("lms/module/{0}", id.ToString()), result_callback, m => ErrorHandler(m, result_callback), null);
+		}
+
+		public void GetExercise(Content.Exercise<T> exercise, Action<Entities.Exercise> result_callback)
+		{
+			HttpGet(string.Format("lms/exercise/{0}", exercise.Guid.ToString()), result_callback, m => ErrorHandler(m, result_callback), null);
+		}
+
+		public void GetExercise(long id, Action<Entities.Exercise> result_callback)
+		{
+			HttpGet(string.Format("lms/exercise/{0}", id.ToString()), result_callback, m => ErrorHandler(m, result_callback), null);
+		}
+
 		public void GetApplicationSummary(Content.Application application, Action<Entities.ApplicationSummary> result_callback)
 		{
 			HttpGet("lms/application/summary", result_callback, m => ErrorHandler(m, result_callback), new Dictionary<string, string>
@@ -188,6 +238,14 @@ namespace CLARTE.Net.LMS
 				{ "guid", exercise.Guid.ToString() },
 			});
 		}
+
+		public void GetExerciseHistory(uint max_count, Action<Entities.ExerciseRecord[]> result_callback)
+		{
+			HttpGetArray("lms/exercise/history", result_callback, m => ErrorHandler(m, result_callback), new Dictionary<string, string>
+			{
+				{ "max_count", max_count.ToString() },
+			});
+		}
 		#endregion
 
 		#region Internal methods
@@ -198,19 +256,16 @@ namespace CLARTE.Net.LMS
 			result_callback?.Invoke(null);
 		}
 
-		protected void HttpGet<T>(string endpoint, Action<T> on_success, Action<string> on_failure, IReadOnlyDictionary<string, string> parameters = null)
+		protected void HttpGet<U>(string endpoint, Action<U> on_success, Action<string> on_failure, IReadOnlyDictionary<string, string> parameters = null)
 		{
-			HttpGet(endpoint, json => on_success?.Invoke(JsonUtility.FromJson<T>(json)), on_failure, parameters);
+			HttpGet(endpoint, json => on_success?.Invoke(JsonUtility.FromJson<U>(json)), on_failure, parameters);
 		}
-		/*
-		protected void HttpGet<T>(string endpoint, Action<T[]> on_success, IReadOnlyDictionary<string, string> parameters = null)
+		
+		protected void HttpGetArray<U>(string endpoint, Action<U[]> on_success, Action<string> on_failure, IReadOnlyDictionary<string, string> parameters = null)
 		{
-			HttpGet(endpoint, json =>
-			{
-				on_success?.Invoke(JsonArray.FromJson<T>(json));
-			}, parameters);
+			HttpGet(endpoint, json => on_success?.Invoke(JsonArray.FromJson<U>(json)), on_failure, parameters);
 		}
-		*/
+		
 		protected void HttpGet(string endpoint, Action<string> on_success, Action<string> on_failure, IReadOnlyDictionary<string, string> parameters = null)
 		{
 			UriBuilder builder = new UriBuilder(PlayerPrefs.GetString(urlKey));
