@@ -120,29 +120,26 @@ namespace CLARTE.Net.LMS
 
 		public void RegisterApplication(Content.Application application)
 		{
-			HttpGet<Entities.Application>("lms/application/register", null, Debug.LogError, new Dictionary<string, string>
+			HttpGet<Entities.Application>(string.Format("lms/application/{0}/register", application.Guid), null, Debug.LogError, new Dictionary<string, string>
 			{
-				{ "guid", application.Guid.ToString() },
 				{ "name", application.title },
 			});
 		}
 
 		public void RegisterModule(Content.Module module)
 		{
-			HttpGet<Entities.Module>("lms/module/register", null, Debug.LogError, new Dictionary<string, string>
+			HttpGet<Entities.Module>(string.Format("lms/module/{0}/register", module.Guid), null, Debug.LogError, new Dictionary<string, string>
 			{
 				{ "application", module.application.Guid.ToString() },
-				{ "guid", module.Guid.ToString() },
 				{ "name", module.title },
 			});
 		}
 
 		public void RegisterExercise(Content.Exercise<T> exercise)
 		{
-			HttpGet<Entities.Exercise>("lms/exercise/register", null, Debug.LogError, new Dictionary<string, string>
+			HttpGet<Entities.Exercise>(string.Format("lms/exercise/{0}/register", exercise.Guid), null, Debug.LogError, new Dictionary<string, string>
 			{
 				{ "module", exercise.module.Guid.ToString() },
-				{ "guid", exercise.Guid.ToString() },
 				{ "name", exercise.title },
 				{ "level", ((int)(object) exercise.level).ToString() },
 			});
@@ -152,7 +149,6 @@ namespace CLARTE.Net.LMS
 		{
 			Dictionary<string, string> parameters = new Dictionary<string, string>
 			{
-				{ "exercise", exercise.Guid.ToString() },
 				{ "duration", ((uint) duration.TotalSeconds).ToString() },
 				{ "success", success.ToString() },
 				{ "grade", string.Format(CultureInfo.InvariantCulture, "{0:N}", grade) },
@@ -164,79 +160,68 @@ namespace CLARTE.Net.LMS
 				parameters.Add("debrief_data", Convert.ToBase64String(debrief_data));
 			}
 
-			HttpGet<bool>("lms/exercise/record", null, Debug.LogError, parameters);
+			HttpGet<bool>(string.Format("lms/exercise/{0}/record", exercise.Guid), null, Debug.LogError, parameters);
 		}
 
 		public void AddSpectatorRecord(Content.Exercise<T> exercise, TimeSpan duration)
 		{
-			HttpGet<bool>("lms/spectator/record", null, Debug.LogError, new Dictionary<string, string>
+			HttpGet<bool>(string.Format("lms/exercise/{0}/spectator/record", exercise.Guid), null, Debug.LogError, new Dictionary<string, string>
 			{
-				{ "exercise", exercise.Guid.ToString() },
 				{ "duration", ((uint) duration.TotalSeconds).ToString() },
 			});
 		}
 
 		public void AddDebriefRecord(Content.Exercise<T> exercise, TimeSpan duration)
 		{
-			HttpGet<bool>("lms/debrief/record", null, Debug.LogError, new Dictionary<string, string>
+			HttpGet<bool>(string.Format("lms/exercise/{0}/debrief/record", exercise.Guid), null, Debug.LogError, new Dictionary<string, string>
 			{
-				{ "exercise", exercise.Guid.ToString() },
 				{ "duration", ((uint) duration.TotalSeconds).ToString() },
 			});
 		}
 
 		public void GetApplication(Content.Application application, Action<Entities.Application> result_callback)
 		{
-			HttpGet(string.Format("lms/application/{0}", application.Guid.ToString()), result_callback, m => ErrorHandler(m, result_callback), null);
+			HttpGet(string.Format("lms/application/{0}", application.Guid), result_callback, m => ErrorHandler(m, result_callback), null);
 		}
 
 		public void GetApplication(long id, Action<Entities.Application> result_callback)
 		{
-			HttpGet(string.Format("lms/application/{0}", id.ToString()), result_callback, m => ErrorHandler(m, result_callback), null);
+			HttpGet(string.Format("lms/application/{0}", id), result_callback, m => ErrorHandler(m, result_callback), null);
 		}
 
 		public void GetModule(Content.Module module, Action<Entities.Module> result_callback)
 		{
-			HttpGet(string.Format("lms/module/{0}", module.Guid.ToString()), result_callback, m => ErrorHandler(m, result_callback), null);
+			HttpGet(string.Format("lms/module/{0}", module.Guid), result_callback, m => ErrorHandler(m, result_callback), null);
 		}
 
 		public void GetModule(long id, Action<Entities.Module> result_callback)
 		{
-			HttpGet(string.Format("lms/module/{0}", id.ToString()), result_callback, m => ErrorHandler(m, result_callback), null);
+			HttpGet(string.Format("lms/module/{0}", id), result_callback, m => ErrorHandler(m, result_callback), null);
 		}
 
 		public void GetExercise(Content.Exercise<T> exercise, Action<Entities.Exercise> result_callback)
 		{
-			HttpGet(string.Format("lms/exercise/{0}", exercise.Guid.ToString()), result_callback, m => ErrorHandler(m, result_callback), null);
+			HttpGet(string.Format("lms/exercise/{0}", exercise.Guid), result_callback, m => ErrorHandler(m, result_callback), null);
 		}
 
 		public void GetExercise(long id, Action<Entities.Exercise> result_callback)
 		{
-			HttpGet(string.Format("lms/exercise/{0}", id.ToString()), result_callback, m => ErrorHandler(m, result_callback), null);
+			HttpGet(string.Format("lms/exercise/{0}", id), result_callback, m => ErrorHandler(m, result_callback), null);
 		}
 
 		public void GetApplicationSummary(Content.Application application, Action<Entities.ApplicationSummary> result_callback)
 		{
-			HttpGet("lms/application/summary", result_callback, m => ErrorHandler(m, result_callback), new Dictionary<string, string>
-			{
-				{ "guid", application.Guid.ToString() },
-			});
+			HttpGet(string.Format("lms/application/{0}/summary", application.Guid), result_callback, m => ErrorHandler(m, result_callback), null);
 		}
 
 		public void GetModuleSummary(Content.Module module, Action<Entities.ModuleSummary> result_callback)
 		{
-			HttpGet("lms/module/summary", result_callback, m => ErrorHandler(m, result_callback), new Dictionary<string, string>
-			{
-				{ "guid", module.Guid.ToString() },
-			});
+			HttpGet(string.Format("lms/module/{0}/summary", module.Guid), result_callback, m => ErrorHandler(m, result_callback), null);
 		}
 
 		public void GetExerciseSummary(Content.Exercise<T> exercise, Action<Entities.ExerciseSummary> result_callback)
 		{
-			HttpGet("lms/exercise/summary", result_callback, m => ErrorHandler(m, result_callback), new Dictionary<string, string>
-			{
-				{ "guid", exercise.Guid.ToString() },
-			});
+			HttpGet(string.Format("lms/exercise/{0}/summary", exercise.Guid), result_callback, m => ErrorHandler(m, result_callback), null);
 		}
 
 		public void GetExerciseHistory(uint max_count, Action<Entities.ExerciseRecord[]> result_callback)
