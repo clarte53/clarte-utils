@@ -211,22 +211,22 @@ namespace CLARTE.Net.LMS
 
 		public void GetApplicationSummary(Content.Application application, Action<Entities.ApplicationSummary> result_callback)
 		{
-			HttpGet(string.Format("lms/application/{0}/summary", application.Guid), result_callback, m => ErrorHandler(m, result_callback), null);
+			HttpGet(string.Format("lms/application/{0}/summary", application.Guid), result_callback, m => result_callback?.Invoke(null), null);
 		}
 
 		public void GetModuleSummary(Content.Module module, Action<Entities.ModuleSummary> result_callback)
 		{
-			HttpGet(string.Format("lms/module/{0}/summary", module.Guid), result_callback, m => ErrorHandler(m, result_callback), null);
+			HttpGet(string.Format("lms/module/{0}/summary", module.Guid), result_callback, m => result_callback?.Invoke(null), null);
 		}
 
 		public void GetExerciseSummary(Content.Exercise<T> exercise, Action<Entities.ExerciseSummary> result_callback)
 		{
-			HttpGet(string.Format("lms/exercise/{0}/summary", exercise.Guid), result_callback, m => ErrorHandler(m, result_callback), null);
+			HttpGet(string.Format("lms/exercise/{0}/summary", exercise.Guid), result_callback, m => result_callback?.Invoke(null), null);
 		}
 
 		public void GetExerciseHistory(uint max_count, Action<Entities.ExerciseRecord[]> result_callback)
 		{
-			HttpGetArray("lms/exercise/history", result_callback, m => ErrorHandler(m, result_callback), new Dictionary<string, string>
+			HttpGetArray("lms/exercise/history", result_callback, m => result_callback?.Invoke(null), new Dictionary<string, string>
 			{
 				{ "max_count", max_count.ToString() },
 			});
