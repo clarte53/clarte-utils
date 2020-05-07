@@ -9,9 +9,9 @@ namespace CLARTE.Net.LMS.Entities
 		public string username;
 		public string firstName;
 		public string lastName;
-		public Group group;
-		public Organization organization;
 		public bool isTrainer;
 		public string token;
+		public Group group;
+		public Organization organization;
 	}
 }

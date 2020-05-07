@@ -6,9 +6,9 @@ namespace CLARTE.Net.LMS.Entities
 	public class Exercise
 	{
 		public long id;
-		public Module module;
 		public string guid; // Guid
 		public string name;
 		public byte level;
+		public Module module;
 	}
 }

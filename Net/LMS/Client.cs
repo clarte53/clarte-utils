@@ -13,6 +13,7 @@ namespace CLARTE.Net.LMS
 		{
 			public UnityWebRequest request;
 			public Action<string> onSuccess;
+			public Action<string> onFailure;
 		}
 
 		#region Members
@@ -79,7 +80,7 @@ namespace CLARTE.Net.LMS
 
 		public void Login(string username, string password, Action<bool> completion_callback = null)
 		{
-			HttpGet<Entities.User>("login", x =>
+			HttpGet<Entities.User>("users/login", x =>
 			{
 				User = x;
 
@@ -214,7 +215,7 @@ namespace CLARTE.Net.LMS
 		{
 			UriBuilder builder = new UriBuilder(PlayerPrefs.GetString(urlKey));
 
-			builder.Path = string.Format("api/{0}", endpoint);
+			builder.Path = string.Format("api/1/{0}", endpoint);
 
 			if(parameters != null)
 			{
