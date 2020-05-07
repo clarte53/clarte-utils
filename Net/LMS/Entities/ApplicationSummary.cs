@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace CLARTE.Net.LMS.Entities
 {
@@ -10,6 +11,6 @@ namespace CLARTE.Net.LMS.Entities
 		public uint exerciseDuration; // In seconds
 		public uint spectatorDuration; // In seconds
 		public uint debriefDuration; // In seconds
-		public ModuleSummary[] modules;
+		public List<ModuleSummary> modules;
 	}
 }

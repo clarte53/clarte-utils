@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
@@ -9,10 +10,10 @@ namespace CLARTE.Net.LMS
 		[Serializable]
 		private class Wrapper<T>
 		{
-			public T[] Items;
+			public List<T> Items;
 		}
 
-		public static T[] FromJson<T>(string json)
+		public static List<T> FromJson<T>(string json)
 		{
 			if(json.TrimStart().StartsWith("["))
 			{
@@ -24,7 +25,7 @@ namespace CLARTE.Net.LMS
 			return wrapper.Items;
 		}
 
-		public static string ToJson<T>(T[] array, bool prettyPrint = false)
+		public static string ToJson<T>(List<T> array, bool prettyPrint = false)
 		{
 			Wrapper<T> wrapper = new Wrapper<T>();
 

@@ -108,12 +108,12 @@ namespace CLARTE.Net.LMS
 			HttpGet(string.Format("users/{0}", id.ToString()), result_callback, m => ErrorHandler(m, result_callback), null);
 		}
 
-		public void GetUsersList(Action<Entities.User[]> result_callback)
+		public void GetUsersList(Action<List<Entities.User>> result_callback)
 		{
 			HttpGetArray("users/list", result_callback, m => ErrorHandler(m, result_callback), null);
 		}
 
-		public void GetGroupsList(Action<Entities.Group[]> result_callback)
+		public void GetGroupsList(Action<List<Entities.Group>> result_callback)
 		{
 			HttpGetArray("users/groups/list", result_callback, m => ErrorHandler(m, result_callback), null);
 		}
@@ -224,7 +224,7 @@ namespace CLARTE.Net.LMS
 			HttpGet(string.Format("lms/exercise/{0}/summary", exercise.Guid), result_callback, m => result_callback?.Invoke(null), null);
 		}
 
-		public void GetExerciseHistory(uint max_count, Action<Entities.ExerciseRecord[]> result_callback)
+		public void GetExerciseHistory(uint max_count, Action<List<Entities.ExerciseRecord>> result_callback)
 		{
 			HttpGetArray("lms/exercise/history", result_callback, m => result_callback?.Invoke(null), new Dictionary<string, string>
 			{
@@ -246,7 +246,7 @@ namespace CLARTE.Net.LMS
 			HttpGet(endpoint, json => on_success?.Invoke(JsonUtility.FromJson<U>(json)), on_failure, parameters);
 		}
 		
-		protected void HttpGetArray<U>(string endpoint, Action<U[]> on_success, Action<string> on_failure, IReadOnlyDictionary<string, string> parameters = null)
+		protected void HttpGetArray<U>(string endpoint, Action<List<U>> on_success, Action<string> on_failure, IReadOnlyDictionary<string, string> parameters = null)
 		{
 			HttpGet(endpoint, json => on_success?.Invoke(JsonArray.FromJson<U>(json)), on_failure, parameters);
 		}
