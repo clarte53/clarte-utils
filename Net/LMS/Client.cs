@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Net.Http;
+using CLARTE.Net.LMS.Entities;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -16,12 +17,65 @@ namespace CLARTE.Net.LMS
 			public Action<string> onFailure;
 		}
 
+		private class Cache<T, U>
+		{
+			#region Members
+			protected Dictionary<T, U> mapper;
+			#endregion
+
+			#region Constructors
+			public Cache()
+			{
+				mapper = new Dictionary<T, U>();
+			}
+			#endregion
+
+			#region Public methods
+			public void Get(T id, Action<U> result_callback, Action<T, Action<U>> getter)
+			{
+				bool is_cached;
+				U value;
+
+				lock(mapper)
+				{
+					is_cached = mapper.TryGetValue(id, out value);
+				}
+
+				if(is_cached)
+				{
+					result_callback?.Invoke(value);
+				}
+				else
+				{
+					getter(id, result =>
+					{
+						if(result != null)
+						{
+							lock(mapper)
+							{
+								mapper.Add(id, result);
+							}
+						}
+
+						result_callback?.Invoke(result);
+					});
+				}
+			}
+			#endregion
+		}
+
 		#region Members
 		private const string urlKey = "LMS_url";
 		private const string organizationKey = "LMS_organization";
 
 		private string defaultUrl;
 		private Queue<Query> queue;
+		private Cache<Content.Application, Entities.Application> applicationGuidCache;
+		private Cache<long, Entities.Application> applicationIdCache;
+		private Cache<Content.Module, Module> moduleGuidCache;
+		private Cache<long, Module> moduleIdCache;
+		private Cache<Content.Exercise<T>, Exercise> exerciseGuidCache;
+		private Cache<long, Exercise> exerciseIdCache;
 		#endregion
 
 		#region Constructors
@@ -31,6 +85,13 @@ namespace CLARTE.Net.LMS
 
 			queue = new Queue<Query>();
 
+			applicationGuidCache = new Cache<Content.Application, Entities.Application>();
+			applicationIdCache = new Cache<long, Entities.Application>();
+			moduleGuidCache = new Cache<Content.Module, Module>();
+			moduleIdCache = new Cache<long, Module>();
+			exerciseGuidCache = new Cache<Content.Exercise<T>, Exercise>();
+			exerciseIdCache = new Cache<long, Exercise>();
+
 			if(!PlayerPrefs.HasKey(urlKey))
 			{
 				SetLmsUrl(defaultUrl);
@@ -39,7 +100,7 @@ namespace CLARTE.Net.LMS
 		#endregion
 
 		#region Getters / Setters
-		public Entities.User User { get; private set; }
+		public User User { get; private set; }
 
 		public bool LoggedIn
 		{
@@ -181,32 +242,32 @@ namespace CLARTE.Net.LMS
 
 		public void GetApplication(Content.Application application, Action<Entities.Application> result_callback)
 		{
-			HttpGet(string.Format("lms/application/{0}", application.Guid), result_callback, m => ErrorHandler(m, result_callback), null);
+			applicationGuidCache.Get(application, result_callback, (app, c) => HttpGet(string.Format("lms/application/{0}", app.Guid), c, m => ErrorHandler(m, c), null));
 		}
 
 		public void GetApplication(long id, Action<Entities.Application> result_callback)
 		{
-			HttpGet(string.Format("lms/application/{0}", id), result_callback, m => ErrorHandler(m, result_callback), null);
+			applicationIdCache.Get(id, result_callback, (i, c) => HttpGet(string.Format("lms/application/{0}", i), c, m => ErrorHandler(m, c), null));
 		}
 
 		public void GetModule(Content.Module module, Action<Entities.Module> result_callback)
 		{
-			HttpGet(string.Format("lms/module/{0}", module.Guid), result_callback, m => ErrorHandler(m, result_callback), null);
+			moduleGuidCache.Get(module, result_callback, (mod, c) => HttpGet(string.Format("lms/module/{0}", mod.Guid), c, m => ErrorHandler(m, c), null));
 		}
 
 		public void GetModule(long id, Action<Entities.Module> result_callback)
 		{
-			HttpGet(string.Format("lms/module/{0}", id), result_callback, m => ErrorHandler(m, result_callback), null);
+			moduleIdCache.Get(id, result_callback, (i, c) => HttpGet(string.Format("lms/module/{0}", i), c, m => ErrorHandler(m, c), null));
 		}
 
 		public void GetExercise(Content.Exercise<T> exercise, Action<Entities.Exercise> result_callback)
 		{
-			HttpGet(string.Format("lms/exercise/{0}", exercise.Guid), result_callback, m => ErrorHandler(m, result_callback), null);
+			exerciseGuidCache.Get(exercise, result_callback, (ex, c) => HttpGet(string.Format("lms/exercise/{0}", ex.Guid), c, m => ErrorHandler(m, c), null));
 		}
 
 		public void GetExercise(long id, Action<Entities.Exercise> result_callback)
 		{
-			HttpGet(string.Format("lms/exercise/{0}", id), result_callback, m => ErrorHandler(m, result_callback), null);
+			exerciseIdCache.Get(id, result_callback, (i, c) => HttpGet(string.Format("lms/exercise/{0}", i), c, m => ErrorHandler(m, c), null));
 		}
 
 		public void GetApplicationSummary(Content.Application application, Action<Entities.ApplicationSummary> result_callback)
