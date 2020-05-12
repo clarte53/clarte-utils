@@ -32,6 +32,9 @@ namespace CLARTE.Net.Discovery
 		#region MonoBehaviour callbacks
 		protected void Awake()
 		{
+			// Make sure that singleton is initialized in Unity thread before first use
+			Threads.APC.MonoBehaviourCall.Instance.GetType();
+
 			localAddresses = new HashSet<IPAddress>();
 			broadcastAddresses = new List<IPEndPoint>();
 
