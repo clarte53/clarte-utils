@@ -5,8 +5,12 @@ namespace CLARTE.Scenario
 {
 	public class AllValidator : GroupValidator<List<Validator>>
 	{
-		#region Validator implementation
-		protected override void OnStateChanged(ValidatorState state)
+        #region Accessors
+		public int ChildCount { get => children.Count; }
+        #endregion
+
+        #region Validator implementation
+        protected override void OnStateChanged(ValidatorState state)
 		{
 			switch(state)
 			{
