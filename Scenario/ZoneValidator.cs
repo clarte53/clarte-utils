@@ -123,7 +123,7 @@ namespace CLARTE.Scenario
 
                     Validate();
                 }
-                else if (State == ValidatorState.VALIDATED && match != null && matching &&
+                else if (State == ValidatorState.VALIDATED && match != null && matching && matching == other.attachedRigidbody &&
                     (!match.IsMatching(this, matching) || !p.IsNotMoving(matching.transform)))
                 {
                     matching = null;
