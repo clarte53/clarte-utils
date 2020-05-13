@@ -103,6 +103,14 @@ namespace CLARTE.Net.Negotiation
 				return network;
 			}
 		}
+
+		public Binary Serializer
+		{
+			get
+			{
+				return serializer;
+			}
+		}
 		#endregion
 
 		#region MonoBehaviour callbacks
