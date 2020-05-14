@@ -70,6 +70,8 @@ namespace CLARTE.Net.LMS
 
 		private string defaultUrl;
 		private Queue<Query> queue;
+		private Cache<string, User> userNameCache;
+		private Cache<long, User> userIdCache;
 		private Cache<Content.Application, Entities.Application> applicationGuidCache;
 		private Cache<long, Entities.Application> applicationIdCache;
 		private Cache<Content.Module, Module> moduleGuidCache;
@@ -85,6 +87,8 @@ namespace CLARTE.Net.LMS
 
 			queue = new Queue<Query>();
 
+			userNameCache = new Cache<string, User>();
+			userIdCache = new Cache<long, User>();
 			applicationGuidCache = new Cache<Content.Application, Entities.Application>();
 			applicationIdCache = new Cache<long, Entities.Application>();
 			moduleGuidCache = new Cache<Content.Module, Module>();
@@ -161,12 +165,12 @@ namespace CLARTE.Net.LMS
 
 		public void GetUser(string username, Action<Entities.User> result_callback)
 		{
-			HttpGet(string.Format("users/{0}", username), result_callback, m => ErrorHandler(m, result_callback), null);
+			userNameCache.Get(username, result_callback, (n, c) => HttpGet(string.Format("users/{0}", n), c, m => ErrorHandler(m, c), null));
 		}
 
 		public void GetUser(long id, Action<Entities.User> result_callback)
 		{
-			HttpGet(string.Format("users/{0}", id.ToString()), result_callback, m => ErrorHandler(m, result_callback), null);
+			userIdCache.Get(id, result_callback, (i, c) => HttpGet(string.Format("users/{0}", i), c, m => ErrorHandler(m, c), null));
 		}
 
 		public void GetUsersList(Action<List<Entities.User>> result_callback)
