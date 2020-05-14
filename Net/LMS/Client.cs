@@ -189,7 +189,7 @@ namespace CLARTE.Net.LMS
 
 		public void RegisterModule(Content.Module module)
 		{
-			HttpGet<Entities.Module>(string.Format("lms/module/{0}/register", module.Guid), null, Debug.LogError, new Dictionary<string, string>
+			HttpGet<Module>(string.Format("lms/module/{0}/register", module.Guid), null, Debug.LogError, new Dictionary<string, string>
 			{
 				{ "application", module.application.Guid.ToString() },
 				{ "name", module.title },
@@ -198,7 +198,7 @@ namespace CLARTE.Net.LMS
 
 		public void RegisterExercise(Content.Exercise<T> exercise)
 		{
-			HttpGet<Entities.Exercise>(string.Format("lms/exercise/{0}/register", exercise.Guid), null, Debug.LogError, new Dictionary<string, string>
+			HttpGet<Exercise>(string.Format("lms/exercise/{0}/register", exercise.Guid), null, Debug.LogError, new Dictionary<string, string>
 			{
 				{ "module", exercise.module.Guid.ToString() },
 				{ "name", exercise.title },
@@ -285,12 +285,47 @@ namespace CLARTE.Net.LMS
 			HttpGet(string.Format("lms/exercise/{0}/summary", exercise.Guid), result_callback, m => result_callback?.Invoke(null), null);
 		}
 
-		public void GetExerciseHistory(uint max_count, Action<List<Entities.ExerciseRecord>> result_callback)
+		public void GetExerciseHistory(uint? max_count, uint? offset, Action<List<Entities.ExerciseRecord>> result_callback)
 		{
-			HttpGetArray("lms/exercise/history", result_callback, m => result_callback?.Invoke(null), new Dictionary<string, string>
+			Dictionary<string, string> parameters = new Dictionary<string, string>();
+
+			if(max_count.HasValue)
 			{
-				{ "max_count", max_count.ToString() },
-			});
+				parameters.Add("max_count", max_count.ToString());
+			}
+
+			if(offset.HasValue)
+			{
+				parameters.Add("offset", offset.ToString());
+			}
+
+			HttpGetArray("lms/exercise/history", result_callback, m => result_callback?.Invoke(null), parameters.Count > 0 ? parameters : null);
+		}
+
+		/// <summary>
+		/// Get specified user history. Only trainers have sufficient rights to call this method.
+		/// </summary>
+		/// <param name="user">The user id to get history from, or -1 to get history for all users.</param>
+		/// <param name="max_count">The maximum number of records to return.</param>
+		/// <param name="offset">The offset of the first record to return, i.e. do not return the 'offset' last records.</param>
+		/// <param name="result_callback">The function to call when the results become available.</param>
+		public void GetExerciseHistory(long user, uint? max_count, uint? offset, Action<List<Entities.ExerciseRecord>> result_callback)
+		{
+			Dictionary<string, string> parameters = new Dictionary<string, string>();
+
+			parameters.Add("user", user.ToString());
+
+			if(max_count.HasValue)
+			{
+				parameters.Add("max_count", max_count.ToString());
+			}
+
+			if(offset.HasValue)
+			{
+				parameters.Add("offset", offset.ToString());
+			}
+
+			HttpGetArray("lms/exercise/history", result_callback, m => result_callback?.Invoke(null), parameters);
 		}
 		#endregion
 
