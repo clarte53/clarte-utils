@@ -53,7 +53,7 @@ namespace CLARTE.Net.LMS
 						{
 							lock(mapper)
 							{
-								mapper.Add(id, result);
+								mapper[id] = result;
 							}
 						}
 
