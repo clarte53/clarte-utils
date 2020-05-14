@@ -313,8 +313,6 @@ namespace CLARTE.Net.LMS
 		{
 			Dictionary<string, string> parameters = new Dictionary<string, string>();
 
-			parameters.Add("user", user.ToString());
-
 			if(max_count.HasValue)
 			{
 				parameters.Add("max_count", max_count.ToString());
@@ -325,7 +323,7 @@ namespace CLARTE.Net.LMS
 				parameters.Add("offset", offset.ToString());
 			}
 
-			HttpGetArray("lms/exercise/history", result_callback, m => result_callback?.Invoke(null), parameters);
+			HttpGetArray(string.Format("lms/exercise/history/{0}", user), result_callback, m => result_callback?.Invoke(null), parameters.Count > 0 ? parameters : null);
 		}
 		#endregion
 
