@@ -13,6 +13,8 @@ namespace CLARTE.Scenario
         public abstract class Match : ScriptableObject
         {
             public abstract bool IsMatching(ActionValidator validator, Rigidbody other);
+
+            public abstract void Reset();
         }
 
         protected class Point
@@ -104,6 +106,9 @@ namespace CLARTE.Scenario
             {
                 matching = null;
 
+                if (match)
+                    match.Reset();
+
                 Reset();
             }
 
@@ -127,6 +132,9 @@ namespace CLARTE.Scenario
                     (!match.IsMatching(this, matching) || !p.IsNotMoving(matching.transform)))
                 {
                     matching = null;
+
+                    if (match)
+                        match.Reset();
 
                     Reset();
                 }
