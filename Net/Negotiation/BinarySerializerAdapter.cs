@@ -85,6 +85,7 @@ namespace CLARTE.Net.Negotiation
 		}
 
 		#region Members
+		public bool blockingUpdate = false;
 		public Events.ReceiveDeserializedCallback onReceive;
 
 		protected Queue<SerializationContext> serializationTasks;
@@ -212,17 +213,18 @@ namespace CLARTE.Net.Negotiation
 		#region Internal methods
 		protected void Update<T>(Queue<T> queue, ref T context) where T : Context
 		{
-			int count;
+			int count = 0;
+			lock (queue)
+			{
+				count = queue.Count;
+			}
 
 			do
 			{
-				count = 0;
-
 				if(context == null)
 				{
 					lock(queue)
 					{
-						count = queue.Count;
 
 						if(count > 0)
 						{
@@ -249,7 +251,7 @@ namespace CLARTE.Net.Negotiation
 					}
 				}
 			}
-			while(context == null && count > 0);
+			while((blockingUpdate || context == null) && count > 0);
 		}
 		#endregion
 	}
