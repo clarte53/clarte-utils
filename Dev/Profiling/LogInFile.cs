@@ -77,5 +77,33 @@ namespace CLARTE.Dev.Profiling
 				}
 			}
 		}
+
+		static public void ClearLog(string filename)
+		{
+			if(logs != null)
+			{
+				if(logs.ContainsKey(filename))
+				{
+					logs[filename].Clear();
+
+					UnityEngine.Debug.Log("Log reset");
+				}
+				else
+				{
+					UnityEngine.Debug.LogWarning("No log to be reset");
+				}
+			}
+		}
+
+		static public void ClearAllLogs()
+		{
+			if(logs != null)
+			{
+				foreach(string filename in logs.Keys)
+				{
+					ClearLog(filename);
+				}
+			}
+		}
 	}
 }
