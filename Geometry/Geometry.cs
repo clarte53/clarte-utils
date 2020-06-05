@@ -166,11 +166,11 @@ namespace CLARTE.Geometry
 	/// <summary>
 	/// Geometry utilities for Unity
 	/// </summary>
-	static public class UnityGeometry
+	static public class Geometry
 	{
 		private const float epsilon = 1E-05F;
 
-		#region Intersection
+		#region Intersections
 		/// <summary>
 		/// Computes the intersection between two 3D lines
 		/// </summary>
@@ -465,10 +465,10 @@ namespace CLARTE.Geometry
 			float u1 = (-b - (float)Mathf.Sqrt((float)delta)) / (2 * a);
 			float u2 = (-b + (float)Mathf.Sqrt((float)delta)) / (2 * a);
 
-			
+
 			intersection_point1 = p1 + u1 * (p2 - p1);
 			intersection_point2 = p1 + u2 * (p2 - p1);
-			
+
 
 			return true;
 		}
@@ -1220,7 +1220,7 @@ namespace CLARTE.Geometry
 		}
 		#endregion
 
-		#region Projection
+		#region Projections
 		/// <summary>
 		/// Computes orthogonal projection of point C on line (AB)
 		/// </summary>

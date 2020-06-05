@@ -49,7 +49,7 @@ namespace CLARTE.Geometry.Extensions
 		/// <returns>True if the two boxes are colliding, false otherwise.</returns>
 		public static bool Collision(this BoxCollider a, BoxCollider b)
 		{
-			return UnityGeometry.BoxBoxIntersection(a, b);
+			return Geometry.BoxBoxIntersection(a, b);
 		}
 	}
 }

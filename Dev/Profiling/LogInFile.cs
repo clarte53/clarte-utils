@@ -30,7 +30,7 @@ namespace CLARTE.Dev.Profiling
 			string log_str = log.ToString();
 
 			logs[filename].Add(log_str);
-			
+
 			if(write_immediately)
 			{
 				using(FileStream file = new FileStream(filename, FileMode.Append, FileAccess.Write, FileShare.None))

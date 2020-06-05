@@ -3,16 +3,16 @@ using System.Xml.Serialization;
 
 namespace CLARTE.Serialization
 {
-    /// <summary>
-    /// Methods dor serializing and deserializing objects into an XML file.
-    /// </summary>
+	/// <summary>
+	/// Methods dor serializing and deserializing objects into an XML file.
+	/// </summary>
 	public class XML
 	{
-        /// <summary>
-        /// Serialize an object into an XML file
-        /// </summary>
-        /// <param name="item">Object to be serialized</param>
-        /// <param name="path">Path of the XML file to be created</param>
+		/// <summary>
+		/// Serialize an object into an XML file
+		/// </summary>
+		/// <param name="item">Object to be serialized</param>
+		/// <param name="path">Path of the XML file to be created</param>
 		public static void Serialize(object item, string path)
 		{
 			XmlSerializer serializer = new XmlSerializer(item.GetType());
@@ -24,12 +24,12 @@ namespace CLARTE.Serialization
 			writer.Close();
 		}
 
-        /// <summary>
-        /// Deserialize an object from an XML file
-        /// </summary>
-        /// <typeparam name="T">Type of the objet to be deserialized</typeparam>
-        /// <param name="path">Path to the XML file to be parsed</param>
-        /// <returns>Created object</returns>
+		/// <summary>
+		/// Deserialize an object from an XML file
+		/// </summary>
+		/// <typeparam name="T">Type of the objet to be deserialized</typeparam>
+		/// <param name="path">Path to the XML file to be parsed</param>
+		/// <returns>Created object</returns>
 		public static T Deserialize<T>(string path)
 		{
 			XmlSerializer serializer = new XmlSerializer(typeof(T));
