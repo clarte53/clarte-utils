@@ -93,7 +93,7 @@ namespace CLARTE.Scenario
         protected virtual void OnTriggerEnter(Collider other)
         {
             if (other.attachedRigidbody && !inZone.ContainsKey(other.attachedRigidbody))
-                inZone.Add(other.attachedRigidbody, new Point(other.transform, timeNotMoving));
+                inZone.Add(other.attachedRigidbody, new Point(other.attachedRigidbody.transform, timeNotMoving));
         }
 
         protected virtual void OnTriggerExit(Collider other)
@@ -122,7 +122,7 @@ namespace CLARTE.Scenario
 
             if (IsEnabled() && inZone.TryGetValue(other.attachedRigidbody, out Point p))
             {
-                if (match != null && match.IsMatching(this, other.attachedRigidbody) && p.IsNotMoving(other.transform))
+                if (match != null && match.IsMatching(this, other.attachedRigidbody) && p.IsNotMoving(other.attachedRigidbody.transform))
                 {
                     matching = other.attachedRigidbody;
 
@@ -139,7 +139,7 @@ namespace CLARTE.Scenario
                     Reset();
                 }
 
-                p.Transform = other.transform;
+                p.Transform = other.attachedRigidbody.transform;
             }
         }
         #endregion
