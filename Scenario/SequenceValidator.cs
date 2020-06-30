@@ -156,7 +156,7 @@ namespace CLARTE.Scenario
 
 							if(validatedIndexes.Count == nb_children)
 							{
-								state = ValidatorState.VALIDATED;
+								SetState(ValidatorState.VALIDATED);
 							}
 
 							break;
