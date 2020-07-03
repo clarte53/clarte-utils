@@ -17,24 +17,24 @@ namespace CLARTE.Net.LMS
 			public Action<string> onFailure;
 		}
 
-		private class Cache<T, U>
+		private class Cache<U, V>
 		{
 			#region Members
-			protected Dictionary<T, U> mapper;
+			protected Dictionary<U, V> mapper;
 			#endregion
 
 			#region Constructors
 			public Cache()
 			{
-				mapper = new Dictionary<T, U>();
+				mapper = new Dictionary<U, V>();
 			}
 			#endregion
 
 			#region Public methods
-			public void Get(T id, Action<U> result_callback, Action<T, Action<U>> getter)
+			public void Get(U id, Action<V> result_callback, Action<U, Action<V>> getter)
 			{
 				bool is_cached;
-				U value;
+				V value;
 
 				lock(mapper)
 				{
