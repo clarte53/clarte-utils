@@ -337,24 +337,15 @@ namespace CLARTE.Net.Negotiation
 
 					if(nb_channels > 0)
 					{
+						List<Message.Negotiation.Parameters> parameters = new List<Message.Negotiation.Parameters>(nb_channels);
+
 						for(ushort i = 0; i < nb_channels; i++)
 						{
 							if(connection.Receive(out msg) && msg.IsType<Message.Negotiation.Parameters>())
 							{
 								Message.Negotiation.Parameters param = (Message.Negotiation.Parameters) msg;
 
-								if(!Ready(param.guid, param.channel))
-								{
-									switch(param.type)
-									{
-										case Channel.Type.TCP:
-											ConnectTcp(param);
-											break;
-										case Channel.Type.UDP:
-											ConnectUdp(connection, param);
-											break;
-									}
-								}
+								parameters.Add(param);
 							}
 							else
 							{
@@ -363,6 +354,22 @@ namespace CLARTE.Net.Negotiation
 						}
 
 						SaveMonitor(connection);
+
+						foreach(Message.Negotiation.Parameters param in parameters)
+						{
+							if(!Ready(param.guid, param.channel))
+							{
+								switch(param.type)
+								{
+									case Channel.Type.TCP:
+										ConnectTcp(param);
+										break;
+									case Channel.Type.UDP:
+										ConnectUdp(connection, param);
+										break;
+								}
+							}	
+						}
 
 						state = State.RUNNING;
 					}
