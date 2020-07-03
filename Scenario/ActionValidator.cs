@@ -4,14 +4,15 @@ using CLARTE.Rendering.Highlight;
 
 namespace CLARTE.Scenario
 {
-	[RequireComponent(typeof(IHighlight))]
 	public class ActionValidator : Validator
 	{
 		#region Validator implementation
 		protected override void OnStateChanged(ValidatorState state)
 		{
 			foreach(IHighlight i in GetComponents<IHighlight>())
+			{
 				i.SetHighlightEnabled(state == ValidatorState.HIGHLIGHTED);
+			}
 		}
 
 		protected override void RefreshState(ValidatorState state)
