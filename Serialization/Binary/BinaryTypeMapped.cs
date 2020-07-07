@@ -176,6 +176,33 @@ namespace CLARTE.Serialization
 		}
 		#endregion
 
+		#region Public methods
+		public static uint GetTypeMappedId(IBinaryTypeMapped instance)
+		{
+			return GetTypeMappedId(instance?.GetType());
+		}
+
+		public static uint GetTypeMappedId(Type type)
+		{
+			if(type != null && typeof(IBinaryTypeMapped).IsAssignableFrom(type) && typeToId.TryGetValue(type, out uint id))
+			{
+				return id;
+			}
+
+			throw new ArgumentException("The given type is not a valid IBinaryTypeMapped.", "type");
+		}
+
+		public static Type GetTypeMappedType(uint id)
+		{
+			if(idToType.TryGetValue(id, out Type type))
+			{
+				return type;
+			}
+
+			throw new ArgumentException("The given ID does not reference an existing IBinaryTypeMapped.", "id");
+		}
+		#endregion
+
 		#region Reflection methods
 		protected static void CallDefaultConstructor(Type type, out IBinaryTypeMapped value)
 		{
