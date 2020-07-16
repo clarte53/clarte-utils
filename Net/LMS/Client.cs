@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Net.Http;
-using CLARTE.Net.LMS.Entities;
 using UnityEngine;
 using UnityEngine.Networking;
+using CLARTE.Net.LMS.Entities;
 
 namespace CLARTE.Net.LMS
 {
@@ -145,7 +145,7 @@ namespace CLARTE.Net.LMS
 
 		public void Login(string username, string password, Action<bool> completion_callback = null)
 		{
-			HttpGet<Entities.User>("users/login", x =>
+			HttpGet<User>("users/login", x =>
 			{
 				User = x;
 
@@ -163,22 +163,22 @@ namespace CLARTE.Net.LMS
 			});
 		}
 
-		public void GetUser(string username, Action<Entities.User> result_callback)
+		public void GetUser(string username, Action<User> result_callback)
 		{
 			userNameCache.Get(username, result_callback, (n, c) => HttpGet(string.Format("users/{0}", n), c, m => ErrorHandler(m, c), null));
 		}
 
-		public void GetUser(long id, Action<Entities.User> result_callback)
+		public void GetUser(long id, Action<User> result_callback)
 		{
 			userIdCache.Get(id, result_callback, (i, c) => HttpGet(string.Format("users/{0}", i), c, m => ErrorHandler(m, c), null));
 		}
 
-		public void GetUsersList(Action<List<Entities.User>> result_callback)
+		public void GetUsersList(Action<List<User>> result_callback)
 		{
 			HttpGetArray("users/list", result_callback, m => ErrorHandler(m, result_callback), null);
 		}
 
-		public void GetGroupsList(Action<List<Entities.Group>> result_callback)
+		public void GetGroupsList(Action<List<Group>> result_callback)
 		{
 			HttpGetArray("users/groups/list", result_callback, m => ErrorHandler(m, result_callback), null);
 		}
@@ -254,42 +254,42 @@ namespace CLARTE.Net.LMS
 			applicationIdCache.Get(id, result_callback, (i, c) => HttpGet(string.Format("lms/application/{0}", i), c, m => ErrorHandler(m, c), null));
 		}
 
-		public void GetModule(Content.Module module, Action<Entities.Module> result_callback)
+		public void GetModule(Content.Module module, Action<Module> result_callback)
 		{
 			moduleGuidCache.Get(module, result_callback, (mod, c) => HttpGet(string.Format("lms/module/{0}", mod.Guid), c, m => ErrorHandler(m, c), null));
 		}
 
-		public void GetModule(long id, Action<Entities.Module> result_callback)
+		public void GetModule(long id, Action<Module> result_callback)
 		{
 			moduleIdCache.Get(id, result_callback, (i, c) => HttpGet(string.Format("lms/module/{0}", i), c, m => ErrorHandler(m, c), null));
 		}
 
-		public void GetExercise(Content.Exercise<T> exercise, Action<Entities.Exercise> result_callback)
+		public void GetExercise(Content.Exercise<T> exercise, Action<Exercise> result_callback)
 		{
 			exerciseGuidCache.Get(exercise, result_callback, (ex, c) => HttpGet(string.Format("lms/exercise/{0}", ex.Guid), c, m => ErrorHandler(m, c), null));
 		}
 
-		public void GetExercise(long id, Action<Entities.Exercise> result_callback)
+		public void GetExercise(long id, Action<Exercise> result_callback)
 		{
 			exerciseIdCache.Get(id, result_callback, (i, c) => HttpGet(string.Format("lms/exercise/{0}", i), c, m => ErrorHandler(m, c), null));
 		}
 
-		public void GetApplicationSummary(Content.Application application, Action<Entities.ApplicationSummary> result_callback)
+		public void GetApplicationSummary(Content.Application application, Action<ApplicationSummary> result_callback)
 		{
 			HttpGet(string.Format("lms/application/{0}/summary", application.Guid), result_callback, m => result_callback?.Invoke(null), null);
 		}
 
-		public void GetModuleSummary(Content.Module module, Action<Entities.ModuleSummary> result_callback)
+		public void GetModuleSummary(Content.Module module, Action<ModuleSummary> result_callback)
 		{
 			HttpGet(string.Format("lms/module/{0}/summary", module.Guid), result_callback, m => result_callback?.Invoke(null), null);
 		}
 
-		public void GetExerciseSummary(Content.Exercise<T> exercise, Action<Entities.ExerciseSummary> result_callback)
+		public void GetExerciseSummary(Content.Exercise<T> exercise, Action<ExerciseSummary> result_callback)
 		{
 			HttpGet(string.Format("lms/exercise/{0}/summary", exercise.Guid), result_callback, m => result_callback?.Invoke(null), null);
 		}
 
-		public void GetExerciseHistory(uint? max_count, uint? offset, Action<List<Entities.ExerciseRecord>> result_callback)
+		public void GetExerciseHistory(ulong? max_count, ulong? offset, Action<ExerciseRecordsPage> result_callback)
 		{
 			Dictionary<string, string> parameters = new Dictionary<string, string>();
 
@@ -303,7 +303,7 @@ namespace CLARTE.Net.LMS
 				parameters.Add("offset", offset.ToString());
 			}
 
-			HttpGetArray("lms/exercise/history", result_callback, m => result_callback?.Invoke(null), parameters.Count > 0 ? parameters : null);
+			HttpGet("lms/exercise/history", result_callback, m => result_callback?.Invoke(null), parameters.Count > 0 ? parameters : null);
 		}
 
 		/// <summary>
@@ -313,7 +313,7 @@ namespace CLARTE.Net.LMS
 		/// <param name="max_count">The maximum number of records to return.</param>
 		/// <param name="offset">The offset of the first record to return, i.e. do not return the 'offset' last records.</param>
 		/// <param name="result_callback">The function to call when the results become available.</param>
-		public void GetExerciseHistory(long user, uint? max_count, uint? offset, Action<List<Entities.ExerciseRecord>> result_callback)
+		public void GetExerciseHistory(long user, ulong? max_count, ulong? offset, Action<ExerciseRecordsPage> result_callback)
 		{
 			Dictionary<string, string> parameters = new Dictionary<string, string>();
 
@@ -327,7 +327,7 @@ namespace CLARTE.Net.LMS
 				parameters.Add("offset", offset.ToString());
 			}
 
-			HttpGetArray(string.Format("lms/exercise/history/{0}", user), result_callback, m => result_callback?.Invoke(null), parameters.Count > 0 ? parameters : null);
+			HttpGet(string.Format("lms/exercise/history/{0}", user), result_callback, m => result_callback?.Invoke(null), parameters.Count > 0 ? parameters : null);
 		}
 		#endregion
 
