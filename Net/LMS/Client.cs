@@ -145,7 +145,7 @@ namespace CLARTE.Net.LMS
 
 		public void Login(string username, string password, Action<bool> completion_callback = null)
 		{
-			HttpGet<User>("users/login", x =>
+			HttpPost<User>("users/login", x =>
 			{
 				User = x;
 
@@ -339,21 +339,38 @@ namespace CLARTE.Net.LMS
 			result_callback?.Invoke(null);
 		}
 
-		protected void HttpGet<U>(string endpoint, Action<U> on_success, Action<string> on_failure, IReadOnlyDictionary<string, string> parameters = null)
+		protected void HttpGet<U>(string endpoint, Action<U> on_success, Action<string> on_failure, Dictionary<string, string> parameters = null)
 		{
-			HttpGet(endpoint, json => on_success?.Invoke(JsonUtility.FromJson<U>(json)), on_failure, parameters);
+			HttpRequest(endpoint, HttpGetCreator, json => on_success?.Invoke(JsonUtility.FromJson<U>(json)), on_failure, parameters);
 		}
 		
-		protected void HttpGetArray<U>(string endpoint, Action<List<U>> on_success, Action<string> on_failure, IReadOnlyDictionary<string, string> parameters = null)
+		protected void HttpGetArray<U>(string endpoint, Action<List<U>> on_success, Action<string> on_failure, Dictionary<string, string> parameters = null)
 		{
-			HttpGet(endpoint, json => on_success?.Invoke(JsonArray.FromJson<U>(json)), on_failure, parameters);
+			HttpRequest(endpoint, HttpGetCreator, json => on_success?.Invoke(JsonArray.FromJson<U>(json)), on_failure, parameters);
 		}
-		
-		protected void HttpGet(string endpoint, Action<string> on_success, Action<string> on_failure, IReadOnlyDictionary<string, string> parameters = null)
+
+		protected void HttpPost<U>(string endpoint, Action<U> on_success, Action<string> on_failure, Dictionary<string, string> parameters = null)
+		{
+			HttpRequest(endpoint, HttpPostCreator, json => on_success?.Invoke(JsonUtility.FromJson<U>(json)), on_failure, parameters);
+		}
+
+		protected void HttpPostArray<U>(string endpoint, Action<List<U>> on_success, Action<string> on_failure, Dictionary<string, string> parameters = null)
+		{
+			HttpRequest(endpoint, HttpPostCreator, json => on_success?.Invoke(JsonArray.FromJson<U>(json)), on_failure, parameters);
+		}
+
+		protected UriBuilder UriCreator(string endpoint)
 		{
 			UriBuilder builder = new UriBuilder(PlayerPrefs.GetString(urlKey));
 
 			builder.Path = string.Format("api/1/{0}", endpoint);
+
+			return builder;
+		}
+
+		protected UnityWebRequest HttpGetCreator(string endpoint, Dictionary<string, string> parameters = null)
+		{
+			UriBuilder builder = UriCreator(endpoint);
 
 			if(parameters != null)
 			{
@@ -362,8 +379,18 @@ namespace CLARTE.Net.LMS
 					builder.Query = content.ReadAsStringAsync().Result;
 				}
 			}
-			
-			UnityWebRequest request = new UnityWebRequest(builder.Uri);
+
+			return UnityWebRequest.Get(builder.Uri);
+		}
+
+		protected UnityWebRequest HttpPostCreator(string endpoint, Dictionary<string, string> parameters = null)
+		{
+			return UnityWebRequest.Post(UriCreator(endpoint).Uri, parameters);
+		}
+
+		protected void HttpRequest(string endpoint, Func<string, Dictionary<string, string>, UnityWebRequest> creator, Action<string> on_success, Action<string> on_failure, Dictionary<string, string> parameters = null)
+		{
+			UnityWebRequest request = creator(endpoint, parameters);
 
 			request.downloadHandler = new DownloadHandlerBuffer();
 
