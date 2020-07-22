@@ -395,7 +395,6 @@ namespace CLARTE.Net.LMS
 			request.downloadHandler = new DownloadHandlerBuffer();
 
 			request.SetRequestHeader("Accept", "application/json");
-			request.SetRequestHeader("Content-Type", "application/json");
 
 			if(User != null && User.token != null)
 			{
