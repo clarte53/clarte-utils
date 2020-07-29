@@ -9,6 +9,8 @@ namespace CLARTE.Scenario
 		protected T children;
 		#endregion
 
+		public T Children { get => children; }
+
 		#region MonoBehaviour callbacks
 		protected override void Awake()
 		{
