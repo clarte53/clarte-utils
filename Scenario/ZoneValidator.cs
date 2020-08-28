@@ -81,13 +81,16 @@ namespace CLARTE.Scenario
         #region MonoBehaviour callbacks
         protected override void Awake()
         {
-            base.Awake();
-
             inZone = new Dictionary<Rigidbody, Point>();
 
-            foreach (Collider coll in GetComponents<Collider>())
+            foreach(Collider coll in GetComponents<Collider>())
+            {
                 coll.isTrigger = true;
+            }
+
             GetComponent<Rigidbody>().isKinematic = true;
+
+            base.Awake();
         }
 
         protected virtual void OnTriggerEnter(Collider other)
