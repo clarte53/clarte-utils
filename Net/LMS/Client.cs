@@ -64,6 +64,14 @@ namespace CLARTE.Net.LMS
 			#endregion
 		}
 
+        protected class CustomCertificateHandler : CertificateHandler
+        {
+            protected override bool ValidateCertificate(byte[] certificateData)
+            {
+                return true;
+            }
+        }
+
 		#region Members
 		private const string urlKey = "LMS_url";
 		private const string organizationKey = "LMS_organization";
@@ -393,6 +401,7 @@ namespace CLARTE.Net.LMS
 			UnityWebRequest request = creator(endpoint, parameters);
 
 			request.downloadHandler = new DownloadHandlerBuffer();
+            request.certificateHandler = new CustomCertificateHandler();
 
 			request.SetRequestHeader("Accept", "application/json");
 
