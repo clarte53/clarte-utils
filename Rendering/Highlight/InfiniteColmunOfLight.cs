@@ -30,7 +30,7 @@ namespace CLARTE.Rendering.Highlight
                 camera = Camera.main.transform;
                 column.transform.rotation = Quaternion.identity;
                 column.SetActive(false);
-                startScale = column.transform.localScale;
+                startScale = new Vector3(.1f, 1, .1f);
             }
         }
 
@@ -39,7 +39,7 @@ namespace CLARTE.Rendering.Highlight
             if (!column || !column.activeSelf)
                 return;
 
-            float fact = (camera.position-column.transform.position).magnitude;
+            float fact = (camera.position - column.transform.position).magnitude;
 
             column.transform.localScale = startScale * Mathf.Max(fact * (1 / (1 + Mathf.Exp(speed * (minDisplayDist - fact)))), 0);
         }
