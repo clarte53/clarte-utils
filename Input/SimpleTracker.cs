@@ -9,20 +9,24 @@ namespace CLARTE.Input
 		#region Members
 		protected static Dictionary<ulong, ushort> trackedIds = new Dictionary<ulong, ushort>();
 
+#if UNITY_2019_3_OR_NEWER
+		public InputDeviceCharacteristics type;
+#else
 		public XRNode type;
+#endif
 		#endregion
 
 		#region Tracker implementation
-		protected override bool IsNode(XRNodeState node)
+		protected override bool IsNode(ClarteXRNodeState node)
 		{
 			return (node.nodeType == type && !(trackedIds.ContainsKey(node.uniqueID) && trackedIds[node.uniqueID] > 0));
 		}
 
-		protected override bool IsSameNode(XRNodeState node) {
+		protected override bool IsSameNode(ClarteXRNodeState node) {
 			return node.nodeType == type && trackedIds.ContainsKey(node.uniqueID) && trackedIds[node.uniqueID] > 0;
 		}
 
-		protected override void OnNodeAdded(XRNodeState node)
+		protected override void OnNodeAdded(ClarteXRNodeState node)
 		{
 			if(!trackedIds.ContainsKey(node.uniqueID))
 			{
