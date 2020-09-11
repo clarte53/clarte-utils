@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using CLARTE.Rendering.Highlight;
 
@@ -17,7 +16,7 @@ namespace CLARTE.Scenario
             public abstract void Reset();
         }
 
-        protected class Point
+        public class Point
         {
             #region Members
             protected Vector3 position;
