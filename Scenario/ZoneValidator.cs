@@ -104,7 +104,7 @@ namespace CLARTE.Scenario
             if (!other.attachedRigidbody)
                 return;
 
-            if (State == ValidatorState.VALIDATED && other == matching &&
+            if (State == ValidatorState.VALIDATED && other.attachedRigidbody == matching &&
                 inZone.TryGetValue(other.attachedRigidbody, out Point p))
             {
                 matching = null;
