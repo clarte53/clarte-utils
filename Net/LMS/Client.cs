@@ -14,7 +14,7 @@ namespace CLARTE.Net.LMS
 		{
 			public UnityWebRequest request;
 			public Action<string> onSuccess;
-			public Action<string> onFailure;
+			public Action<long, string> onFailure;
 		}
 
 		private class Cache<U, V>
@@ -151,18 +151,18 @@ namespace CLARTE.Net.LMS
 			User = null;
 		}
 
-		public void Login(string username, string password, Action<bool> completion_callback = null)
+		public void Login(string username, string password, Action<bool, bool> completion_callback = null)
 		{
 			HttpPost<User>("users/login", x =>
 			{
 				User = x;
 
-				completion_callback?.Invoke(LoggedIn);
-			}, error =>
+				completion_callback?.Invoke(true, LoggedIn);
+			}, (code, message) =>
 			{
-				Debug.LogError(error);
+				Debug.LogError(message);
 
-				completion_callback?.Invoke(false);
+				completion_callback?.Invoke(code > 0, false);
 			}, new Dictionary<string, string>
 			{
 				{ "organization", PlayerPrefs.GetString(organizationKey) },
@@ -173,27 +173,27 @@ namespace CLARTE.Net.LMS
 
 		public void GetUser(string username, Action<User> result_callback)
 		{
-			userNameCache.Get(username, result_callback, (n, c) => HttpGet(string.Format("users/{0}", n), c, m => ErrorHandler(m, c), null));
+			userNameCache.Get(username, result_callback, (n, c) => HttpGet(string.Format("users/{0}", n), c, ErrorHandlerPrintExec(c), null));
 		}
 
 		public void GetUser(long id, Action<User> result_callback)
 		{
-			userIdCache.Get(id, result_callback, (i, c) => HttpGet(string.Format("users/{0}", i), c, m => ErrorHandler(m, c), null));
+			userIdCache.Get(id, result_callback, (i, c) => HttpGet(string.Format("users/{0}", i), c, ErrorHandlerPrintExec(c), null));
 		}
 
 		public void GetUsersList(Action<List<User>> result_callback)
 		{
-			HttpGetArray("users/list", result_callback, m => ErrorHandler(m, result_callback), null);
+			HttpGetArray("users/list", result_callback, ErrorHandlerPrintExec(result_callback), null);
 		}
 
 		public void GetGroupsList(Action<List<Group>> result_callback)
 		{
-			HttpGetArray("users/groups/list", result_callback, m => ErrorHandler(m, result_callback), null);
+			HttpGetArray("users/groups/list", result_callback, ErrorHandlerPrintExec(result_callback), null);
 		}
 
 		public void RegisterApplication(Content.Application application)
 		{
-			HttpGet<Entities.Application>(string.Format("lms/application/{0}/register", application.Guid), null, Debug.LogError, new Dictionary<string, string>
+			HttpGet<Entities.Application>(string.Format("lms/application/{0}/register", application.Guid), null, ErrorHandlerPrint, new Dictionary<string, string>
 			{
 				{ "name", application.title },
 			});
@@ -201,7 +201,7 @@ namespace CLARTE.Net.LMS
 
 		public void RegisterModule(Content.Module module)
 		{
-			HttpGet<Module>(string.Format("lms/module/{0}/register", module.Guid), null, Debug.LogError, new Dictionary<string, string>
+			HttpGet<Module>(string.Format("lms/module/{0}/register", module.Guid), null, ErrorHandlerPrint, new Dictionary<string, string>
 			{
 				{ "application", module.application.Guid.ToString() },
 				{ "name", module.title },
@@ -210,7 +210,7 @@ namespace CLARTE.Net.LMS
 
 		public void RegisterExercise(Content.Exercise<T> exercise)
 		{
-			HttpGet<Exercise>(string.Format("lms/exercise/{0}/register", exercise.Guid), null, Debug.LogError, new Dictionary<string, string>
+			HttpGet<Exercise>(string.Format("lms/exercise/{0}/register", exercise.Guid), null, ErrorHandlerPrint, new Dictionary<string, string>
 			{
 				{ "module", exercise.module.Guid.ToString() },
 				{ "name", exercise.title },
@@ -233,12 +233,12 @@ namespace CLARTE.Net.LMS
 				parameters.Add("debrief_data", Convert.ToBase64String(debrief_data));
 			}
 
-			HttpGet<bool>(string.Format("lms/exercise/{0}/record", exercise.Guid), null, Debug.LogError, parameters);
+			HttpGet<bool>(string.Format("lms/exercise/{0}/record", exercise.Guid), null, ErrorHandlerPrint, parameters);
 		}
 
 		public void AddSpectatorRecord(Content.Exercise<T> exercise, TimeSpan duration)
 		{
-			HttpGet<bool>(string.Format("lms/exercise/{0}/spectator/record", exercise.Guid), null, Debug.LogError, new Dictionary<string, string>
+			HttpGet<bool>(string.Format("lms/exercise/{0}/spectator/record", exercise.Guid), null, ErrorHandlerPrint, new Dictionary<string, string>
 			{
 				{ "duration", ((uint) duration.TotalSeconds).ToString() },
 			});
@@ -246,7 +246,7 @@ namespace CLARTE.Net.LMS
 
 		public void AddDebriefRecord(Content.Exercise<T> exercise, TimeSpan duration)
 		{
-			HttpGet<bool>(string.Format("lms/exercise/{0}/debrief/record", exercise.Guid), null, Debug.LogError, new Dictionary<string, string>
+			HttpGet<bool>(string.Format("lms/exercise/{0}/debrief/record", exercise.Guid), null, ErrorHandlerPrint, new Dictionary<string, string>
 			{
 				{ "duration", ((uint) duration.TotalSeconds).ToString() },
 			});
@@ -254,47 +254,47 @@ namespace CLARTE.Net.LMS
 
 		public void GetApplication(Content.Application application, Action<Entities.Application> result_callback)
 		{
-			applicationGuidCache.Get(application, result_callback, (app, c) => HttpGet(string.Format("lms/application/{0}", app.Guid), c, m => ErrorHandler(m, c), null));
+			applicationGuidCache.Get(application, result_callback, (app, c) => HttpGet(string.Format("lms/application/{0}", app.Guid), c, ErrorHandlerPrintExec(c), null));
 		}
 
 		public void GetApplication(long id, Action<Entities.Application> result_callback)
 		{
-			applicationIdCache.Get(id, result_callback, (i, c) => HttpGet(string.Format("lms/application/{0}", i), c, m => ErrorHandler(m, c), null));
+			applicationIdCache.Get(id, result_callback, (i, c) => HttpGet(string.Format("lms/application/{0}", i), c, ErrorHandlerPrintExec(c), null));
 		}
 
 		public void GetModule(Content.Module module, Action<Module> result_callback)
 		{
-			moduleGuidCache.Get(module, result_callback, (mod, c) => HttpGet(string.Format("lms/module/{0}", mod.Guid), c, m => ErrorHandler(m, c), null));
+			moduleGuidCache.Get(module, result_callback, (mod, c) => HttpGet(string.Format("lms/module/{0}", mod.Guid), c, ErrorHandlerPrintExec(c), null));
 		}
 
 		public void GetModule(long id, Action<Module> result_callback)
 		{
-			moduleIdCache.Get(id, result_callback, (i, c) => HttpGet(string.Format("lms/module/{0}", i), c, m => ErrorHandler(m, c), null));
+			moduleIdCache.Get(id, result_callback, (i, c) => HttpGet(string.Format("lms/module/{0}", i), c, ErrorHandlerPrintExec(c), null));
 		}
 
 		public void GetExercise(Content.Exercise<T> exercise, Action<Exercise> result_callback)
 		{
-			exerciseGuidCache.Get(exercise, result_callback, (ex, c) => HttpGet(string.Format("lms/exercise/{0}", ex.Guid), c, m => ErrorHandler(m, c), null));
+			exerciseGuidCache.Get(exercise, result_callback, (ex, c) => HttpGet(string.Format("lms/exercise/{0}", ex.Guid), c, ErrorHandlerPrintExec(c), null));
 		}
 
 		public void GetExercise(long id, Action<Exercise> result_callback)
 		{
-			exerciseIdCache.Get(id, result_callback, (i, c) => HttpGet(string.Format("lms/exercise/{0}", i), c, m => ErrorHandler(m, c), null));
+			exerciseIdCache.Get(id, result_callback, (i, c) => HttpGet(string.Format("lms/exercise/{0}", i), c, ErrorHandlerPrintExec(c), null));
 		}
 
 		public void GetApplicationSummary(Content.Application application, Action<ApplicationSummary> result_callback)
 		{
-			HttpGet(string.Format("lms/application/{0}/summary", application.Guid), result_callback, m => result_callback?.Invoke(null), null);
+			HttpGet(string.Format("lms/application/{0}/summary", application.Guid), result_callback, ErrorHandlerExec(result_callback), null);
 		}
 
 		public void GetModuleSummary(Content.Module module, Action<ModuleSummary> result_callback)
 		{
-			HttpGet(string.Format("lms/module/{0}/summary", module.Guid), result_callback, m => result_callback?.Invoke(null), null);
+			HttpGet(string.Format("lms/module/{0}/summary", module.Guid), result_callback, ErrorHandlerExec(result_callback), null);
 		}
 
 		public void GetExerciseSummary(Content.Exercise<T> exercise, Action<ExerciseSummary> result_callback)
 		{
-			HttpGet(string.Format("lms/exercise/{0}/summary", exercise.Guid), result_callback, m => result_callback?.Invoke(null), null);
+			HttpGet(string.Format("lms/exercise/{0}/summary", exercise.Guid), result_callback, ErrorHandlerExec(result_callback), null);
 		}
 
 		public void GetExerciseHistory(ulong? max_count, ulong? offset, Action<ExerciseRecordsPage> result_callback)
@@ -311,7 +311,7 @@ namespace CLARTE.Net.LMS
 				parameters.Add("offset", offset.ToString());
 			}
 
-			HttpGet("lms/exercise/history", result_callback, m => result_callback?.Invoke(null), parameters.Count > 0 ? parameters : null);
+			HttpGet("lms/exercise/history", result_callback, ErrorHandlerExec(result_callback), parameters.Count > 0 ? parameters : null);
 		}
 
 		/// <summary>
@@ -335,34 +335,50 @@ namespace CLARTE.Net.LMS
 				parameters.Add("offset", offset.ToString());
 			}
 
-			HttpGet(string.Format("lms/exercise/history/{0}", user), result_callback, m => result_callback?.Invoke(null), parameters.Count > 0 ? parameters : null);
+			HttpGet(string.Format("lms/exercise/history/{0}", user), result_callback, ErrorHandlerExec(result_callback), parameters.Count > 0 ? parameters : null);
 		}
 		#endregion
 
 		#region Internal methods
-		protected void ErrorHandler<U>(string message, Action<U> result_callback) where U : class
+		protected Action<long, string> ErrorHandlerPrintExec<U>(Action<U> result_callback) where U : class
 		{
-			Debug.LogError(message);
+			return (code, message) =>
+			{
+				Debug.LogError(message);
 
-			result_callback?.Invoke(null);
+				result_callback?.Invoke(null);
+			};
 		}
 
-		protected void HttpGet<U>(string endpoint, Action<U> on_success, Action<string> on_failure, Dictionary<string, string> parameters = null)
+		protected Action<long, string> ErrorHandlerExec<U>(Action<U> result_callback) where U : class
+		{
+			return (code, message) =>
+			{
+				result_callback?.Invoke(null);
+			};
+		}
+
+		protected void ErrorHandlerPrint(long code, string message)
+		{
+			Debug.LogError(message);
+		}
+
+		protected void HttpGet<U>(string endpoint, Action<U> on_success, Action<long, string> on_failure, Dictionary<string, string> parameters = null)
 		{
 			HttpRequest(endpoint, HttpGetCreator, json => on_success?.Invoke(JsonUtility.FromJson<U>(json)), on_failure, parameters);
 		}
 		
-		protected void HttpGetArray<U>(string endpoint, Action<List<U>> on_success, Action<string> on_failure, Dictionary<string, string> parameters = null)
+		protected void HttpGetArray<U>(string endpoint, Action<List<U>> on_success, Action<long, string> on_failure, Dictionary<string, string> parameters = null)
 		{
 			HttpRequest(endpoint, HttpGetCreator, json => on_success?.Invoke(JsonArray.FromJson<U>(json)), on_failure, parameters);
 		}
 
-		protected void HttpPost<U>(string endpoint, Action<U> on_success, Action<string> on_failure, Dictionary<string, string> parameters = null)
+		protected void HttpPost<U>(string endpoint, Action<U> on_success, Action<long, string> on_failure, Dictionary<string, string> parameters = null)
 		{
 			HttpRequest(endpoint, HttpPostCreator, json => on_success?.Invoke(JsonUtility.FromJson<U>(json)), on_failure, parameters);
 		}
 
-		protected void HttpPostArray<U>(string endpoint, Action<List<U>> on_success, Action<string> on_failure, Dictionary<string, string> parameters = null)
+		protected void HttpPostArray<U>(string endpoint, Action<List<U>> on_success, Action<long, string> on_failure, Dictionary<string, string> parameters = null)
 		{
 			HttpRequest(endpoint, HttpPostCreator, json => on_success?.Invoke(JsonArray.FromJson<U>(json)), on_failure, parameters);
 		}
@@ -396,7 +412,7 @@ namespace CLARTE.Net.LMS
 			return UnityWebRequest.Post(UriCreator(endpoint).Uri, parameters);
 		}
 
-		protected void HttpRequest(string endpoint, Func<string, Dictionary<string, string>, UnityWebRequest> creator, Action<string> on_success, Action<string> on_failure, Dictionary<string, string> parameters = null)
+		protected void HttpRequest(string endpoint, Func<string, Dictionary<string, string>, UnityWebRequest> creator, Action<string> on_success, Action<long, string> on_failure, Dictionary<string, string> parameters = null)
 		{
 			UnityWebRequest request = creator(endpoint, parameters);
 
@@ -449,7 +465,7 @@ namespace CLARTE.Net.LMS
 			{
 				if(request.isNetworkError)
 				{
-					query.onFailure?.Invoke(string.Format("Error while processing '{0}' request: '{1}'", request.uri.GetLeftPart(UriPartial.Path), request.error));
+					query.onFailure?.Invoke(0, string.Format("Error while processing '{0}' request: '{1}'", request.uri.GetLeftPart(UriPartial.Path), request.error));
 				}
 				else
 				{
@@ -459,10 +475,10 @@ namespace CLARTE.Net.LMS
 							query.onSuccess?.Invoke(operation.webRequest.downloadHandler.text);
 							break;
 						case 401:
-							query.onFailure?.Invoke(string.Format("Unauthorized access to '{0}'", request.uri.GetLeftPart(UriPartial.Path)));
+							query.onFailure?.Invoke(request.responseCode, string.Format("Unauthorized access to '{0}'", request.uri.GetLeftPart(UriPartial.Path)));
 							break;
 						default:
-							query.onFailure?.Invoke(string.Format("Failed to access '{0}': status = {1}", request.uri.GetLeftPart(UriPartial.Path), request.responseCode));
+							query.onFailure?.Invoke(request.responseCode, string.Format("Failed to access '{0}': status = {1}", request.uri.GetLeftPart(UriPartial.Path), request.responseCode));
 							break;
 					}
 				}
@@ -472,7 +488,7 @@ namespace CLARTE.Net.LMS
 			}
 			else
 			{
-				query.onFailure?.Invoke("The request completed does not match the pending request. Ignoring.");
+				query.onFailure?.Invoke(0, "The request completed does not match the pending request. Ignoring.");
 			}
 
 			lock(queue)
