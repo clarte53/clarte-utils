@@ -151,18 +151,18 @@ namespace CLARTE.Net.LMS
 			User = null;
 		}
 
-		public void Login(string username, string password, Action<bool> completion_callback = null)
+		public void Login(string username, string password, Action<bool, bool> completion_callback = null)
 		{
 			HttpPost<User>("users/login", x =>
 			{
 				User = x;
 
-				completion_callback?.Invoke(LoggedIn);
+				completion_callback?.Invoke(true, LoggedIn);
 			}, error =>
 			{
 				Debug.LogError(error);
 
-				completion_callback?.Invoke(false);
+				completion_callback?.Invoke(false, false);
 			}, new Dictionary<string, string>
 			{
 				{ "organization", PlayerPrefs.GetString(organizationKey) },
