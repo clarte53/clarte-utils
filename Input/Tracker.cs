@@ -86,7 +86,8 @@ namespace CLARTE.Input
 			else if(!CheckConnectedNode(nodes))
 			{
 				RemoveNode();
-			}
+                SearchValidNode(nodes);
+            }
   
 			if(uniqueID != 0)
 			{
@@ -182,8 +183,7 @@ namespace CLARTE.Input
 				OnNodeRemoved();
 
 				uniqueID = 0;
-
-				SearchValidNode(nodes);
+                
 			}
 		}
 
