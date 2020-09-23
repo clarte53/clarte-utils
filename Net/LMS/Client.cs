@@ -163,7 +163,9 @@ namespace CLARTE.Net.LMS
 				Debug.LogError(message);
 
 				completion_callback?.Invoke(code > 0, false);
-			}, new Dictionary<string, string>
+			},
+			null,
+			new Dictionary<string, string>
 			{
 				{ "organization", PlayerPrefs.GetString(organizationKey) },
 				{ "username", username },
@@ -220,7 +222,7 @@ namespace CLARTE.Net.LMS
 
 		public void AddExerciseRecord(Content.Exercise<T> exercise, TimeSpan duration, bool success, float grade, uint nb_challenges_validated, byte[] debrief_data = null)
 		{
-			Dictionary<string, string> parameters = new Dictionary<string, string>
+			Dictionary<string, string> uri_parameters = new Dictionary<string, string>
 			{
 				{ "duration", ((uint) duration.TotalSeconds).ToString() },
 				{ "success", success.ToString() },
@@ -228,12 +230,17 @@ namespace CLARTE.Net.LMS
 				{ "nb_challenges_validated", nb_challenges_validated.ToString() },
 			};
 
-			if(debrief_data != null)
+			Dictionary<string, string> post_parameters = null;
+
+			if (debrief_data != null)
 			{
-				parameters.Add("debrief_data", Convert.ToBase64String(debrief_data));
+				post_parameters = new Dictionary<string, string>
+				{
+					{ "debrief_data", Convert.ToBase64String(debrief_data) },
+				};
 			}
 
-			HttpGet<bool>(string.Format("lms/exercise/{0}/record", exercise.Guid), null, ErrorHandlerPrint, parameters);
+			HttpPost<bool>(string.Format("lms/exercise/{0}/record", exercise.Guid), null, ErrorHandlerPrint, uri_parameters, post_parameters);
 		}
 
 		public void AddSpectatorRecord(Content.Exercise<T> exercise, TimeSpan duration)
@@ -363,59 +370,55 @@ namespace CLARTE.Net.LMS
 			Debug.LogError(message);
 		}
 
-		protected void HttpGet<U>(string endpoint, Action<U> on_success, Action<long, string> on_failure, Dictionary<string, string> parameters = null)
+		protected void HttpGet<U>(string endpoint, Action<U> on_success, Action<long, string> on_failure, Dictionary<string, string> uri_parameters = null)
 		{
-			HttpRequest(endpoint, HttpGetCreator, json => on_success?.Invoke(JsonUtility.FromJson<U>(json)), on_failure, parameters);
+			HttpRequest(HttpGetCreator(endpoint, uri_parameters), json => on_success?.Invoke(JsonUtility.FromJson<U>(json)), on_failure);
 		}
 		
-		protected void HttpGetArray<U>(string endpoint, Action<List<U>> on_success, Action<long, string> on_failure, Dictionary<string, string> parameters = null)
+		protected void HttpGetArray<U>(string endpoint, Action<List<U>> on_success, Action<long, string> on_failure, Dictionary<string, string> uri_parameters = null)
 		{
-			HttpRequest(endpoint, HttpGetCreator, json => on_success?.Invoke(JsonArray.FromJson<U>(json)), on_failure, parameters);
+			HttpRequest(HttpGetCreator(endpoint, uri_parameters), json => on_success?.Invoke(JsonArray.FromJson<U>(json)), on_failure);
 		}
 
-		protected void HttpPost<U>(string endpoint, Action<U> on_success, Action<long, string> on_failure, Dictionary<string, string> parameters = null)
+		protected void HttpPost<U>(string endpoint, Action<U> on_success, Action<long, string> on_failure, Dictionary<string, string> uri_parameters = null, Dictionary<string, string> post_parameters = null)
 		{
-			HttpRequest(endpoint, HttpPostCreator, json => on_success?.Invoke(JsonUtility.FromJson<U>(json)), on_failure, parameters);
+			HttpRequest(HttpPostCreator(endpoint, uri_parameters, post_parameters), json => on_success?.Invoke(JsonUtility.FromJson<U>(json)), on_failure);
 		}
 
-		protected void HttpPostArray<U>(string endpoint, Action<List<U>> on_success, Action<long, string> on_failure, Dictionary<string, string> parameters = null)
+		protected void HttpPostArray<U>(string endpoint, Action<List<U>> on_success, Action<long, string> on_failure, Dictionary<string, string> uri_parameters = null, Dictionary<string, string> post_parameters = null)
 		{
-			HttpRequest(endpoint, HttpPostCreator, json => on_success?.Invoke(JsonArray.FromJson<U>(json)), on_failure, parameters);
+			HttpRequest(HttpPostCreator(endpoint, uri_parameters, post_parameters), json => on_success?.Invoke(JsonArray.FromJson<U>(json)), on_failure);
 		}
 
-		protected UriBuilder UriCreator(string endpoint)
+		protected Uri UriCreator(string endpoint, Dictionary<string, string> uri_parameters = null)
 		{
 			UriBuilder builder = new UriBuilder(PlayerPrefs.GetString(urlKey));
 
 			builder.Path = string.Format("api/1/{0}", endpoint);
 
-			return builder;
-		}
-
-		protected UnityWebRequest HttpGetCreator(string endpoint, Dictionary<string, string> parameters = null)
-		{
-			UriBuilder builder = UriCreator(endpoint);
-
-			if(parameters != null)
+			if(uri_parameters != null)
 			{
-				using(FormUrlEncodedContent content = new FormUrlEncodedContent(parameters))
+				using(FormUrlEncodedContent content = new FormUrlEncodedContent(uri_parameters))
 				{
 					builder.Query = content.ReadAsStringAsync().Result;
 				}
 			}
 
-			return UnityWebRequest.Get(builder.Uri);
+			return builder.Uri;
 		}
 
-		protected UnityWebRequest HttpPostCreator(string endpoint, Dictionary<string, string> parameters = null)
+		protected UnityWebRequest HttpGetCreator(string endpoint, Dictionary<string, string> uri_parameters = null)
 		{
-			return UnityWebRequest.Post(UriCreator(endpoint).Uri, parameters);
+			return UnityWebRequest.Get(UriCreator(endpoint));
 		}
 
-		protected void HttpRequest(string endpoint, Func<string, Dictionary<string, string>, UnityWebRequest> creator, Action<string> on_success, Action<long, string> on_failure, Dictionary<string, string> parameters = null)
+		protected UnityWebRequest HttpPostCreator(string endpoint, Dictionary<string, string> uri_parameters = null, Dictionary<string, string> post_parameters = null)
 		{
-			UnityWebRequest request = creator(endpoint, parameters);
+			return UnityWebRequest.Post(UriCreator(endpoint, uri_parameters), post_parameters);
+		}
 
+		protected void HttpRequest(UnityWebRequest request, Action<string> on_success, Action<long, string> on_failure)
+		{
 			request.downloadHandler = new DownloadHandlerBuffer();
             request.certificateHandler = new CustomCertificateHandler();
 
