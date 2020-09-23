@@ -409,7 +409,7 @@ namespace CLARTE.Net.LMS
 
 		protected UnityWebRequest HttpGetCreator(string endpoint, Dictionary<string, string> uri_parameters = null)
 		{
-			return UnityWebRequest.Get(UriCreator(endpoint));
+			return UnityWebRequest.Get(UriCreator(endpoint, uri_parameters));
 		}
 
 		protected UnityWebRequest HttpPostCreator(string endpoint, Dictionary<string, string> uri_parameters = null, Dictionary<string, string> post_parameters = null)
