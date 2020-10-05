@@ -9,20 +9,26 @@ namespace CLARTE.Input
 		#region Members
 		public bool ShowNodes = false;
 		public bool InverseTransform = false;
-		protected List<XRNodeState> nodes;
+		protected List<ClarteXRNodeState> nodes;
+#if UNITY_2019_3_OR_NEWER
+		protected InputDeviceCharacteristics currentType;
+#else
 		protected XRNode currentType;
+#endif
 		protected ulong uniqueID;
 		protected bool tracked;
-		#endregion
+		protected bool firstCheck;
+#endregion
 
-		#region Abstract methods
-		protected abstract bool IsNode(XRNodeState node);
-		protected abstract bool IsSameNode(XRNodeState node);
-		protected abstract void OnNodeAdded(XRNodeState node);
+#region Abstract methods
+		protected abstract bool IsNode(ClarteXRNodeState node);
+		protected abstract bool IsSameNode(ClarteXRNodeState node);
+		protected abstract void OnNodeAdded(ClarteXRNodeState node);
 		protected abstract void OnNodeRemoved();
-		#endregion
+		protected abstract void OnNodeNotFound();
+#endregion
 
-		#region Getter / Setter
+#region Getter / Setter
 		public bool Tracked
 		{
 			get
@@ -42,16 +48,17 @@ namespace CLARTE.Input
 		{
 			get { return uniqueID; }
 		}
-		#endregion
+#endregion
 
-		#region MonoBehaviour callbacks
+#region MonoBehaviour callbacks
 		protected virtual void Awake()
 		{
-			nodes = new List<XRNodeState>();
+			nodes = new List<ClarteXRNodeState>();
 
 			uniqueID = 0;
 
 			Tracked = false;
+			firstCheck = true;
 		}
 
 		protected virtual void OnDisable()
@@ -61,12 +68,12 @@ namespace CLARTE.Input
 
 		protected virtual void Update()
 		{
-			InputTracking.GetNodeStates(nodes);
+			ClarteXRNodeState.GetNodeStates(nodes);
 
 			if (ShowNodes) {
 				string log = "Devices:";
-				foreach (XRNodeState nd in nodes) {
-					log += "\n" + nd.nodeType + " " + nd.uniqueID + " '" + InputTracking.GetNodeName(nd.uniqueID)+"'";
+				foreach (ClarteXRNodeState nd in nodes) {
+					log += "\n" + nd.nodeType + " " + nd.uniqueID + " '" + nd.name +"'";
 				}
 				Debug.Log(log);
 				ShowNodes = false;
@@ -79,11 +86,12 @@ namespace CLARTE.Input
 			else if(!CheckConnectedNode(nodes))
 			{
 				RemoveNode();
+				SearchValidNode(nodes);
 			}
   
 			if(uniqueID != 0)
 			{
-				foreach(XRNodeState node in nodes)
+				foreach(ClarteXRNodeState node in nodes)
 				{
 					if(node.uniqueID == uniqueID)
 					{
@@ -124,14 +132,14 @@ namespace CLARTE.Input
 				}
 			}
 		}
-		#endregion
+#endregion
 
-		#region Helper methods
-		protected bool CheckConnectedNode(List<XRNodeState> nodes)
+#region Helper methods
+		protected bool CheckConnectedNode(List<ClarteXRNodeState> nodes)
 		{
 			bool found = false;
 
-			foreach(XRNodeState node in nodes)
+			foreach(ClarteXRNodeState node in nodes)
 			{
 				if(node.uniqueID == uniqueID)
 				{
@@ -144,9 +152,9 @@ namespace CLARTE.Input
 			return found;
 		}
 
-		protected void SearchValidNode(List<XRNodeState> nodes)
+		protected void SearchValidNode(List<ClarteXRNodeState> nodes)
 		{
-			foreach(XRNodeState node in nodes)
+			foreach(ClarteXRNodeState node in nodes)
 			{
 				if(uniqueID == 0 && IsNode(node))
 				{
@@ -160,6 +168,12 @@ namespace CLARTE.Input
 					break;
 				}
 			}
+
+			if (uniqueID == 0 && firstCheck)
+			{
+				OnNodeNotFound();
+				firstCheck = false;
+			}
 		}
 
 		protected void RemoveNode()
@@ -169,8 +183,7 @@ namespace CLARTE.Input
 				OnNodeRemoved();
 
 				uniqueID = 0;
-
-				SearchValidNode(nodes);
+				
 			}
 		}
 
@@ -194,6 +207,6 @@ namespace CLARTE.Input
 				child.gameObject.SetActive(enable);
 			}
 		}
-		#endregion
+#endregion
 	}
 }

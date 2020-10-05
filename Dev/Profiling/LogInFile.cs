@@ -30,7 +30,7 @@ namespace CLARTE.Dev.Profiling
 			string log_str = log.ToString();
 
 			logs[filename].Add(log_str);
-			
+
 			if(write_immediately)
 			{
 				using(FileStream file = new FileStream(filename, FileMode.Append, FileAccess.Write, FileShare.None))
@@ -74,6 +74,34 @@ namespace CLARTE.Dev.Profiling
 				foreach(string filename in logs.Keys)
 				{
 					DumpLog(filename);
+				}
+			}
+		}
+
+		static public void ClearLog(string filename)
+		{
+			if(logs != null)
+			{
+				if(logs.ContainsKey(filename))
+				{
+					logs[filename].Clear();
+
+					UnityEngine.Debug.Log("Log reset");
+				}
+				else
+				{
+					UnityEngine.Debug.LogWarning("No log to be reset");
+				}
+			}
+		}
+
+		static public void ClearAllLogs()
+		{
+			if(logs != null)
+			{
+				foreach(string filename in logs.Keys)
+				{
+					ClearLog(filename);
 				}
 			}
 		}
