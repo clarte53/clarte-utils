@@ -28,7 +28,7 @@ namespace CLARTE.Input
 #else
 		public XRNode nodeType {
 			get {
-				return node.role;
+				return node.nodeType;
 			}
 		}
 #endif

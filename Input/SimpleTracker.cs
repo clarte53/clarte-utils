@@ -44,6 +44,11 @@ namespace CLARTE.Input
 
 			trackedIds[uniqueID]--;
 		}
+
+		protected override void OnNodeNotFound()
+		{
+			Debug.LogFormat("Tracker '{0}' of type '{1}' is not connected", uniqueID, type);
+		}
 		#endregion
 	}
 }

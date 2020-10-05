@@ -50,3 +50,6 @@ relative to serialization:
   referenced via reflection on ill2cpp backend, they will need to add
   their own 'link.xml' file in their folder to force inclusion of the
   required symbols in build.
+- 'xml' is a helper class for easy XML serialization. Save an object with
+  XML.Serialize(object_to_be_saved, filename) and load with
+  loaded_object=XML.Deserialize<Class_of_object_to_be_loaded>(filename).

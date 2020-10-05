@@ -17,6 +17,7 @@ namespace CLARTE.Input
 #endif
 		protected ulong uniqueID;
 		protected bool tracked;
+		protected bool firstCheck;
 #endregion
 
 #region Abstract methods
@@ -24,6 +25,7 @@ namespace CLARTE.Input
 		protected abstract bool IsSameNode(ClarteXRNodeState node);
 		protected abstract void OnNodeAdded(ClarteXRNodeState node);
 		protected abstract void OnNodeRemoved();
+		protected abstract void OnNodeNotFound();
 #endregion
 
 #region Getter / Setter
@@ -56,6 +58,7 @@ namespace CLARTE.Input
 			uniqueID = 0;
 
 			Tracked = false;
+			firstCheck = true;
 		}
 
 		protected virtual void OnDisable()
@@ -83,6 +86,7 @@ namespace CLARTE.Input
 			else if(!CheckConnectedNode(nodes))
 			{
 				RemoveNode();
+				SearchValidNode(nodes);
 			}
   
 			if(uniqueID != 0)
@@ -164,6 +168,12 @@ namespace CLARTE.Input
 					break;
 				}
 			}
+
+			if (uniqueID == 0 && firstCheck)
+			{
+				OnNodeNotFound();
+				firstCheck = false;
+			}
 		}
 
 		protected void RemoveNode()
@@ -173,8 +183,7 @@ namespace CLARTE.Input
 				OnNodeRemoved();
 
 				uniqueID = 0;
-
-				SearchValidNode(nodes);
+				
 			}
 		}
 
