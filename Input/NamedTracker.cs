@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.XR;
 
 namespace CLARTE.Input
@@ -6,27 +7,27 @@ namespace CLARTE.Input
 	public class NamedTracker : Tracker
 	{
 		#region Members
-		public string name;
+		public string deviceName; // Sample: "OpenVR Controller(Oculus Rift CV1 (Right Controller)) - Right"
 		#endregion
 
 		#region Tracker implementation
-		protected override bool IsNode(XRNodeState node)
+		protected override bool IsNode(ClarteXRNodeState node)
 		{
-			return InputTracking.GetNodeName(node.uniqueID).Trim().ToUpper() == name.Trim().ToUpper();
+			return node.name.Trim().ToUpper() == deviceName.Trim().ToUpper();
 		}
 
-		protected override bool IsSameNode(XRNodeState node) {
-			return InputTracking.GetNodeName(node.uniqueID).Trim().ToUpper() == name.Trim().ToUpper();
+		protected override bool IsSameNode(ClarteXRNodeState node) {
+			return node.name.Trim().ToUpper() == deviceName.Trim().ToUpper();
 		}
 
-		protected override void OnNodeAdded(XRNodeState node)
+		protected override void OnNodeAdded(ClarteXRNodeState node)
 		{
-			Debug.LogFormat("Named tracker '{0}' is associated to object '{1}'", InputTracking.GetNodeName(uniqueID), gameObject.name);
+			Debug.LogFormat("Named tracker '{0}' is associated to object '{1}'", deviceName, gameObject.name);
 		}
 
 		protected override void OnNodeRemoved()
 		{
-			Debug.LogFormat("Named tracker '{0}' is removed from object '{1}'", InputTracking.GetNodeName(uniqueID), gameObject.name);
+			Debug.LogFormat("Named tracker '{0}' is removed from object '{1}'", deviceName, gameObject.name);
 		}
 		#endregion
 	}
