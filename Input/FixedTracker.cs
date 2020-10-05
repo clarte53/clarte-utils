@@ -29,10 +29,10 @@ namespace CLARTE.Input
 			Debug.LogFormat("Fixed tracker '{0}' is removed from object '{1}'", uniqueID, gameObject.name);
 		}
 
-        protected override void OnNodeNotFound()
-        {
-            Debug.LogFormat("Tracker '{0}' is not connected", uniqueID);
-        }
-        #endregion
-    }
+		protected override void OnNodeNotFound()
+		{
+			Debug.LogFormat("Tracker '{0}' is not connected", uniqueID);
+		}
+		#endregion
+	}
 }

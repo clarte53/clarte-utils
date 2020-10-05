@@ -30,10 +30,10 @@ namespace CLARTE.Input
 			Debug.LogFormat("Named tracker '{0}' is removed from object '{1}'", deviceName, gameObject.name);
 		}
 
-        protected override void OnNodeNotFound()
-        {
-            Debug.LogFormat("Named tracker '{0}' is not connected", deviceName);
-        }
-        #endregion
-    }
+		protected override void OnNodeNotFound()
+		{
+			Debug.LogFormat("Named tracker '{0}' is not connected", deviceName);
+		}
+		#endregion
+	}
 }
