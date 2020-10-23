@@ -42,7 +42,7 @@ namespace CLARTE.Threads.DataFlow.Unity
 			};
 		}
 
-		protected virtual void Start()
+		protected virtual void OnEnable()
 		{
 			DataCreator.Start();
 		}
@@ -55,7 +55,7 @@ namespace CLARTE.Threads.DataFlow.Unity
 			}
 		}
 
-		protected virtual void OnDestroy()
+		protected virtual void OnDisable()
 		{
 			DataCreator.Stop();
 		}
