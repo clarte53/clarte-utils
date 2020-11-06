@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace CLARTE.Rendering.Highlight
 {
@@ -10,8 +8,9 @@ namespace CLARTE.Rendering.Highlight
         public GameObject column;
         public float minDisplayDist = 4;
         public float speed = 10;
-        Vector3 startScale;
-        Transform camera;
+        
+        protected Vector3 startScale;
+        protected Transform cam;
         #endregion
 
         #region IHighlight implementation
@@ -23,23 +22,23 @@ namespace CLARTE.Rendering.Highlight
 
         #region MonoBehaviour callbacks
         // Start is called before the first frame update
-        void Awake()
+        protected void Awake()
         {
             if (column != null)
             {
-                camera = Camera.main.transform;
+                cam = Camera.main.transform;
                 column.transform.rotation = Quaternion.identity;
                 column.SetActive(false);
                 startScale = new Vector3(.1f, 1, .1f);
             }
         }
 
-        void Update()
+        protected void Update()
         {
             if (!column || !column.activeSelf)
                 return;
 
-            float fact = (camera.position - column.transform.position).magnitude;
+            float fact = (cam.position - column.transform.position).magnitude;
 
             column.transform.localScale = startScale * Mathf.Max(fact * (1 / (1 + Mathf.Exp(speed * (minDisplayDist - fact)))), 0);
         }
