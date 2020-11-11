@@ -241,6 +241,16 @@ namespace CLARTE.Geometry.Extensions
 		{
 			UnityEditor.Selection.activeTransform.ShowHierarchy(true);
 		}
+
+		/// <summary>
+		/// Add ability to parent to scene root to a GameObject contextual menu
+		/// (right click on a GO in the Hierarchy view)
+		/// </summary>
+		[UnityEditor.MenuItem("GameObject/Move to root", false, 0)]
+		static void MoveToRoot()
+		{
+			UnityEditor.Selection.activeTransform.parent = null; ;
+		}
 #endif
 	}
 }
