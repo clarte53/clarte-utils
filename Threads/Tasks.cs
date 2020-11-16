@@ -53,6 +53,11 @@ namespace CLARTE.Threads
 		{
 			return threads.TaskCount();
 		}
+
+		public static int ThreadsCount()
+        {
+			return threads.ThreadsCount;
+        }
 		#endregion
 	}
 }

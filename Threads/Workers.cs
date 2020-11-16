@@ -61,14 +61,27 @@ namespace CLARTE.Threads
 		protected List<Thread> threads;
 		protected ManualResetEvent stopEvent;
 		protected bool disposed;
-		#endregion
+        #endregion
 
-		#region Constructors / Destructors
+        #region Getters / Setters
 		/// <summary>
-		/// Create a new group of worker threads.
+		/// Return the number of worker threads used.
 		/// </summary>
-		/// <param name="descriptors">A collection of descriptors for the worker threads to start, each with the events they will wait for.</param>
-		public void Init(params Descriptor[] descriptors)
+		public int ThreadsCount
+        {
+			get
+            {
+				return threads.Count;
+            }
+        }
+        #endregion
+
+        #region Constructors / Destructors
+        /// <summary>
+        /// Create a new group of worker threads.
+        /// </summary>
+        /// <param name="descriptors">A collection of descriptors for the worker threads to start, each with the events they will wait for.</param>
+        public void Init(params Descriptor[] descriptors)
 		{
 			if(disposed)
 			{
