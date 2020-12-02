@@ -216,7 +216,7 @@ namespace CLARTE.Geometry.Extensions
 		/// <param name="referential"></param>
 		static public void SetMatrix(this Transform transf, Matrix4x4 mat, Transform referential)
 		{
-			Matrix4x4 world_matrix = (referential != null ? referential.worldToLocalMatrix : Matrix4x4.identity) * mat;
+			Matrix4x4 world_matrix = (referential != null ? referential.localToWorldMatrix : Matrix4x4.identity) * mat;
 
 			transf.SetWorldMatrix(world_matrix);
 		}
