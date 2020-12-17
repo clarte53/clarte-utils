@@ -5,12 +5,23 @@ using System.Threading;
 
 namespace CLARTE.Threads
 {
-	public class Workers : IDisposable
+	public abstract class Workers
+    {
+		public class DefaultContext
+        {
+
+        }
+    }
+
+	public class Workers<T> : Workers, IDisposable
 	{
 		public class Descriptor
 		{
+			public delegate T ContextFactory();
+
 			#region Members
-			public Action<WaitHandle> worker;
+			public ContextFactory contextFactory;
+			public Action<T, WaitHandle> worker;
 			public ICollection<WaitHandle> events;
 			public uint nbEvents;
 			public uint nbThreads;
@@ -20,12 +31,18 @@ namespace CLARTE.Threads
 			/// <summary>
 			/// Descriptor for a new group of worker threads.
 			/// </summary>
+			/// <param name="context_factory">A factory method used to generate context for each worker threads.</param>
 			/// <param name="worker">A method executed by each worker thread in an infinite loop. This method get the event that started the new iteration as parameter.</param>
 			/// <param name="events">A set of events to wait for before doing the next iteration of the worker loop.</param>
 			/// <param name="nb_threads">The number of worker threads to span. If zero, the worker is started in (nb_cpu_cores - 1) threads.</param>
-			public Descriptor(Action<WaitHandle> worker, ICollection<WaitHandle> events, uint nb_threads = 0)
+			public Descriptor(ContextFactory context_factory, Action<T, WaitHandle> worker, ICollection<WaitHandle> events, uint nb_threads = 0)
 			{
-				if(worker == null)
+				if (context_factory == null)
+				{
+					throw new ArgumentNullException("context_factory", "Invalid null context factory method in thread group description.");
+				}
+
+				if (worker == null)
 				{
 					throw new ArgumentNullException("worker", "Invalid null worker method in thread group description.");
 				}
@@ -35,6 +52,7 @@ namespace CLARTE.Threads
 					throw new ArgumentNullException("events", "Invalid null event collection in thread group description.");
 				}
 
+				contextFactory = context_factory;
 				this.worker = worker;
 				this.events = events;
 
@@ -45,14 +63,7 @@ namespace CLARTE.Threads
 					throw new ArgumentNullException("events", "Invalid empty event collection in thread group description.");
 				}
 
-				if(nb_threads == 0)
-				{
-					nbThreads = (uint) Math.Max(Environment.ProcessorCount - 1, 1);
-				}
-				else
-				{
-					nbThreads = nb_threads;
-				}
+				nbThreads = nb_threads != 0 ? nb_threads : DefaultThreadsCount;
 			}
 			#endregion
 		}
@@ -67,21 +78,32 @@ namespace CLARTE.Threads
 		/// <summary>
 		/// Return the number of worker threads used.
 		/// </summary>
-		public int ThreadsCount
+		public uint ThreadsCount
         {
 			get
             {
-				return threads.Count;
+				return (uint) threads.Count;
             }
         }
-        #endregion
 
-        #region Constructors / Destructors
-        /// <summary>
-        /// Create a new group of worker threads.
-        /// </summary>
-        /// <param name="descriptors">A collection of descriptors for the worker threads to start, each with the events they will wait for.</param>
-        public void Init(params Descriptor[] descriptors)
+		/// <summary>
+		/// Return the default number of worker threads on the current machine.
+		/// </summary>
+		public static uint DefaultThreadsCount
+        {
+            get
+            {
+				return (uint) Math.Max(Environment.ProcessorCount - 1, 1);
+			}
+        }
+		#endregion
+
+		#region Constructors / Destructors
+		/// <summary>
+		/// Create a new group of worker threads.
+		/// </summary>
+		/// <param name="descriptors">A collection of descriptors for the worker threads to start, each with the events they will wait for.</param>
+		public void Init(params Descriptor[] descriptors)
 		{
 			if(disposed)
 			{
@@ -197,6 +219,8 @@ namespace CLARTE.Threads
 		#region Worker
 		protected void Worker(Descriptor descriptor)
 		{
+			T context = descriptor.contextFactory();
+
 			uint events_count = descriptor.nbEvents + 1;
 			int event_idx = 0;
 			
@@ -218,7 +242,7 @@ namespace CLARTE.Threads
 				// Wait for events to call the worker callback
 				while((event_idx = WaitHandle.WaitAny(wait)) != 0)
 				{
-					descriptor.worker(wait[event_idx]);
+					descriptor.worker(context, wait[event_idx]);
 				}
 			}
 			catch(ObjectDisposedException)

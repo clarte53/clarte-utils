@@ -8,11 +8,12 @@ namespace CLARTE.Threads
 	/// <summary>
 	/// A thread pool to avoid creating a new thread for every async tasks.
 	/// </summary>
-	public class Pool : Workers, IDisposable
+	public class Pool : Workers<Workers.DefaultContext>, IDisposable
 	{
 		#region Members
 		protected Queue<Task> tasks;
 		protected ManualResetEvent addEvent;
+		protected ManualResetEvent completedEvent;
 		protected object taskCountMutex;
 		protected int taskCount; // We can not use the length of the tasks queue because when the lasts task is removed from the queue, it is still executed and WaitForTasksCompletion should continue to wait.
 		#endregion
@@ -27,10 +28,11 @@ namespace CLARTE.Threads
 			tasks = new Queue<Task>();
 
 			addEvent = new ManualResetEvent(false);
+			completedEvent = new ManualResetEvent(true);
 
 			taskCountMutex = new object();
 
-			Init(new Descriptor(Worker, new ManualResetEvent[] { addEvent }, nb_threads));
+			Init(new Descriptor(() => new DefaultContext(), Worker, new ManualResetEvent[] { addEvent }, nb_threads));
 		}
 		#endregion
 
@@ -47,6 +49,8 @@ namespace CLARTE.Threads
 				lock(taskCountMutex)
 				{
 					taskCount++;
+
+					completedEvent.Reset();
 				}
 
 				lock(tasks)
@@ -58,7 +62,7 @@ namespace CLARTE.Threads
 			}
 		}
 
-		protected void Worker(WaitHandle ev)
+		protected void Worker(Workers.DefaultContext _, WaitHandle ev)
 		{
 			if(ev == addEvent)
 			{
@@ -84,6 +88,11 @@ namespace CLARTE.Threads
 					lock(taskCountMutex)
 					{
 						taskCount--;
+
+						if (taskCount <= 0)
+						{
+							completedEvent.Set();
+						}
 					}
 				}
 			}
@@ -141,18 +150,27 @@ namespace CLARTE.Threads
 				throw new ObjectDisposedException("CLARTE.Threads.Pool", "The thread pool is already disposed.");
 			}
 
-			long count;
-
 			lock(taskCountMutex)
 			{
-				count = taskCount;
+				return taskCount;
 			}
-
-			return count;
 		}
 
 		/// <summary>
-		/// Wait for all tasks (planned or executing) to complete. This is a barrier instruction.
+		/// Wait for all tasks (planned or executing) to complete. This is a blocking barrier instruction.
+		/// </summary>
+		public void WaitUntilTasksCompletion()
+		{
+			if (disposed)
+			{
+				throw new ObjectDisposedException("CLARTE.Threads.Pool", "The thread pool is already disposed.");
+			}
+
+			completedEvent.WaitOne();
+		}
+
+		/// <summary>
+		/// Wait for all tasks (planned or executing) to complete. This is a non-blocking barrier instruction.
 		/// </summary>
 		/// <returns>An enumerator that will return null as long as some tasks are present.</returns>
 		public IEnumerator WaitForTasksCompletion()
@@ -169,7 +187,7 @@ namespace CLARTE.Threads
 		}
 
 		/// <summary>
-		/// Wait for all tasks in a given group (planned or executing) to complete. This is a barrier instruction.
+		/// Wait for all tasks in a given group (planned or executing) to complete. This is a non-blocking barrier instruction.
 		/// </summary>
 		/// <param name="tasks">A set of results corresponding to the tasks to wait for.</param>
 		/// <returns>An enumerator that will return null as long as some tasks are present.</returns>

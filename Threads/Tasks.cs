@@ -54,7 +54,7 @@ namespace CLARTE.Threads
 			return threads.TaskCount();
 		}
 
-		public static int ThreadsCount()
+		public static uint ThreadsCount()
         {
 			return threads.ThreadsCount;
         }
