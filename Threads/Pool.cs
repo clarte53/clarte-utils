@@ -36,6 +36,27 @@ namespace CLARTE.Threads
 		}
 		#endregion
 
+		#region IDisposable implementation
+		protected override void Dispose(bool disposing)
+        {
+			if (!disposed)
+			{
+				base.Dispose(disposing);
+
+				if (disposing)
+				{
+#if NETFX_CORE
+					addEvent.Dispose();
+					completedEvent.Dispose();
+#else
+					addEvent.Close();
+					completedEvent.Close();
+#endif
+				}
+			}
+        }
+		#endregion
+
 		#region Worker
 		protected void AddTask(Task task)
 		{
