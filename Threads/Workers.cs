@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -11,9 +12,20 @@ namespace CLARTE.Threads
         {
 
         }
-    }
 
-	public class Workers<T> : Workers, IDisposable
+		/// <summary>
+		/// Return the default number of worker threads on the current machine.
+		/// </summary>
+		public static uint DefaultThreadsCount
+		{
+			get
+			{
+				return (uint)Math.Max(Environment.ProcessorCount - 1, 1);
+			}
+		}
+	}
+
+	public class Workers<T> : Workers, IDisposable, IEnumerable<T>
 	{
 		public class Descriptor
 		{
@@ -70,6 +82,7 @@ namespace CLARTE.Threads
 
 		#region Members
 		protected List<Thread> threads;
+		protected List<T> contexts;
 		protected ManualResetEvent stopEvent;
 		protected bool disposed;
         #endregion
@@ -84,17 +97,6 @@ namespace CLARTE.Threads
             {
 				return (uint) threads.Count;
             }
-        }
-
-		/// <summary>
-		/// Return the default number of worker threads on the current machine.
-		/// </summary>
-		public static uint DefaultThreadsCount
-        {
-            get
-            {
-				return (uint) Math.Max(Environment.ProcessorCount - 1, 1);
-			}
         }
 		#endregion
 
@@ -125,6 +127,7 @@ namespace CLARTE.Threads
 				}
 
 				threads = new List<Thread>((int) nb_threads);
+				contexts = new List<T>((int) nb_threads);
 
 				stopEvent = new ManualResetEvent(false);
 
@@ -132,9 +135,12 @@ namespace CLARTE.Threads
 				{
 					for(int i = 0; i < desc.nbThreads; i++)
 					{
-						Thread thread = new Thread(() => Worker(desc));
+						T context = desc.contextFactory();
+
+						Thread thread = new Thread(() => Worker(desc, context));
 
 						threads.Add(thread);
+						contexts.Add(context);
 					}
 				}
 
@@ -216,11 +222,21 @@ namespace CLARTE.Threads
 		}
 		#endregion
 
-		#region Worker
-		protected void Worker(Descriptor descriptor)
+		#region IEnumerable implementation
+		public IEnumerator<T> GetEnumerator()
 		{
-			T context = descriptor.contextFactory();
+			return contexts.GetEnumerator();
+		}
 
+		IEnumerator IEnumerable.GetEnumerator()
+		{
+			return GetEnumerator();
+		}
+		#endregion
+
+		#region Worker
+		protected void Worker(Descriptor descriptor, T context)
+		{
 			uint events_count = descriptor.nbEvents + 1;
 			int event_idx = 0;
 			
@@ -267,6 +283,6 @@ namespace CLARTE.Threads
 				}
 			}
 		}
-		#endregion
-	}
+        #endregion
+    }
 }
