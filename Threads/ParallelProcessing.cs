@@ -5,20 +5,94 @@ using System.Threading;
 
 namespace CLARTE.Threads
 {
+	public abstract class ParallelProcessing
+	{
+		public abstract class Context<T> : IDisposable
+        {
+			public Queue<T> tasks;
+			public ManualResetEvent addEvent;
+			protected bool disposed;
+
+			public Context()
+            {
+				tasks = new Queue<T>();
+
+				addEvent = new ManualResetEvent(false);
+			}
+
+			#region IDisposable implementation
+			protected virtual void Dispose(bool disposing)
+			{
+				if (!disposed)
+				{
+					if (disposing)
+					{
+						// TODO: delete managed state (managed objects).
+
+						if (addEvent != null)
+						{
+							try
+							{
+#if NETFX_CORE
+								addEvent.Dispose();
+#else
+								addEvent.Close();
+#endif
+							}
+							catch (ObjectDisposedException)
+							{
+								// Fixed errors in Unity editor
+							}
+						}
+					}
+
+					// TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
+					// TODO: set fields of large size with null value.
+
+					disposed = true;
+				}
+			}
+
+			// TODO: replace finalizer only if the above Dispose(bool disposing) function as code to free unmanaged resources.
+			~Context()
+			{
+				Dispose(/*false*/);
+			}
+
+			/// <summary>
+			/// Dispose of the context.
+			/// </summary>
+			public void Dispose()
+			{
+				// Pass true in dispose method to clean managed resources too and say GC to skip finalize in next line.
+				Dispose(true);
+
+				// If dispose is called already then say GC to skip finalize on this instance.
+				// TODO: uncomment next line if finalizer is replaced above.
+				GC.SuppressFinalize(this);
+			}
+            #endregion
+        }
+    }
+
 	/// <summary>
 	/// A thread pool for parallel processing of identical data.
 	/// </summary>
-	public class ParallelProcessing<T, U> : Workers<U>, IDisposable
+	public class ParallelProcessing<T, U> : IDisposable, IEnumerable<U> where U : ParallelProcessing.Context<T>
 	{
+		public delegate U ContextFactory();
 		public delegate void Process(U context, T data);
 
 		#region Members
 		protected Process algorithm;
-		protected Queue<T> tasks;
-		protected ManualResetEvent addEvent;
+		protected List<Thread> threads;
+		protected List<U> contexts;
+		protected ManualResetEvent stopEvent;
 		protected ManualResetEvent completedEvent;
 		protected object taskCountMutex;
 		protected int taskCount; // We can not use the length of the tasks queue because when the lasts task is removed from the queue, it is still executed and WaitForTasksCompletion should continue to wait.
+		protected int current;
+		protected bool disposed;
 		#endregion
 
 		#region Constructors / Destructors
@@ -28,64 +102,196 @@ namespace CLARTE.Threads
 		/// <param name="algorithm">Algorithm used to process the queued data.</param>
 		/// <param name="context_factory">a factory method used to generate context for each of the worker threads</param>
 		/// <param name="nb_threads">The number of worker threads to span. If zero, the worker is started in (nb_cpu_cores - 1) threads.</param>
-		public ParallelProcessing(Process algorithm, Descriptor.ContextFactory context_factory, uint nb_threads = 0)
+		public ParallelProcessing(Process algorithm, ContextFactory context_factory, uint nb_threads = 0)
 		{
 			if (algorithm == null)
 			{
 				throw new ArgumentNullException("algorithm", "Invalid null algorithm method in parallel processing constructor.");
 			}
 
+			if (context_factory == null)
+			{
+				throw new ArgumentNullException("context_factory", "Invalid null context factory method in parallel processing constructor.");
+			}
+
 			this.algorithm = algorithm;
 
-			tasks = new Queue<T>();
-
-			addEvent = new ManualResetEvent(false);
 			completedEvent = new ManualResetEvent(true);
 
 			taskCountMutex = new object();
 
-			Init(new Descriptor(context_factory, Worker, new ManualResetEvent[] { addEvent }, nb_threads));
+			current = 0;
+
+			if (threads == null)
+			{
+				if(nb_threads <= 0)
+                {
+					nb_threads = Workers.DefaultThreadsCount;
+                }
+
+				threads = new List<Thread>((int) nb_threads);
+				contexts = new List<U>((int) nb_threads);
+
+				stopEvent = new ManualResetEvent(false);
+
+				for (int i = 0; i < nb_threads; i++)
+				{
+					U context = context_factory();
+
+					Thread thread = new Thread(() => Worker(context));
+
+					threads.Add(thread);
+					contexts.Add(context);
+				}
+
+				foreach (Thread thread in threads)
+				{
+					thread.Start();
+				}
+			}
+		}
+		#endregion
+
+		#region IDisposable implementation
+		protected virtual void Dispose(bool disposing)
+		{
+			if (!disposed)
+			{
+				if (disposing)
+				{
+					// TODO: delete managed state (managed objects).
+
+					if (stopEvent != null && threads != null && threads.Count > 0)
+					{
+						try
+						{
+							stopEvent.Set();
+						}
+						catch (ObjectDisposedException)
+						{
+							// Fixed errors in Unity editor
+						}
+
+						foreach (Thread thread in threads)
+						{
+							thread.Join();
+						}
+
+						threads.Clear();
+
+						try
+						{
+#if NETFX_CORE
+							stopEvent.Dispose();
+							completedEvent.Dispose();
+#else
+							stopEvent.Close();
+							completedEvent.Close();
+#endif
+						}
+						catch (ObjectDisposedException)
+						{
+							// Fixed errors in Unity editor
+						}
+
+						foreach(U context in contexts)
+                        {
+							context.Dispose();
+                        }
+					}
+				}
+
+				// TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
+				// TODO: set fields of large size with null value.
+
+				disposed = true;
+			}
+		}
+
+		// TODO: replace finalizer only if the above Dispose(bool disposing) function as code to free unmanaged resources.
+		~ParallelProcessing()
+		{
+			Dispose(/*false*/);
+		}
+
+		/// <summary>
+		/// Dispose of the thread pool. Wait for curently executing async task to complete and release all the allocated threads.
+		/// </summary>
+		/// <remarks>Note that async tasks that are planned but not started yet will be discarded.</remarks>
+		public void Dispose()
+		{
+			// Pass true in dispose method to clean managed resources too and say GC to skip finalize in next line.
+			Dispose(true);
+
+			// If dispose is called already then say GC to skip finalize on this instance.
+			// TODO: uncomment next line if finalizer is replaced above.
+			GC.SuppressFinalize(this);
+		}
+		#endregion
+
+		#region IEnumerable implementation
+		public IEnumerator<U> GetEnumerator()
+		{
+			return contexts.GetEnumerator();
+		}
+
+		IEnumerator IEnumerable.GetEnumerator()
+		{
+			return GetEnumerator();
 		}
 		#endregion
 
 		#region Worker
-		protected void Worker(U context, WaitHandle ev)
+		protected void Worker(U context)
 		{
-			if (ev == addEvent)
+			int event_idx;
+
+			// Generate the list of events the worker will be waiting for
+			WaitHandle[] wait = new WaitHandle[] { stopEvent, context.addEvent };
+
+			try
 			{
-				T data = default;
-
-				bool has_data = false;
-
-				lock (tasks)
+				// Wait for events to call the worker callback
+				while ((event_idx = WaitHandle.WaitAny(wait)) != 0)
 				{
-					if (tasks.Count > 0)
-					{
-						data = tasks.Dequeue();
+					T data = default;
 
-						has_data = true;
-					}
-					else
+					bool has_data = false;
+
+					lock (context.tasks)
 					{
-						// Nothing to do anymore, go to sleep
-						addEvent.Reset();
+						if (context.tasks.Count > 0)
+						{
+							data = context.tasks.Dequeue();
+
+							has_data = true;
+						}
+						else
+						{
+							// Nothing to do anymore, go to sleep
+							context.addEvent.Reset();
+						}
+					}
+
+					if (has_data)
+					{
+						algorithm(context, data);
+
+						lock (taskCountMutex)
+						{
+							taskCount--;
+
+							if (taskCount <= 0)
+							{
+								completedEvent.Set();
+							}
+						}
 					}
 				}
-
-				if (has_data)
-				{
-					algorithm(context, data);
-
-					lock (taskCountMutex)
-					{
-						taskCount--;
-
-						if(taskCount <= 0)
-                        {
-							completedEvent.Set();
-                        }
-					}
-				}
+			}
+			catch (ObjectDisposedException)
+			{
+				// Fixed errors in Unity editor
 			}
 		}
 		#endregion
@@ -111,12 +317,16 @@ namespace CLARTE.Threads
 					completedEvent.Reset();
 				}
 
-				lock (tasks)
+				U context = contexts[current];
+
+				current = (current + 1) % contexts.Count;
+
+				lock (context.tasks)
 				{
-					tasks.Enqueue(data);
+					context.tasks.Enqueue(data);
 				}
 
-				addEvent.Set();
+				context.addEvent.Set();
 			}
 		}
 
