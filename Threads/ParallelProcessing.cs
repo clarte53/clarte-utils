@@ -89,7 +89,6 @@ namespace CLARTE.Threads
 		protected List<U> contexts;
 		protected ManualResetEvent stopEvent;
 		protected ManualResetEvent completedEvent;
-		protected object taskCountMutex;
 		protected int taskCount; // We can not use the length of the tasks queue because when the lasts task is removed from the queue, it is still executed and WaitForTasksCompletion should continue to wait.
 		protected int current;
 		protected bool disposed;
@@ -117,8 +116,6 @@ namespace CLARTE.Threads
 			this.algorithm = algorithm;
 
 			completedEvent = new ManualResetEvent(true);
-
-			taskCountMutex = new object();
 
 			current = 0;
 
@@ -277,14 +274,11 @@ namespace CLARTE.Threads
 					{
 						algorithm(context, data);
 
-						lock (taskCountMutex)
-						{
-							taskCount--;
+						Interlocked.Decrement(ref taskCount);
 
-							if (taskCount <= 0)
-							{
-								completedEvent.Set();
-							}
+						if (taskCount <= 0)
+						{
+							completedEvent.Set();
 						}
 					}
 				}
@@ -310,12 +304,9 @@ namespace CLARTE.Threads
 
 			if (data != null)
 			{
-				lock (taskCountMutex)
-				{
-					taskCount++;
+				Interlocked.Increment(ref taskCount);
 
-					completedEvent.Reset();
-				}
+				completedEvent.Reset();
 
 				U context = contexts[current];
 
@@ -341,10 +332,7 @@ namespace CLARTE.Threads
 				throw new ObjectDisposedException("CLARTE.Threads.ParallelProcessing", "The processing pool is already disposed.");
 			}
 
-			lock (taskCountMutex)
-			{
-				return taskCount;
-			}
+			return taskCount;
 		}
 
 		/// <summary>
