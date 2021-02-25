@@ -473,6 +473,51 @@ namespace CLARTE.Geometry
 			return true;
 		}
 
+		static private Vector3 Direction(int direction_id)
+        {
+			Vector3 direction = Vector3.right;
+
+			switch(direction_id)
+			{
+				case 0:
+					direction = Vector3.right;
+					break;
+				case 1:
+					direction = Vector3.up;
+					break;
+				case 2:
+					direction = Vector3.forward;
+					break;
+				default:
+					Debug.LogError("Direction id should be 0, 1 or 2");
+					break;
+			}
+
+			return direction;
+		}
+
+		static public bool CapsuleCapsuleIntersection(CapsuleCollider capsule1, CapsuleCollider capsule2)
+        {
+			// Capsule 1
+			Vector3 capsule1_direction = Direction(capsule1.direction);
+
+			float capsule1_f1f2 = capsule1.height - 2.0f * capsule1.radius;
+
+			Vector3 capsule1_f1_world = capsule1.gameObject.transform.TransformPoint(capsule1.center + 0.5f * capsule1_direction * capsule1_f1f2);
+			Vector3 capsule1_f2_world = capsule1.gameObject.transform.TransformPoint(capsule1.center - 0.5f * capsule1_direction * capsule1_f1f2);
+
+			// Capsule 2
+			Vector3 capsule2_direction = Direction(capsule2.direction);
+
+			float capsule2_f1f2 = capsule2.height - 2.0f * capsule2.radius;
+
+			Vector3 capsule2_f1_world = capsule2.gameObject.transform.TransformPoint(capsule2.center + 0.5f * capsule2_direction * capsule2_f1f2);
+			Vector3 capsule2_f2_world = capsule2.gameObject.transform.TransformPoint(capsule2.center - 0.5f * capsule2_direction * capsule2_f1f2);
+
+
+			return CapsuleCapsuleIntersection(new Capsule(capsule1_f1_world, capsule1_f2_world, capsule1.radius), new Capsule(capsule2_f1_world, capsule2_f2_world, capsule2.radius));
+		}
+
 		/// <summary>
 		/// Checks whether two capsules are intersecting.
 		/// Two capsules intersect <=> radius 1 + radius 2 >= dist(axis 1, axis2)
