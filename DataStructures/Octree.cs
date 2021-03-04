@@ -6,15 +6,45 @@ namespace CLARTE.DataStructures
 {
     public class Octree<T>
     {
+        public class CellEvents
+        {
+            #region Events
+            public event EventHandler<Cell> OnEnabled;
+            public event EventHandler<Cell> OnDisabled;
+            #endregion
+
+            #region Public methods
+            public void Enable(Cell cell)
+            {
+                TriggerEvent(OnEnabled, cell);
+            }
+
+            public void Disable(Cell cell)
+            {
+                TriggerEvent(OnDisabled, cell);
+            }
+            #endregion
+
+            #region Internal methods
+            public void TriggerEvent(EventHandler<Cell> ev, Cell cell)
+            {
+                // Avoid possible race conditions
+                EventHandler<Cell> e = ev;
+
+                e?.Invoke(this, cell);
+            }
+            #endregion
+        }
+
         public struct Cell
         {
-            public Vector3 center;
+            public Bounds bounds;
             public T value;
 
             #region Constructors
-            public Cell(Vector3 c, T val)
+            public Cell(Vector3 center, float resolution, T val)
             {
-                center = c;
+                bounds = new Bounds(center, resolution * Vector3.one);
                 value = val;
             }
             #endregion
@@ -35,25 +65,7 @@ namespace CLARTE.DataStructures
             }
             #endregion
         }
-        /*
-        public static class Utils
-        {
-            public static T AverageAggregator(IEnumerator<T> values, Func<T, T, T> sum, Func<T, uint, T> div)
-            {
-                T avg = default(T);
 
-                uint count = 0;
-
-                while (values.MoveNext())
-                {
-                    avg = sum(avg, values.Current);
-                    count++;
-                }
-
-                return div(avg, count);
-            }
-        }
-        */
         protected abstract class NodeBase
         {
             #region Abstract methods
@@ -86,76 +98,57 @@ namespace CLARTE.DataStructures
                     children[i] = null;
                 }
             }
-            /*
-            public IEnumerator<T> GetChildrenValues()
-            {
-                foreach(NodeBase child in children)
-                {
-                    switch(child)
-                    {
-                        case Leaf leaf:
-                            yield return leaf.value;
-
-                            break;
-
-                        case Node node:
-                            IEnumerator<T> it = node.GetChildrenValues();
-
-                            while (it.MoveNext())
-                            {
-                                yield return it.Current;
-                            }
-
-                            break;
-                    }
-                }
-            }
-            */
             #endregion
         }
 
         protected class Leaf : NodeBase
         {
             #region Members
+            public CellEvents events;
+            public Vector3 center;
             public T value;
             #endregion
 
             #region Constructors
-            public Leaf()
+            public Leaf(Func<CellEvents, T> factory)
             {
-                value = default(T);
+                events = new CellEvents();
+                center = Vector3.zero;
+                value = factory(events);
             }
             #endregion
 
             #region Public methods
             public override void Reset(Action<NodeBase> release)
             {
-                value = default(T);
+
             }
             #endregion
         }
 
         #region Members
+        protected readonly float resolution;
         protected readonly float half_resolution;
         protected readonly int maxDepth;
         protected readonly Bounds bounds;
         protected NodeBase root;
-        protected Stack<NodeBase> nodePool;
-        protected Stack<NodeBase> leafPool;
-        //protected Func<IEnumerator<T>, T> aggregator;
-        protected T initValue;
+        protected Stack<Node> nodePool;
+        protected Stack<Leaf> leafPool;
+        protected Func<CellEvents, T> factory;
+        protected Func<T, T> reset;
         #endregion
 
         #region Constructors
-        public Octree(Bounds bounds, float resolution, /*Func<IEnumerator<T>, T> aggregator,*/ T init_value = default(T))
+        public Octree(Bounds bounds, float resolution, Func<CellEvents, T> factory, Func<T, T> reset)
         {
-            //this.aggregator = aggregator;
+            this.resolution = resolution;
+            this.factory = factory;
+            this.reset = reset;
 
             half_resolution = 0.5f * resolution;
-            initValue = init_value;
-
-            nodePool = new Stack<NodeBase>();
-            leafPool = new Stack<NodeBase>();
+            
+            nodePool = new Stack<Node>();
+            leafPool = new Stack<Leaf>();
 
             root = null;
 
@@ -180,114 +173,101 @@ namespace CLARTE.DataStructures
         #endregion
 
         #region Public methods
-        public IEnumerator<Cell> Get()
-        {
-            return Get(root, maxDepth, bounds.center);
-        }
-
-        public void Update(Vector3 position, Func<T, UpdateResult> updater)
+        public bool Update(Vector3 position, Func<T, UpdateResult> updater)
         {
             Vector3 min = bounds.min;
             Vector3 max = bounds.max;
 
             if(position.x < min.x || position.y < min.y || position.z < min.z || position.x >= max.x || position.y >= max.y || position.z >= max.z)
             {
-                throw new ArgumentOutOfRangeException("The given positon is outside the range of the octree.", "position");
+                return false;
             }
 
             root = Update(root, maxDepth, bounds.center, position, updater);
+
+            return true;
         }
         #endregion
 
         #region Internal methods
-        protected U GetNew<U>() where U : NodeBase, new()
+        protected Cell GetCell(Leaf leaf)
         {
-            Stack<NodeBase> pool = typeof(Leaf).IsAssignableFrom(typeof(U)) ? leafPool : nodePool;
+            return new Cell(leaf.center, resolution, leaf.value);
+        }
 
-            if(pool.Count > 0)
+        protected Node GetNewNode()
+        {
+            Node result;
+
+            if (nodePool.Count > 0)
             {
-                return pool.Pop() as U;
+                result = nodePool.Pop();
             }
             else
             {
-                return new U();
+                result = new Node();
             }
+
+            return result;
         }
 
-        protected void Release(NodeBase node)
+        protected Leaf GetNewLeaf(Vector3 center)
+        {
+            Leaf leaf;
+
+            if (leafPool.Count > 0)
+            {
+                leaf = leafPool.Pop();
+            }
+            else
+            {
+                leaf = new Leaf(factory);
+            }
+
+            leaf.center = center;
+            leaf.value = reset(leaf.value);
+
+            leaf.events.Enable(GetCell(leaf));
+
+            return leaf;
+        }
+
+        protected void Release<U>(U node) where U : NodeBase
         {
             if (node != null)
             {
-                Stack<NodeBase> pool = typeof(Leaf).IsAssignableFrom(node.GetType()) ? leafPool : nodePool;
-
-                node.Reset(Release);
-
-                pool.Push(node);
-            }
-        }
-
-        protected IEnumerator<Cell> Get(NodeBase node, int depth, Vector3 center)
-        {
-            if(node != null)
-            {
                 switch(node)
                 {
-                    case Leaf leaf:
-                        yield return new Cell(center, leaf.value);
+                    case Node n:
+                        nodePool.Push(n);
 
                         break;
 
-                    case Node n:
-                        for(int i = 0; i < Node.dim; i++)
-                        {
-                            int x = ((i & 1) << 1) - 1;
-                            int y = (i & 2) - 1;
-                            int z = ((i & 4) >> 1) - 1;
+                    case Leaf leaf:
+                        leaf.events.Disable(GetCell(leaf));
 
-                            int d = depth - 1;
-
-                            IEnumerator<Cell> it = Get(n.children[i], d, center + half_resolution * (1 << d) * new Vector3(x, y, z));
-
-                            while(it.MoveNext())
-                            {
-                                yield return it.Current;
-                            }
-                        }
+                        leafPool.Push(leaf);
 
                         break;
                 }
+
+                node.Reset(Release);
             }
         }
 
         protected NodeBase Update(NodeBase node, int depth, Vector3 center, Vector3 position, Func<T, UpdateResult> updater)
         {
-            /*
-            Vector3 min = center - half_resolution * Vector3.one;
-            Vector3 max = center + half_resolution * Vector3.one;
-
-            bool is_leaf = 
-                position.x >= min.x &&
-                position.y >= min.y &&
-                position.z >= min.z &&
-                position.x < max.x &&
-                position.y < max.y &&
-                position.z < max.z;
-            */
             bool is_leaf = depth == 0;
 
             if (node == null)
             {
                 if(is_leaf)
                 {
-                    Leaf leaf = GetNew<Leaf>();
-
-                    leaf.value = initValue;
-
-                    node = leaf;
+                    node = GetNewLeaf(center);
                 }
                 else
                 {
-                    node = GetNew<Node>();
+                    node = GetNewNode();
                 }
             }
 
@@ -298,17 +278,6 @@ namespace CLARTE.DataStructures
                     case Node n:
                         // This should only happens when resolution is decreased.
                         throw new NotSupportedException("Invalid octree node where a leaf was expected.");
-                        /*
-                        T value = aggregator(n.GetChildrenValues());
-
-                        Release(n);
-
-                        node = GetNew<Leaf>();
-
-                        ((Leaf) node).value = value;
-
-                        break;
-                        */
                 }
 
                 Leaf leaf = node as Leaf;
@@ -331,17 +300,6 @@ namespace CLARTE.DataStructures
                     case Leaf leaf:
                         // This should only happens when resolution is increased.
                         throw new NotSupportedException("Invalid octree leaf where a node was expected.");
-                        /*
-                        T value = leaf.value;
-
-                        Release(leaf);
-
-                        node = GetNew<Node>();
-
-                        node = Update(node, depth, center, center, v => new UpdateResult(true, value));
-
-                        break;
-                        */
                 }
 
                 Node n = node as Node;
