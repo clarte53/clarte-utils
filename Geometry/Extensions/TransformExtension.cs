@@ -232,6 +232,12 @@ namespace CLARTE.Geometry.Extensions
 			UnityEditor.Selection.activeTransform.ShowHierarchy(false);
 		}
 
+		[UnityEditor.MenuItem("GameObject/Show-hide hierarchy/Hide children", true, 0)]
+		static bool ValidateHideChildren()
+		{
+			return UnityEditor.Selection.activeTransform != null;
+		}
+
 		/// <summary>
 		/// Add ability to show children objects to a GameObject contextual menu
 		/// (right click on a GO in the Hierarchy view)
@@ -242,6 +248,12 @@ namespace CLARTE.Geometry.Extensions
 			UnityEditor.Selection.activeTransform.ShowHierarchy(true);
 		}
 
+		[UnityEditor.MenuItem("GameObject/Show-hide hierarchy/Show children", true, 0)]
+		static bool ValidateShowChildren()
+		{
+			return UnityEditor.Selection.activeTransform != null;
+		}
+
 		/// <summary>
 		/// Add ability to parent to scene root to a GameObject contextual menu
 		/// (right click on a GO in the Hierarchy view)
@@ -250,6 +262,12 @@ namespace CLARTE.Geometry.Extensions
 		static void MoveToRoot()
 		{
 			UnityEditor.Selection.activeTransform.parent = null; ;
+		}
+
+		[UnityEditor.MenuItem("GameObject/Move to root", true, 0)]
+		static bool ValidateMoveToRoot()
+		{
+			return UnityEditor.Selection.activeTransform != null;
 		}
 #endif
 	}
