@@ -472,40 +472,46 @@ namespace CLARTE.Geometry
 
 			return true;
 		}
-
-		static private Vector3 Direction(int direction_id)
-        {
-			Vector3 direction = Vector3.right;
-
-			switch(direction_id)
-			{
-				case 0:
-					direction = Vector3.right;
-					break;
-				case 1:
-					direction = Vector3.up;
-					break;
-				case 2:
-					direction = Vector3.forward;
-					break;
-				default:
-					Debug.LogError("Direction id should be 0, 1 or 2");
-					break;
-			}
-
-			return direction;
-		}
-
+		
 		static private Capsule CapsuleCollider2Capsule(CapsuleCollider collider)
         {
-			Vector3 capsule_direction = Direction(collider.direction);
+			Vector3 capsule_direction_local;
+			float capsule_scale_1;
+			float capsule_scale_2;
 
-			float capsule_f1f2 = collider.height - 2.0f * collider.radius;
+			switch(collider.direction)
+			{
+				case 0:
+					capsule_direction_local = Vector3.right;
+					capsule_scale_1 = collider.gameObject.transform.lossyScale.y;
+					capsule_scale_2 = collider.gameObject.transform.lossyScale.z;
+					break;
+				case 1:
+					capsule_direction_local = Vector3.up;
+					capsule_scale_1 = collider.gameObject.transform.lossyScale.x;
+					capsule_scale_2 = collider.gameObject.transform.lossyScale.z;
+					break;
+				case 2:
+					capsule_direction_local = Vector3.forward;
+					capsule_scale_1 = collider.gameObject.transform.lossyScale.x;
+					capsule_scale_2 = collider.gameObject.transform.lossyScale.y;
+					break;
+				default:					
+					Debug.LogError("Direction id should be 0, 1 or 2");
+					return default(Capsule);
+			}
 
-			Vector3 capsule_f1_world = collider.gameObject.transform.TransformPoint(collider.center + 0.5f * capsule_direction * capsule_f1f2);
-			Vector3 capsule_f2_world = collider.gameObject.transform.TransformPoint(collider.center - 0.5f * capsule_direction * capsule_f1f2);
+			float radius = collider.radius * Mathf.Max(capsule_scale_1, capsule_scale_2);
 
-			return new Capsule(capsule_f1_world, capsule_f2_world, collider.radius);
+			Vector3 capsule_ext1_world = collider.gameObject.transform.TransformPoint(collider.center + 0.5f * capsule_direction_local * collider.height);
+			Vector3 capsule_ext2_world = collider.gameObject.transform.TransformPoint(collider.center - 0.5f * capsule_direction_local * collider.height);
+
+			Vector3 capsule_direction_world = collider.gameObject.transform.TransformDirection(capsule_direction_local);
+
+			Vector3 capsule_f1_world = capsule_ext1_world - capsule_direction_world * radius;
+			Vector3 capsule_f2_world = capsule_ext2_world + capsule_direction_world * radius;
+
+			return new Capsule(capsule_f1_world, capsule_f2_world, radius);
 		}
 
 		/// <summary>
@@ -1284,7 +1290,7 @@ namespace CLARTE.Geometry
 
 			SegmentSegmentClosestPoints(s1, s2, out c1, out c2);
 
-			return Vector3.Magnitude(c2 - c1) - capsule1.r - capsule2.r;
+			return Mathf.Max(0.0f, Vector3.Magnitude(c2 - c1) - capsule1.r - capsule2.r);
 		}
 		#endregion
 
