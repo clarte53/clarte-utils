@@ -473,7 +473,7 @@ namespace CLARTE.Geometry
 			return true;
 		}
 		
-		static private Capsule CapsuleCollider2Capsule(CapsuleCollider collider)
+		static public Capsule CapsuleCollider2Capsule(CapsuleCollider collider)
         {
 			Vector3 capsule_direction_local;
 			float capsule_scale_1;
