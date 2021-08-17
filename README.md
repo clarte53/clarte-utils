@@ -39,6 +39,7 @@ The following namespaces are defined:
 - 'Video' contains base classes to use video captured in byte buffers.
 - 'Rendering' contains extentions on Texture2D and some helpers component
   to highlight things in a VR experience.
+- 'Replay' a replay engine mechanic with load and save pattern command based.
 
 png files in this repository are editable with draw.io, do not forget to
 to embded graph in png file when editing it.
