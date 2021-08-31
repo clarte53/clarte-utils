@@ -89,18 +89,30 @@ namespace CLARTE.Serialization
         }
 
         #region Members
-        protected Memory.BufferPool buffers = new Memory.BufferPool();
-		#endregion
+        protected Memory.BufferPool buffers;
+        #endregion
 
-		#region Buffer handling overloads
-		/// <summary>
-		/// Get a buffer of at least min_size.
-		/// </summary>
-		/// <remarks>The buffer can potentially be bigger, depending on the available allocated resources.</remarks>
-		/// <param name="min_size">The minimal size of the buffer.</param>
-		/// <param name="progress">Callback to report progress in serialization.</param>
-		/// <returns>A buffer.</returns>
-		public Buffer GetBuffer(uint min_size, Action<float> progress = null)
+        #region Constructors
+		public Binary()
+        {
+			buffers = new Memory.BufferPool();
+		}
+
+		public Binary(Memory.BufferPool buffers)
+        {
+			this.buffers = buffers ?? new Memory.BufferPool();
+        }
+        #endregion
+
+        #region Buffer handling overloads
+        /// <summary>
+        /// Get a buffer of at least min_size.
+        /// </summary>
+        /// <remarks>The buffer can potentially be bigger, depending on the available allocated resources.</remarks>
+        /// <param name="min_size">The minimal size of the buffer.</param>
+        /// <param name="progress">Callback to report progress in serialization.</param>
+        /// <returns>A buffer.</returns>
+        public Buffer GetBuffer(uint min_size, Action<float> progress = null)
 		{
 			return new Buffer(this, min_size, progress);
 		}
