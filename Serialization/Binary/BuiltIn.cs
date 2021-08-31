@@ -414,7 +414,34 @@ namespace CLARTE.Serialization
 		/// <returns>The number of deserialized bytes.</returns>
 		public uint FromBytes(Buffer buffer, uint start, out Type value)
 		{
-			return buffer.Types.FromBytes(buffer, start, out value);
+			string raw_complete_type;
+
+			// Get the precise type of this object
+			uint read = FromBytes(buffer, start, out raw_complete_type);
+
+			// If an explicit type is defined, use it.
+			if (!string.IsNullOrEmpty(raw_complete_type))
+			{
+				try
+				{
+					value = Type.GetType(raw_complete_type);
+
+					if (value == null)
+					{
+						throw new TypeLoadException();
+					}
+				}
+				catch (Exception)
+				{
+					throw new SerializationException(string.Format("Missing type '{0}'. Use 'link.xml' files to include missing type in build.", raw_complete_type), new TypeLoadException(string.Format("Missing type '{0}'.", raw_complete_type)));
+				}
+			}
+			else
+			{
+				value = null;
+			}
+
+			return read;
 		}
 		#endregion
 
@@ -640,7 +667,8 @@ namespace CLARTE.Serialization
 		/// <returns>The number of serialized bytes.</returns>
 		public uint ToBytes(ref Buffer buffer, uint start, Type value)
 		{
-			return buffer.Types.ToBytes(ref buffer, start, value);
+			// Serialize the type info
+			return ToBytes(ref buffer, start, value != null ? string.Format("{0}, {1}", value.ToString(), value.Assembly.GetName().Name) : "");
 		}
 		#endregion
 	}
