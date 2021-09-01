@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using UnityEngine.Events;
+using CLARTE.Memory;
 
 namespace CLARTE.Net.Negotiation.Connection
 {
@@ -25,13 +26,13 @@ namespace CLARTE.Net.Negotiation.Connection
 		protected struct SendState
 		{
 			public Threads.Result result;
-			public byte[] data;
+			public BufferPool.Buffer data;
 		}
 
 		protected struct ReceiveState
 		{
 			public IPEndPoint ip;
-			public byte[] data;
+			public BufferPool.Buffer data;
 			public int offset;
 
 			public ReceiveState(IPEndPoint ip)
@@ -42,9 +43,11 @@ namespace CLARTE.Net.Negotiation.Connection
 				offset = 0;
 			}
 
-			public void Set(byte[] data)
+			public void Set(BufferPool.Buffer data, uint size)
 			{
 				this.data = data;
+
+				this.data.Size = size;
 
 				offset = 0;
 			}
@@ -53,7 +56,7 @@ namespace CLARTE.Net.Negotiation.Connection
 			{
 				get
 				{
-					return data != null ? data.Length - offset : 0;
+					return data != null ? (int) data.Size - offset : 0;
 				}
 			}
 		}
@@ -76,7 +79,7 @@ namespace CLARTE.Net.Negotiation.Connection
 		public abstract bool Connected();
 		public abstract IPAddress GetRemoteAddress();
 		protected abstract void DisposeInternal(bool disposing);
-		protected abstract void SendAsync(Threads.Result result, byte[] data);
+		protected abstract void SendAsync(Threads.Result result, BufferPool.Buffer data);
 		protected abstract void ReceiveAsync();
 		#endregion
 
@@ -237,7 +240,7 @@ namespace CLARTE.Net.Negotiation.Connection
 			events.onReceiveProgress = channel.onReceiveProgress;
 		}
 
-		public void SetEvents(UnityAction<IPAddress, Guid, ushort, byte[]> on_receive)
+		public void SetEvents(UnityAction<IPAddress, Guid, ushort, BufferPool.Buffer> on_receive)
 		{
 			events.onReceive = new Events.ReceiveCallback();
 			events.onReceive.AddListener(on_receive);
@@ -267,7 +270,7 @@ namespace CLARTE.Net.Negotiation.Connection
 			}
 		}
 
-		public void SendAsync(byte[] data)
+		public void SendAsync(BufferPool.Buffer data)
 		{
 			if(!disposed)
 			{
@@ -291,10 +294,7 @@ namespace CLARTE.Net.Negotiation.Connection
 		{
 			try
 			{
-				if(value != null)
-				{
-					value.Dispose();
-				}
+				value?.Dispose();
 			}
 			catch(ObjectDisposedException)
 			{
@@ -342,9 +342,9 @@ namespace CLARTE.Net.Negotiation.Connection
 		{
 			WaitHandle[] wait = new WaitHandle[] { stopEvent, addEvent };
 
-			byte[] heartbeat_data = new byte[0];
+			BufferPool.Buffer heartbeat_data = new BufferPool.Buffer(null, new byte[0], false);
 
-			int event_idx = 0;
+            int event_idx;
 
 			while((event_idx = WaitHandle.WaitAny(wait, parameters.heartbeat)) != 0)
 			{

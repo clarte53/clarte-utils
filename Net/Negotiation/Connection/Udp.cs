@@ -7,7 +7,7 @@ using UnityEngine.Events;
 
 namespace CLARTE.Net.Negotiation.Connection
 {
-	public class Udp : Base
+	public class Udp : Socket
 	{
 		#region Members
 		protected UdpClient client;
@@ -16,7 +16,7 @@ namespace CLARTE.Net.Negotiation.Connection
 		#endregion
 
 		#region Constructors
-		public Udp(Negotiation.Base parent, Message.Negotiation.Parameters parameters, UnityAction<Base> disconnection_handler, UdpClient client, ushort local_port, ushort remote_port) : base(parent, parameters, disconnection_handler)
+		public Udp(Negotiation.Base parent, Message.Negotiation.Parameters parameters, UnityAction<Base> disconnection_handler, UdpClient client, ushort local_port, ushort remote_port) : base(parent, parameters, disconnection_handler, client.Client)
 		{
 			this.client = client;
 
@@ -46,6 +46,8 @@ namespace CLARTE.Net.Negotiation.Connection
 		#region IDisposable implementation
 		protected override void DisposeInternal(bool disposing)
 		{
+			base.DisposeInternal(disposing);
+
 			if(disposing)
 			{
 				// TODO: delete managed state (managed objects).
@@ -61,7 +63,7 @@ namespace CLARTE.Net.Negotiation.Connection
 				SafeDispose(client);
 
 				// Release the used port
-				if(parent != null && port != 0)
+				if (parent != null && port != 0)
 				{
 					parent.ReleasePort(port);
 				}
@@ -78,111 +80,11 @@ namespace CLARTE.Net.Negotiation.Connection
 			return client != null;
 		}
 
-		public override IPAddress GetRemoteAddress()
-		{
-			IPAddress address = null;
-
-			if(client != null)
-			{
-				address = ((IPEndPoint) client.Client.RemoteEndPoint).Address;
-			}
-
-			return address;
-		}
-
-		protected override void SendAsync(Threads.Result result, byte[] data)
-		{
-			try
-			{
-				if(client != null)
-				{
-					client.BeginSend(data, data.Length, FinalizeSend, new SendState { result = result, data = data });
-				}
-				else
-				{
-					throw new ArgumentNullException("client", "The connection UdpClient is not defined.");
-				}
-			}
-			catch(Exception e)
-			{
-				result.Complete(e);
-			}
-		}
-
-		protected override void ReceiveAsync()
-		{
-			try
-			{
-				if(client != null)
-				{
-					if(parameters.guid != Guid.Empty)
-					{
-						IPEndPoint ip = (IPEndPoint) client.Client.RemoteEndPoint;
-
-						client.BeginReceive(FinalizeReceive, new ReceiveState(ip));
-					}
-					else
-					{
-						throw new ArgumentNullException("remote", "The connection remote and channel are not defined.");
-					}
-				}
-				else
-				{
-					throw new ArgumentNullException("client", "The connection UdpClient is not defined.");
-				}
-			}
-			catch(Exception e)
-			{
-				HandleException(e);
-			}
-		}
-		#endregion
-
-		#region Internal methods
-		protected void FinalizeSend(IAsyncResult async_result)
-		{
-			SendState state = (SendState) async_result.AsyncState;
-
-			try
-			{
-				int sent_length = client.EndSend(async_result);
-
-				if(sent_length == state.data.Length)
-				{
-					state.result.Complete();
-				}
-				else
-				{
-					throw new ProtocolViolationException(string.Format("Can not send all data. Sent {0} bytes instead of {1}.", sent_length, state.data.Length));
-				}
-			}
-			catch(Exception e)
-			{
-				state.result.Complete(e);
-			}
-		}
-
-		protected void FinalizeReceive(IAsyncResult async_result)
-		{
-			try
-			{
-				ReceiveState state = (ReceiveState) async_result.AsyncState;
-
-				byte[] data = client.EndReceive(async_result, ref state.ip);
-
-				if(data.Length > 0)
-				{
-					Threads.APC.MonoBehaviourCall.Instance.Call(() => events.onReceive.Invoke(state.ip.Address, parameters.guid, parameters.channel, data));
-				}
-
-				// Wait for next data to receive
-				client.BeginReceive(FinalizeReceive, state);
-			}
-			catch(Exception e)
-			{
-				HandleException(e);
-			}
-		}
+		protected override void BeginSend(byte[] data, int size, AsyncCallback on_completed, SendState state) => client.Client.BeginSend(data, 0, size, SocketFlags.None, on_completed, state);
+		protected override void BeginReceive(byte[] data, int offset, int size, AsyncCallback on_completed, ReceiveState state) => client.Client.BeginReceive(data, offset, size, SocketFlags.None, on_completed, state);
+		protected override void EndSend(IAsyncResult async_result) => client.Client.EndSend(async_result);
+		protected override int EndReceive(IAsyncResult async_result) => client.Client.EndReceive(async_result);
+		protected override void Flush() { }
 		#endregion
 	}
 }

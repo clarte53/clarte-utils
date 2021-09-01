@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using UnityEngine;
+using CLARTE.Memory;
 using CLARTE.Serialization;
 
 namespace CLARTE.Net.Negotiation
@@ -76,7 +77,7 @@ namespace CLARTE.Net.Negotiation
 		#region Abstract methods
 		protected abstract void Dispose(bool disposing);
 		protected abstract void Reconnect(Connection.Base connection);
-		protected abstract void OnMonitorReceive(IPAddress address, Guid guid, ushort channel, byte[] data);
+		protected abstract void OnMonitorReceive(IPAddress address, Guid guid, ushort channel, BufferPool.Buffer data);
 		public abstract void Disconnect();
 		public abstract ushort NbChannels { get; }
 		public abstract IEnumerable<Channel> Channels { get; }
@@ -355,7 +356,7 @@ namespace CLARTE.Net.Negotiation
 			return result;
 		}
 
-		public void Send(Guid remote, ushort channel, byte[] data)
+		public void Send(Guid remote, ushort channel, BufferPool.Buffer data)
 		{
 			if(state == State.RUNNING)
 			{
@@ -385,7 +386,7 @@ namespace CLARTE.Net.Negotiation
 			}
 		}
 
-		public void SendOthers(Guid remote, ushort channel, byte[] data)
+		public void SendOthers(Guid remote, ushort channel, BufferPool.Buffer data)
 		{
 			if(state == State.RUNNING)
 			{
@@ -411,7 +412,7 @@ namespace CLARTE.Net.Negotiation
 			}
 		}
 
-		public void SendAll(ushort channel, byte[] data)
+		public void SendAll(ushort channel, BufferPool.Buffer data)
 		{
 			SendOthers(Guid.Empty, channel, data);
 		}
@@ -469,27 +470,25 @@ namespace CLARTE.Net.Negotiation
 
 			written += serializer.ToBytes(ref buffer, written, message);
 
-			byte[] data = new byte[written];
-
-			Array.Copy(buffer.Data, data, written);
+			buffer.Size = written;
 
 			// Send the selected port. A value of 0 means that no port are available.
-			connection.SendAsync(data);
+			connection.SendAsync(buffer);
 		}
 
-		protected Message.Base ReceiveMonitorCommand(byte[] data)
+		protected Message.Base ReceiveMonitorCommand(BufferPool.Buffer data)
 		{
 			const ushort type_nb_bytes = 1;
 
-			Message.Base message = Pattern.Factory<Message.Base, byte>.CreateInstance(data[0]);
+			Binary.Buffer buffer = new Binary.Buffer(data);
 
-			Binary.Buffer buffer = Serializer.GetBufferFromExistingData(data);
+			Message.Base message = Pattern.Factory<Message.Base, byte>.CreateInstance(buffer.Data[0]);
 
 			uint read = Serializer.FromBytesOverwrite(buffer, type_nb_bytes, message);
 
-			if(read != data.Length - type_nb_bytes)
+			if(read != buffer.Size - type_nb_bytes)
 			{
-				Debug.LogErrorFormat("Some received data was not read. Read '{0}' bytes instead of '{1}'.", read, data.Length - type_nb_bytes);
+				Debug.LogErrorFormat("Some received data was not read. Read '{0}' bytes instead of '{1}'.", read, buffer.Size - type_nb_bytes);
 			}
 
 			return message;

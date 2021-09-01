@@ -12,19 +12,17 @@ namespace CLARTE.Memory
 		/// <summary>
 		/// A buffer of bytes.
 		/// </summary>
-		public class Buffer<T> : IDisposable
+		public class Buffer : IDisposable
 		{
 			#region Members
-			private BufferPool manager;
-			private uint resizeCount;
 			private bool disposed;
 			#endregion
 
 			#region Getter / Setter
 			/// <summary>
-			/// Get the context associated with the buffer.
+			/// The buffer pool managing this buffer.
 			/// </summary>
-			public T Context { get; private set; }
+			protected BufferPool Manager { get; private set; }
 
 			/// <summary>
 			/// Get the buffer bytes data.
@@ -35,6 +33,11 @@ namespace CLARTE.Memory
 			/// Get the buffer occupied size.
 			/// </summary>
 			public uint Size { get; set; }
+
+			/// <summary>
+			/// The number of times this buffer have been resized.
+			/// </summary>
+			protected uint ResizeCount { get; set; }
 			#endregion
 
 			#region Constructors
@@ -43,21 +46,21 @@ namespace CLARTE.Memory
 			/// </summary>
 			/// <remarks>This is the shared constructors code. This constructor should never be called by itself.</remarks>
 			/// <param name="manager">The associated buffer pool.</param>
-			/// <param name="context">The optional context associated with the buffer.</param>
-			private Buffer(BufferPool manager, T context)
+			protected Buffer(BufferPool manager)
 			{
-				this.manager = manager;
-
-				resizeCount = 0;
-
-				Context = context;
+				Manager = manager;
 				Data = null;
-				Size = 0;	
+				Size = 0;
+				ResizeCount = 0;
 
 				disposed = false;
 			}
 
-			protected Buffer(Buffer<T> other) : this(other.manager, other.Context)
+			/// <summary>
+			/// Create a new buffer from an existing one and get ownership of data.
+			/// </summary>
+			/// <param name="other">The other buffer to construct from.</param>
+			protected Buffer(Buffer other) : this(other.Manager)
             {
 				Transfert(other);
             }
@@ -68,8 +71,7 @@ namespace CLARTE.Memory
 			/// <remarks>The buffer can potentially be bigger, depending on the available allocated resources.</remarks>
 			/// <param name="manager">The associated buffer pool.</param>
 			/// <param name="min_size">The minimal size of the buffer.</param>
-			/// <param name="context">The optional context associated with the buffer.</param>
-			public Buffer(BufferPool manager, uint min_size, T context = default(T)) : this(manager, context)
+			public Buffer(BufferPool manager, uint min_size) : this(manager)
 			{
 				Data = manager.Grab(min_size);
 			}
@@ -79,8 +81,8 @@ namespace CLARTE.Memory
 			/// </summary>
 			/// <param name="manager">The associated buffer pool.</param>
 			/// <param name="existing_data">The existing data.</param>
-			/// <param name="context">The optional context associated with the buffer.</param>
-			public Buffer(BufferPool manager, byte[] existing_data, T context = default(T)) : this(manager, context)
+			/// <param name="add_to_pool">True if the data array must be kept and added to the pool once the buffer is disposed.</param>
+			public Buffer(BufferPool manager, byte[] existing_data, bool add_to_pool = false) : this(add_to_pool ? manager : null)
 			{
 				Size = (uint)existing_data.Length;
 
@@ -101,26 +103,23 @@ namespace CLARTE.Memory
 			/// Dispose of buffer and return associated ressources to the pool.
 			/// </summary>
 			/// <param name="disposing">If true, release the memory to the pool.</param>
-			private void Dispose(bool disposing)
+			protected virtual void Dispose(bool disposing)
 			{
 				if (!disposed)
 				{
 					if (disposing)
 					{
 						// TODO: delete managed state (managed objects).
-						manager?.Release(Data);
+						Manager?.Release(Data);
 					}
 
 					// TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
-					(Context as IDisposable)?.Dispose();
 
 					// TODO: set fields of large size with null value.
-					Context = default(T);
+					ResizeCount = 0;
 					Size = 0;
 					Data = null;
-
-					resizeCount = 0;
-					manager = null;
+					Manager = null;
 
 					disposed = true;
 				}
@@ -145,21 +144,205 @@ namespace CLARTE.Memory
 			/// Transfert data ownership from other buffer to us.
 			/// </summary>
 			/// <remarks>After calling this method, the other buffer is disposed automatically and ownership of data is transfered to us.</remarks>
-			/// <typeparam name="U">Type of context of the other buffer.</typeparam>
 			/// <param name="other">Other buffer to get data from.</param>
-			private void Transfert<U>(Buffer<U> other)
+			protected void Transfert(Buffer other)
             {
-				manager = other.manager;
-				resizeCount = other.resizeCount;
-
+				Manager = other.Manager;
 				Data = other.Data;
 				Size = other.Size;
+				ResizeCount = other.ResizeCount;
+
+				disposed = other.disposed;
 
 				other.Data = null;
 
 				// Release other buffer without releasing memory, as ownership is transfered to us.
 				other.Dispose(false);
 				GC.SuppressFinalize(other);
+			}
+			#endregion
+
+			#region Resize
+			/// <summary>
+			/// Resize a buffer to a new size of at least min_size.
+			/// </summary>
+			/// <remarks>The buffer can potentially be bigger, depending on the available allocated resources. After calling this method, the current buffer is disposed automatically and ownership of data is transfered to the new buffer.</remarks>
+			/// <param name="min_size">The new minimal size of the new buffer.</param>
+			/// <param name="buffer_factory">A function that create a new buffer of the requested min size.</param>
+			protected Buffer Resize(uint min_size, Func<uint, Buffer> buffer_factory)
+			{
+				if (Data.Length >= min_size)
+				{
+					return this;
+				}
+				else // Buffer too small: resize
+				{
+					// Get how much memory we need. The idea is to reduce the need of further resizes down the road
+					// for buffers that are frequently resized, while avoiding to get too much memory for buffers
+					// of relatively constant size. Therefore, we allocate at least the size needed, plus an offset
+					// that depends on the number of times this buffer has been resized, as well as the relative
+					// impact of this resize (to avoid allocating huge amount of memory if a resize increase drastically
+					// the size of the buffer. Hopefully, this algorithm should allow a fast convergence to the
+					// ideal buffer size. However, keep in mind that resizes should be a last resort and should be avoided
+					// when possible.
+					uint current_size = (uint)Data.Length;
+					float growth = Math.Max(1f - ((float)min_size) / current_size, minResizeOffset);
+					uint new_size = min_size + (uint)(ResizeCount * growth * min_size);
+
+					// Get a new buffer of sufficient size
+					Buffer new_buffer = buffer_factory(new_size);
+
+					// Increment resize count
+					new_buffer.ResizeCount = ResizeCount + 1;
+
+					// Copy old buffer content into new one
+					Array.Copy(Data, new_buffer.Data, Data.Length);
+					new_buffer.Size = Size;
+
+					// Release old buffer
+					// Actually, do not call dispose for this buffer! If we do, it will be added back to the pool
+					// of available buffers and the allocated memory could increase drastically over time.
+					// Instead, we purposefully ignore to release it. Therefore, the memory will be released when
+					// the buffer gets out of scope, i.e. at the end of this function.
+					Dispose(false);
+					GC.SuppressFinalize(this);
+
+					// Switch buffers
+					return new_buffer;
+				}
+			}
+
+			/// <summary>
+			/// Resize a buffer to a new size of at least min_size.
+			/// </summary>
+			/// <remarks>The buffer can potentially be bigger, depending on the available allocated resources. After calling this method, the current buffer is disposed automatically and ownership of data is transfered to the new buffer.</remarks>
+			/// <param name="min_size">The new minimal size of the new buffer.</param>
+			public Buffer Resize(uint min_size)
+			{
+				return Resize(min_size, s => new Buffer(Manager, s));
+			}
+			#endregion
+		}
+
+		/// <summary>
+		/// A buffer of bytes.
+		/// </summary>
+		public class Buffer<T> : Buffer
+		{
+			#region Members
+			private bool disposed;
+			#endregion
+
+			#region Getter / Setter
+			/// <summary>
+			/// Get the context associated with the buffer.
+			/// </summary>
+			public T Context { get; private set; }
+			#endregion
+
+			#region Constructors
+			/// <summary>
+			/// Create a new buffer.
+			/// </summary>
+			/// <remarks>This is the shared constructors code. This constructor should never be called by itself.</remarks>
+			/// <param name="manager">The associated buffer pool.</param>
+			/// <param name="context">The associated context.</param>
+			protected Buffer(BufferPool manager, T context) : base(manager)
+			{
+				Context = context;
+
+				disposed = false;
+			}
+
+			/// <summary>
+			/// Create a new buffer from an existing one and get ownership of data.
+			/// </summary>
+			/// <param name="other">The other buffer to construct from.</param>
+			public Buffer(Buffer other) : base((BufferPool) null)
+			{
+				Context = default(T);
+
+				Transfert(other);
+			}
+
+			/// <summary>
+			/// Create a new buffer from an existing one and get ownership of data.
+			/// </summary>
+			/// <param name="other">The other buffer to construct from.</param>
+			public Buffer(Buffer<T> other) : base(other.Manager)
+			{
+				Context = other.Context;
+
+				Transfert(other);
+			}
+
+			/// <summary>
+			/// Create a new buffer of at least min_size bytes.
+			/// </summary>
+			/// <remarks>The buffer can potentially be bigger, depending on the available allocated resources.</remarks>
+			/// <param name="manager">The associated buffer pool.</param>
+			/// <param name="min_size">The minimal size of the buffer.</param>
+			/// <param name="context">The optional context associated with the buffer.</param>
+			public Buffer(BufferPool manager, uint min_size, T context = default(T)) : base(manager, min_size)
+			{
+				Context = context;
+
+				disposed = false;
+			}
+
+			/// <summary>
+			/// Create a new buffer from existing data.
+			/// </summary>
+			/// <param name="manager">The associated buffer pool.</param>
+			/// <param name="existing_data">The existing data.</param>
+			/// <param name="add_to_pool">True if the data array must be kept and added to the pool once the buffer is disposed.</param>
+			/// <param name="context">The optional context associated with the buffer.</param>
+			public Buffer(BufferPool manager, byte[] existing_data, bool add_to_pool = false, T context = default(T)) : base(manager, existing_data, add_to_pool)
+			{
+				Context = context;
+
+				disposed = false;
+			}
+			#endregion
+
+			#region IDisposable implementation
+			/// <summary>
+			/// Dispose of buffer and return associated ressources to the pool.
+			/// </summary>
+			/// <param name="disposing">If true, release the memory to the pool.</param>
+			protected override void Dispose(bool disposing)
+			{
+				if (!disposed)
+				{
+					if (disposing)
+					{
+						// TODO: delete managed state (managed objects).
+					}
+
+					// TODO: free unmanaged resources (unmanaged objects) and replace finalizer below.
+					(Context as IDisposable)?.Dispose();
+
+					// TODO: set fields of large size with null value.
+					Context = default(T);
+
+					disposed = true;
+				}
+
+				base.Dispose(disposing);
+			}
+			#endregion
+
+			#region Mutations
+			/// <summary>
+			/// Transfert data ownership from other buffer to us.
+			/// </summary>
+			/// <remarks>After calling this method, the other buffer is disposed automatically and ownership of data is transfered to us.</remarks>
+			/// <param name="other">Other buffer to get data from.</param>
+			protected void Transfert<U>(Buffer<U> other)
+			{
+				disposed = other.disposed;
+
+				base.Transfert(other);
 			}
 
 			/// <summary>
@@ -171,7 +354,7 @@ namespace CLARTE.Memory
 			/// <returns></returns>
 			public Buffer<U> Mutate<U>(U context)
 			{
-				Buffer<U> result = new Buffer<U>(manager, context);
+				Buffer<U> result = new Buffer<U>(Manager, context);
 
 				result.Transfert(this);
 
@@ -197,53 +380,15 @@ namespace CLARTE.Memory
 			/// </summary>
 			/// <remarks>The buffer can potentially be bigger, depending on the available allocated resources. After calling this method, the current buffer is disposed automatically and ownership of data is transfered to the new buffer.</remarks>
 			/// <param name="min_size">The new minimal size of the new buffer.</param>
-			public Buffer<T> Resize(uint min_size)
+			public new Buffer<T> Resize(uint min_size)
 			{
-				if (Data.Length >= min_size)
-				{
-					return this;
-				}
-				else // Buffer too small: resize
-				{
-					// Get how much memory we need. The idea is to reduce the need of further resizes down the road
-					// for buffers that are frequently resized, while avoiding to get too much memory for buffers
-					// of relatively constant size. Therefore, we allocate at least the size needed, plus an offset
-					// that depends on the number of times this buffer has been resized, as well as the relative
-					// impact of this resize (to avoid allocating huge amount of memory if a resize increase drastically
-					// the size of the buffer. Hopefully, this algorithm should allow a fast convergence to the
-					// ideal buffer size. However, keep in mind that resizes should be a last resort and should be avoided
-					// when possible.
-					uint current_size = (uint)Data.Length;
-					float growth = Math.Max(1f - ((float)min_size) / current_size, minResizeOffset);
-					uint new_size = min_size + (uint)(resizeCount * growth * min_size);
-
-					// Get a new buffer of sufficient size
-					Buffer<T> new_buffer = new Buffer<T>(manager, new_size, Context);
-
-					// Increment resize count
-					new_buffer.resizeCount = resizeCount + 1;
-
-					// Copy old buffer content into new one
-					Array.Copy(Data, new_buffer.Data, Data.Length);
-					new_buffer.Size = Size;
-
-					// Release old buffer
-					// Actually, do not call dispose for this buffer! If we do, it will be added back to the pool
-					// of available buffers and the allocated memory could increase drastically over time.
-					// Instead, we purposefully ignore to release it. Therefore, the memory will be released when
-					// the buffer gets out of scope, i.e. at the end of this function.
-					Dispose(false);
-					GC.SuppressFinalize(this);
-
-					// Switch buffers
-					return new_buffer;
-				}
+				return (Buffer<T>)Resize(min_size, s => new Buffer<T>(Manager, s, Context));
 			}
 			#endregion
 		}
 
-        #region Members
-        public const float minResizeOffset = 0.1f;
+		#region Members
+		public const float minResizeOffset = 0.1f;
 
 		private LinkedList<byte[]> available = new LinkedList<byte[]>();
 		#endregion
@@ -267,11 +412,12 @@ namespace CLARTE.Memory
 		/// </summary>
 		/// <typeparam name="T">The type of the context associated with the buffer.</typeparam>
 		/// <param name="data">The existing data.</param>
+		/// <param name="add_to_pool">True if the data array must be kept and added to the pool once the buffer is disposed.</param>
 		/// <param name="context">The context associated to the buffer.</param>
 		/// <returns>A buffer.</returns>
-		public Buffer<T> GetBufferFromExistingData<T>(byte[] data, T context = default(T))
+		public Buffer<T> GetBufferFromExistingData<T>(byte[] data, bool add_to_pool = false, T context = default(T))
 		{
-			return new Buffer<T>(this, data, context);
+			return new Buffer<T>(this, data, add_to_pool, context);
 		}
 
 		/// <summary>

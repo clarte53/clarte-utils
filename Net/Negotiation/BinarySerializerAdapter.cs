@@ -5,6 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Net;
 using UnityEngine;
+using CLARTE.Memory;
 using CLARTE.Serialization;
 
 namespace CLARTE.Net.Negotiation
@@ -48,21 +49,19 @@ namespace CLARTE.Net.Negotiation
 			#endregion
 		}
 
-		protected class SerializationContext : Context<byte[]>
+		protected class SerializationContext : Context<Binary.Buffer>
 		{
 			#region Constructors
-			public SerializationContext(Action<byte[]> callback) : base(callback)
+			public SerializationContext(Action<Binary.Buffer> callback) : base(callback)
 			{
 
 			}
 			#endregion
 
 			#region Public methods
-			public void CopyData(byte[] buffer, uint size)
+			public void SaveResult(Binary.Buffer buffer)
 			{
-				data = new byte[size];
-
-				Array.Copy(buffer, data, size);
+				data = buffer;
 			}
 			#endregion
 		}
@@ -127,7 +126,7 @@ namespace CLARTE.Net.Negotiation
 			currentSerialization = null;
 			currentDeserialization = null;
 
-			Action<IPAddress, Guid, ushort, byte[]> method = Receive;
+			Action<IPAddress, Guid, ushort, BufferPool.Buffer> method = Receive;
 
 			// Add this component as a receiver for receive events if necessary
 			foreach(Channel channel in network.Channels)
@@ -161,13 +160,13 @@ namespace CLARTE.Net.Negotiation
 		#endregion
 
 		#region Public methods
-		public void Receive(IPAddress remote, Guid id, ushort channel, byte[] data)
+		public void Receive(IPAddress remote, Guid id, ushort channel, BufferPool.Buffer data)
 		{
 			lock(deserializationTasks)
 			{
 				DeserializationContext context = new DeserializationContext(r => onReceive.Invoke(remote, id, channel, r));
 
-				context.task = serializer.Deserialize(data, context.SaveResult);
+				context.task = serializer.Deserialize(new Binary.Buffer(data), context.SaveResult);
 
 				deserializationTasks.Enqueue(context);
 			}
@@ -179,7 +178,7 @@ namespace CLARTE.Net.Negotiation
 			{
 				SerializationContext context = new SerializationContext(d => network.Send(remote, channel, d));
 
-				context.task = serializer.Serialize(data, context.CopyData);
+				context.task = serializer.Serialize(data, context.SaveResult);
 
 				serializationTasks.Enqueue(context);
 			}
@@ -191,7 +190,7 @@ namespace CLARTE.Net.Negotiation
 			{
 				SerializationContext context = new SerializationContext(d => network.SendOthers(remote, channel, d));
 
-				context.task = serializer.Serialize(data, context.CopyData);
+				context.task = serializer.Serialize(data, context.SaveResult);
 
 				serializationTasks.Enqueue(context);
 			}
@@ -203,7 +202,7 @@ namespace CLARTE.Net.Negotiation
 			{
 				SerializationContext context = new SerializationContext(d => network.SendAll(channel, d));
 
-				context.task = serializer.Serialize(data, context.CopyData);
+				context.task = serializer.Serialize(data, context.SaveResult);
 
 				serializationTasks.Enqueue(context);
 			}
