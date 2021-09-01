@@ -242,12 +242,6 @@ namespace CLARTE.Serialization
 				{
 					throw new DeserializationException("An error occured during deserialization.", result.Exception);
 				}
-				else if (result.Result != buffer.Data.Length)
-				{
-					throw new DeserializationException("Invalid deserialization. Not all available data was used.", null);
-				}
-
-				buffer.Size = result.Result;
 			}
 		}
 
