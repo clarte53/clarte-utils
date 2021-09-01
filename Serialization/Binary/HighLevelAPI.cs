@@ -27,9 +27,10 @@ namespace CLARTE.Serialization
 		public delegate uint DeserializationCallback(Binary serializer, Buffer buffer);
 
 		/// <summary>
-		/// Helper struct used for wrapping serialized / deserialized value when using simple one value serialization logic. 
+		/// Helper class used for wrapping serialized / deserialized value when using simple one value serialization logic. 
 		/// </summary>
-		protected struct DefaultSerializationCallbacks
+		/// <remarks>Sadly, this must be a class and not a struct, otherwise the data object value will not be propagated from the deserializer to the caller.</remarks>
+		protected class DefaultSerializationCallbacks
 		{
 			#region Members
 			/// <summary>
@@ -39,6 +40,14 @@ namespace CLARTE.Serialization
 			#endregion
 
 			#region Constructors
+			/// <summary>
+			/// Constructor.
+			/// </summary>
+			public DefaultSerializationCallbacks()
+			{
+				data = null;
+			}
+
 			/// <summary>
 			/// Constructor.
 			/// </summary>
@@ -209,7 +218,6 @@ namespace CLARTE.Serialization
 		/// </summary>
 		/// <param name="buffer">The buffer containing the serialized data.</param>
 		/// <param name="deserialization_callback">The callback used to deserialize the data once the context is set.</param>
-		/// <param name="callback">A callback to get the deserialized object.</param>
 		/// <param name="progress">A callback to get progress notifications.</param>
 		/// <returns>An enumerator to wait for the deserialization completion.</returns>
 		public IEnumerator Deserialize(Buffer buffer, DeserializationCallback deserialization_callback, Action<float> progress = null)
