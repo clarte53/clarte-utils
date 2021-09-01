@@ -51,16 +51,25 @@ namespace CLARTE.Net.Negotiation
 
 		protected class SerializationContext : Context<Binary.Buffer>
 		{
-			#region Constructors
-			public SerializationContext(Action<Binary.Buffer> callback) : base(callback)
-			{
+			#region Members
+			public IBinarySerializable input;
+			#endregion
 
+			#region Constructors
+			public SerializationContext(IBinarySerializable input, Action<Binary.Buffer> callback) : base(callback)
+			{
+				this.input = input;
 			}
 			#endregion
 
 			#region Public methods
-			public void SaveResult(Binary.Buffer buffer)
+			public uint SerializationCallback(Binary serializer, ref Binary.Buffer buffer)
 			{
+				return serializer != null && buffer != null ? serializer.ToBytes(ref buffer, 0, input) : 0;
+			}
+
+			public void SaveBuffer(Binary.Buffer buffer)
+            {
 				data = buffer;
 			}
 			#endregion
@@ -76,9 +85,9 @@ namespace CLARTE.Net.Negotiation
 			#endregion
 
 			#region Public methods
-			public void SaveResult(object data)
+			public uint DeserializationCallback(Binary serializer, Binary.Buffer buffer)
 			{
-				this.data = (IBinarySerializable) data;
+				return serializer.FromBytes(buffer, 0, out data);
 			}
 			#endregion
 		}
@@ -166,7 +175,7 @@ namespace CLARTE.Net.Negotiation
 			{
 				DeserializationContext context = new DeserializationContext(r => onReceive.Invoke(remote, id, channel, r));
 
-				context.task = serializer.Deserialize(new Binary.Buffer(data, serializer), context.SaveResult);
+				context.task = serializer.Deserialize(new Binary.Buffer(data, serializer), context.DeserializationCallback, null);
 
 				deserializationTasks.Enqueue(context);
 			}
@@ -176,9 +185,9 @@ namespace CLARTE.Net.Negotiation
 		{
 			lock(serializationTasks)
 			{
-				SerializationContext context = new SerializationContext(d => network.Send(remote, channel, d));
+				SerializationContext context = new SerializationContext(data, d => network.Send(remote, channel, d));
 
-				context.task = serializer.Serialize(data, context.SaveResult);
+				context.task = serializer.Serialize(context.SerializationCallback, context.SaveBuffer);
 
 				serializationTasks.Enqueue(context);
 			}
@@ -188,9 +197,9 @@ namespace CLARTE.Net.Negotiation
 		{
 			lock(serializationTasks)
 			{
-				SerializationContext context = new SerializationContext(d => network.SendOthers(remote, channel, d));
+				SerializationContext context = new SerializationContext(data, d => network.SendOthers(remote, channel, d));
 
-				context.task = serializer.Serialize(data, context.SaveResult);
+				context.task = serializer.Serialize(context.SerializationCallback, context.SaveBuffer);
 
 				serializationTasks.Enqueue(context);
 			}
@@ -200,9 +209,9 @@ namespace CLARTE.Net.Negotiation
 		{
 			lock(serializationTasks)
 			{
-				SerializationContext context = new SerializationContext(d => network.SendAll(channel, d));
+				SerializationContext context = new SerializationContext(data, d => network.SendAll(channel, d));
 
-				context.task = serializer.Serialize(data, context.SaveResult);
+				context.task = serializer.Serialize(context.SerializationCallback, context.SaveBuffer);
 
 				serializationTasks.Enqueue(context);
 			}
