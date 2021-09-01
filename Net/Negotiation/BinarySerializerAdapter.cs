@@ -166,7 +166,7 @@ namespace CLARTE.Net.Negotiation
 			{
 				DeserializationContext context = new DeserializationContext(r => onReceive.Invoke(remote, id, channel, r));
 
-				context.task = serializer.Deserialize(new Binary.Buffer(data), context.SaveResult);
+				context.task = serializer.Deserialize(new Binary.Buffer(data, serializer), context.SaveResult);
 
 				deserializationTasks.Enqueue(context);
 			}
