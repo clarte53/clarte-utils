@@ -480,7 +480,7 @@ namespace CLARTE.Net.Negotiation
 		{
 			const ushort type_nb_bytes = 1;
 
-			Binary.Buffer buffer = new Binary.Buffer(data);
+			Binary.Buffer buffer = new Binary.Buffer(data, serializer);
 
 			Message.Base message = Pattern.Factory<Message.Base, byte>.CreateInstance(buffer.Data[0]);
 

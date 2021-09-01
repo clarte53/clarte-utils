@@ -258,9 +258,10 @@ namespace CLARTE.Memory
 			/// Create a new buffer from an existing one and get ownership of data.
 			/// </summary>
 			/// <param name="other">The other buffer to construct from.</param>
-			public Buffer(Buffer other) : base((BufferPool) null)
+			/// <param name="context">The context associated with the buffer.</param>
+			public Buffer(Buffer other, T context) : base((BufferPool) null)
 			{
-				Context = default(T);
+				Context = context;
 
 				Transfert(other);
 			}
@@ -273,6 +274,8 @@ namespace CLARTE.Memory
 			{
 				Context = other.Context;
 
+				other.Context = default(T);
+
 				Transfert(other);
 			}
 
@@ -281,9 +284,9 @@ namespace CLARTE.Memory
 			/// </summary>
 			/// <remarks>The buffer can potentially be bigger, depending on the available allocated resources.</remarks>
 			/// <param name="manager">The associated buffer pool.</param>
+			/// <param name="context">The context associated with the buffer.</param>
 			/// <param name="min_size">The minimal size of the buffer.</param>
-			/// <param name="context">The optional context associated with the buffer.</param>
-			public Buffer(BufferPool manager, uint min_size, T context = default(T)) : base(manager, min_size)
+			public Buffer(BufferPool manager, T context, uint min_size) : base(manager, min_size)
 			{
 				Context = context;
 
@@ -294,10 +297,10 @@ namespace CLARTE.Memory
 			/// Create a new buffer from existing data.
 			/// </summary>
 			/// <param name="manager">The associated buffer pool.</param>
+			/// <param name="context">The context associated with the buffer.</param>
 			/// <param name="existing_data">The existing data.</param>
 			/// <param name="add_to_pool">True if the data array must be kept and added to the pool once the buffer is disposed.</param>
-			/// <param name="context">The optional context associated with the buffer.</param>
-			public Buffer(BufferPool manager, byte[] existing_data, bool add_to_pool = false, T context = default(T)) : base(manager, existing_data, add_to_pool)
+			public Buffer(BufferPool manager, T context, byte[] existing_data, bool add_to_pool = false) : base(manager, existing_data, add_to_pool)
 			{
 				Context = context;
 
@@ -336,13 +339,12 @@ namespace CLARTE.Memory
 			/// <summary>
 			/// Transfert data ownership from other buffer to us.
 			/// </summary>
-			/// <remarks>After calling this method, the other buffer is disposed automatically and ownership of data is transfered to us.</remarks>
+			/// <remarks>Context is not transfered from other buffer. After calling this method, the other buffer is disposed automatically and ownership of data is transfered to us.</remarks>
+			/// <typeparam name="U">The type of context of the other buffer.</typeparam>
 			/// <param name="other">Other buffer to get data from.</param>
 			protected void Transfert<U>(Buffer<U> other)
 			{
 				disposed = other.disposed;
-
-				other.Context = default(U);
 
 				base.Transfert(other);
 			}
@@ -384,7 +386,7 @@ namespace CLARTE.Memory
 			/// <param name="min_size">The new minimal size of the new buffer.</param>
 			public new Buffer<T> Resize(uint min_size)
 			{
-				return (Buffer<T>)Resize(min_size, s => new Buffer<T>(Manager, s, Context));
+				return (Buffer<T>)Resize(min_size, s => new Buffer<T>(Manager, Context, s));
 			}
 			#endregion
 		}
@@ -401,25 +403,25 @@ namespace CLARTE.Memory
 		/// </summary>
 		/// <remarks>The buffer can potentially be bigger, depending on the available allocated resources.</remarks>
 		/// <typeparam name="T">The type of the context associated with the buffer.</typeparam>
-		/// <param name="min_size">The minimal size of the buffer.</param>
 		/// <param name="context">The context associated to the buffer.</param>
+		/// <param name="min_size">The minimal size of the buffer.</param>
 		/// <returns>A buffer.</returns>
-		public Buffer<T> GetBuffer<T>(uint min_size, T context = default(T))
+		public Buffer<T> GetBuffer<T>(T context, uint min_size)
 		{
-			return new Buffer<T>(this, min_size, context);
+			return new Buffer<T>(this, context, min_size);
 		}
 
 		/// <summary>
 		/// Get a buffer from existing data.
 		/// </summary>
 		/// <typeparam name="T">The type of the context associated with the buffer.</typeparam>
+		/// <param name="context">The context associated to the buffer.</param>
 		/// <param name="data">The existing data.</param>
 		/// <param name="add_to_pool">True if the data array must be kept and added to the pool once the buffer is disposed.</param>
-		/// <param name="context">The context associated to the buffer.</param>
 		/// <returns>A buffer.</returns>
-		public Buffer<T> GetBufferFromExistingData<T>(byte[] data, bool add_to_pool = false, T context = default(T))
+		public Buffer<T> GetBufferFromExistingData<T>(T context, byte[] data, bool add_to_pool = false)
 		{
-			return new Buffer<T>(this, data, add_to_pool, context);
+			return new Buffer<T>(this, context, data, add_to_pool);
 		}
 
 		/// <summary>

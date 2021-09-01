@@ -50,7 +50,7 @@ namespace CLARTE.Serialization
 			/// <param name="manager">The associated buffer pool.</param>
 			/// <param name="min_size">The minimal size of the buffer.</param>
 			/// <param name="context">The associated context.</param>
-			protected Buffer(Memory.BufferPool manager, uint min_size, SerializationBufferContext context) : base(manager, min_size, context)
+			protected Buffer(Memory.BufferPool manager, uint min_size, SerializationBufferContext context) : base(manager, context, min_size)
 			{
 
 			}
@@ -59,7 +59,9 @@ namespace CLARTE.Serialization
 			/// Create a buffer from an existing internal buffer
 			/// </summary>
 			/// <param name="buffer">Existing internal buffer.</param>
-			public Buffer(Memory.BufferPool.Buffer buffer) : base(buffer)
+			/// <param name="manager">The associated serializer.</param>
+			/// <param name="progress">Callback to report progress in serialization.</param>
+			public Buffer(Memory.BufferPool.Buffer buffer, Binary manager, Action<float> progress = null) : base(buffer, new SerializationBufferContext(manager, progress))
 			{
 
 			}
@@ -80,7 +82,7 @@ namespace CLARTE.Serialization
 			/// <param name="manager">The associated serializer.</param>
 			/// <param name="min_size">The minimal size of the buffer.</param>
 			/// <param name="progress">Callback to report progress in serialization.</param>
-			public Buffer(Binary manager, uint min_size, Action<float> progress = null) : base(manager.buffers, min_size, new SerializationBufferContext(manager, progress))
+			public Buffer(Binary manager, uint min_size, Action<float> progress = null) : base(manager.buffers, new SerializationBufferContext(manager, progress), min_size)
 			{
 
 			}
@@ -92,7 +94,7 @@ namespace CLARTE.Serialization
 			/// <param name="existing_data">The existing data.</param>
 			/// <param name="add_to_pool">True if the data array must be kept and added to the pool once the buffer is disposed.</param>
 			/// <param name="progress">Callback to report progress in serialization.</param>
-			public Buffer(Binary manager, byte[] existing_data, bool add_to_pool = false, Action<float> progress = null) : base(manager.buffers, existing_data, add_to_pool, new SerializationBufferContext(manager, progress))
+			public Buffer(Binary manager, byte[] existing_data, bool add_to_pool = false, Action<float> progress = null) : base(manager.buffers, new SerializationBufferContext(manager, progress), existing_data, add_to_pool)
 			{
 
 			}
@@ -117,7 +119,7 @@ namespace CLARTE.Serialization
             /// <param name="position">Position reached in the buffer.</param>
             public void Progress(uint position)
 			{
-				Context?.progress?.Invoke(((float)position) / Data?.Length ?? 1);
+				Context?.progress?.Invoke(Data != null ? ((float)position) / Data.Length : 1f);
 			}
             #endregion
         }
