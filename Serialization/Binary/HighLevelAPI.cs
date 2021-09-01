@@ -98,40 +98,33 @@ namespace CLARTE.Serialization
 		{
 			Buffer buffer = null;
 
-			try
+			DateTime time = DateTime.Now + progressRefresRate;
+			float progress_percentage = 0f;
+
+			buffer = GetBuffer(default_buffer_size, p => progress_percentage = p);
+
+			Task<uint> result = Task.Run(() => serialization_callback(this, ref buffer));
+
+			while (!result.IsCompleted)
 			{
-				DateTime time = DateTime.Now + progressRefresRate;
-				float progress_percentage = 0f;
-
-				buffer = GetBuffer(default_buffer_size, p => progress_percentage = p);
-
-				Task<uint> result = Task.Run(() => serialization_callback(this, ref buffer));
-
-				while (!result.IsCompleted)
+				if (progress != null && DateTime.Now >= time)
 				{
-					if (progress != null && DateTime.Now >= time)
-					{
-						progress(progress_percentage);
+					progress(progress_percentage);
 
-						time = DateTime.Now + progressRefresRate;
-					}
-
-					yield return null;
+					time = DateTime.Now + progressRefresRate;
 				}
 
-				if (result.Exception != null)
-				{
-					throw new SerializationException("An error occured during serialization.", result.Exception);
-				}
-
-				buffer.Size = result.Result;
-
-				callback?.Invoke(buffer);
+				yield return null;
 			}
-			finally
+
+			if (result.Exception != null)
 			{
-				buffer?.Dispose();
+				throw new SerializationException("An error occured during serialization.", result.Exception);
 			}
+
+			buffer.Size = result.Result;
+
+			callback?.Invoke(buffer);
 		}
 
 		/// <summary>

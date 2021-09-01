@@ -342,6 +342,8 @@ namespace CLARTE.Memory
 			{
 				disposed = other.disposed;
 
+				other.Context = default(U);
+
 				base.Transfert(other);
 			}
 
