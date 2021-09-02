@@ -171,13 +171,16 @@ namespace CLARTE.Net.Negotiation
 		#region Public methods
 		public void Receive(IPAddress remote, Guid id, ushort channel, BufferPool.Buffer data)
 		{
-			lock(deserializationTasks)
+			if (onReceive.GetPersistentEventCount() > 0)
 			{
-				DeserializationContext context = new DeserializationContext(r => onReceive.Invoke(remote, id, channel, r));
+				lock (deserializationTasks)
+				{
+					DeserializationContext context = new DeserializationContext(r => onReceive.Invoke(remote, id, channel, r));
 
-				context.task = serializer.Deserialize(new Binary.Buffer(data, serializer), context.DeserializationCallback, null);
+					context.task = serializer.Deserialize(new Binary.Buffer(data, serializer), context.DeserializationCallback, null);
 
-				deserializationTasks.Enqueue(context);
+					deserializationTasks.Enqueue(context);
+				}
 			}
 		}
 
