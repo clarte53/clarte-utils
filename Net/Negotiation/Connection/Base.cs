@@ -27,6 +27,14 @@ namespace CLARTE.Net.Negotiation.Connection
 		{
 			public Threads.Result result;
 			public BufferPool.Buffer data;
+			public bool dispose_buffer;
+
+			public SendState(Threads.Result result, BufferPool.Buffer data, bool dispose_buffer)
+            {
+				this.result = result;
+				this.data = data;
+				this.dispose_buffer = dispose_buffer;
+            }
 		}
 
 		protected struct ReceiveState
@@ -79,7 +87,7 @@ namespace CLARTE.Net.Negotiation.Connection
 		public abstract bool Connected();
 		public abstract IPAddress GetRemoteAddress();
 		protected abstract void DisposeInternal(bool disposing);
-		protected abstract void SendAsync(Threads.Result result, BufferPool.Buffer data);
+		protected abstract void SendAsync(Threads.Result result, BufferPool.Buffer data, bool dispose_buffer = true);
 		protected abstract void ReceiveAsync();
 		#endregion
 
@@ -270,7 +278,7 @@ namespace CLARTE.Net.Negotiation.Connection
 			}
 		}
 
-		public void SendAsync(BufferPool.Buffer data)
+		public void SendAsync(BufferPool.Buffer data, bool dispose_buffer = true)
 		{
 			if(!disposed)
 			{
@@ -278,7 +286,7 @@ namespace CLARTE.Net.Negotiation.Connection
 				{
 					Threads.Result result = CreateResult();
 
-					sendQueue.Enqueue(new Threads.Task(() => SendAsync(result, data), result));
+					sendQueue.Enqueue(new Threads.Task(() => SendAsync(result, data, dispose_buffer), result));
 				}
 
 				lock(addEvent)
@@ -355,7 +363,7 @@ namespace CLARTE.Net.Negotiation.Connection
 					{
 						sendResult = CreateResult();
 
-						SendAsync(sendResult, heartbeat_data);
+						SendAsync(sendResult, heartbeat_data, false);
 					}
 				}
 				else

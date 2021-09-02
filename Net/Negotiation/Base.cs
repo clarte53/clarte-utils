@@ -356,7 +356,7 @@ namespace CLARTE.Net.Negotiation
 			return result;
 		}
 
-		public void Send(Guid remote, ushort channel, BufferPool.Buffer data)
+		public void Send(Guid remote, ushort channel, BufferPool.Buffer data, bool dispose_buffer = true)
 		{
 			if(state == State.RUNNING)
 			{
@@ -378,7 +378,7 @@ namespace CLARTE.Net.Negotiation
 					client_channel = client_channels[channel];
 				}
 
-				client_channel.SendAsync(data);
+				client_channel.SendAsync(data, dispose_buffer);
 			}
 			else
 			{
@@ -386,7 +386,7 @@ namespace CLARTE.Net.Negotiation
 			}
 		}
 
-		public void SendOthers(Guid remote, ushort channel, BufferPool.Buffer data)
+		public void SendOthers(Guid remote, ushort channel, BufferPool.Buffer data, bool dispose_buffer = true)
 		{
 			if(state == State.RUNNING)
 			{
@@ -401,7 +401,7 @@ namespace CLARTE.Net.Negotiation
 								throw new ArgumentException(string.Format("Invalid channel. No channel with index '{0}'", channel), "channel");
 							}
 
-							pair.Value[channel].SendAsync(data);
+							pair.Value[channel].SendAsync(data, dispose_buffer);
 						}
 					}
 				}
@@ -412,9 +412,9 @@ namespace CLARTE.Net.Negotiation
 			}
 		}
 
-		public void SendAll(ushort channel, BufferPool.Buffer data)
+		public void SendAll(ushort channel, BufferPool.Buffer data, bool dispose_buffer = true)
 		{
-			SendOthers(Guid.Empty, channel, data);
+			SendOthers(Guid.Empty, channel, data, dispose_buffer);
 		}
 
 		protected void ReservePort(ushort port)
@@ -473,7 +473,7 @@ namespace CLARTE.Net.Negotiation
 			buffer.Size = written;
 
 			// Send the selected port. A value of 0 means that no port are available.
-			connection.SendAsync(buffer);
+			connection.SendAsync(buffer, true);
 		}
 
 		protected Message.Base ReceiveMonitorCommand(BufferPool.Buffer data)

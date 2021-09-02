@@ -64,7 +64,7 @@ namespace CLARTE.Net.Negotiation.Connection
 			return address;
 		}
 
-		protected override void SendAsync(Threads.Result result, BufferPool.Buffer data)
+		protected override void SendAsync(Threads.Result result, BufferPool.Buffer data, bool dispose_buffer = true)
 		{
 			try
 			{
@@ -77,7 +77,7 @@ namespace CLARTE.Net.Negotiation.Connection
 					writeBuffer.Data[2] = c.Byte3;
 					writeBuffer.Data[3] = c.Byte4;
 
-					BeginSend(writeBuffer.Data, writeBuffer.Data.Length, FinalizeSendLength, new SendState { result = result, data = data });
+					BeginSend(writeBuffer.Data, writeBuffer.Data.Length, FinalizeSendLength, new SendState(result, data, dispose_buffer));
 				}
 				else
 				{
@@ -165,7 +165,10 @@ namespace CLARTE.Net.Negotiation.Connection
 			}
 			finally
 			{
-				state.data?.Dispose();
+				if (state.dispose_buffer)
+				{
+					state.data?.Dispose();
+				}
 			}
 		}
 
