@@ -9,6 +9,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
+using CLARTE.Memory;
 
 namespace CLARTE.Net.Negotiation
 {
@@ -95,7 +96,7 @@ namespace CLARTE.Net.Negotiation
 			}
 		}
 
-		protected override void OnMonitorReceive(IPAddress address, Guid guid, ushort channel, byte[] data)
+		protected override void OnMonitorReceive(IPAddress address, Guid guid, ushort channel, BufferPool.Buffer data)
 		{
 			Message.Base msg = ReceiveMonitorCommand(data);
 

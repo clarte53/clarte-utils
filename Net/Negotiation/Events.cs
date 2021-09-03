@@ -3,6 +3,7 @@
 using System;
 using System.Net;
 using UnityEngine.Events;
+using CLARTE.Memory;
 using CLARTE.Serialization;
 
 namespace CLARTE.Net.Negotiation
@@ -28,7 +29,7 @@ namespace CLARTE.Net.Negotiation
 		}
 
 		[Serializable]
-		public class ReceiveCallback : UnityEvent<IPAddress, Guid, ushort, byte[]>
+		public class ReceiveCallback : UnityEvent<IPAddress, Guid, ushort, BufferPool.Buffer>
 		{
 
 		}

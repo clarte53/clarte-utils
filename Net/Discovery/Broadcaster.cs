@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Threading;
 using UnityEngine;
 using UnityEngine.Events;
+using CLARTE.Memory;
 
 namespace CLARTE.Net.Discovery
 {
@@ -99,19 +100,19 @@ namespace CLARTE.Net.Discovery
 		#endregion
 
 		#region Public methods
-		public void Send(byte[] datagram, int size)
+		public void Send(BufferPool.Buffer datagram)
 		{
 			foreach(IPEndPoint broadcast in broadcastAddresses)
 			{
-				Send(broadcast, datagram, size);
+				Send(broadcast, datagram);
 			}
 		}
 
-		public void Send(IPEndPoint endpoint, byte[] datagram, int size)
+		public void Send(IPEndPoint endpoint, BufferPool.Buffer datagram)
 		{
-			if(size > 0 && size <= datagram.Length)
+			if(datagram.Size > 0 && datagram.Size <= datagram.Data.Length)
 			{
-				udp.SendAsync(datagram, size, endpoint);
+				udp.SendAsync(datagram.Data, (int) datagram.Size, endpoint);
 			}
 		}
 		#endregion

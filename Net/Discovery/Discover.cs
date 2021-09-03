@@ -1,10 +1,11 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using UnityEngine;
+using CLARTE.Memory;
 using CLARTE.Serialization;
-using System.Collections;
 
 namespace CLARTE.Net.Discovery
 {
@@ -310,11 +311,11 @@ namespace CLARTE.Net.Discovery
 							{
 								info.Active = exist && service.server.CurrentState == Negotiation.Base.State.RUNNING;
 
-								byte[] data = serializer.Serialize(new Datagram(exist, service.server.port, info));
+								BufferPool.Buffer data = serializer.Serialize(new Datagram(exist, service.server.port, info));
 
-								if(data != null && data.Length > 0)
+								if(data != null && data.Size > 0)
 								{
-									broadcast.Send(data, data.Length);
+									broadcast.Send(data);
 
 									if(manualPeers != null)
 									{
@@ -322,7 +323,7 @@ namespace CLARTE.Net.Discovery
 										{
 											if(IPAddress.TryParse(peer.ip, out IPAddress ip))
 											{
-												broadcast.Send(new IPEndPoint(ip, peer.port), data, data.Length);
+												broadcast.Send(new IPEndPoint(ip, peer.port), data);
 											}
 										}
 									}
