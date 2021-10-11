@@ -192,7 +192,7 @@ namespace CLARTE.Serialization
 			{
 				buffer = GetBuffer(default_buffer_size);
 
-				uint written = serialization_callback(this, ref buffer);
+				buffer.Size = serialization_callback(this, ref buffer);
 			}
 			catch (Exception e)
 			{
