@@ -225,7 +225,7 @@ namespace CLARTE.Net.Discovery
 		#endregion
 
 		#region Internal methods
-		protected void OnReceive(IPAddress ip, int port, byte[] datagram)
+		protected void OnReceive(IPEndPoint endpoint, byte[] datagram)
 		{
 			if(datagram != null && datagram.Length > 0)
 			{
@@ -235,7 +235,7 @@ namespace CLARTE.Net.Discovery
 
 					if(deserialized != null)
 					{
-						IPEndPoint endpoint = new IPEndPoint(ip, deserialized.port);
+						endpoint.Port = deserialized.port;
 
 						bool already_discovered;
 
@@ -259,13 +259,13 @@ namespace CLARTE.Net.Discovery
 
 									if(deserialized.info.Active != active)
 									{
-										if(deserialized.info.Active)
+										if (deserialized.info.Active)
 										{
-											Threads.APC.MonoBehaviourCall.Instance.Call(() => onActive.Invoke(ip, deserialized.port, deserialized.info));
+											Threads.APC.MonoBehaviourCall.Instance.Call(() => onActive.Invoke(endpoint, deserialized.info));
 										}
 										else
 										{
-											Threads.APC.MonoBehaviourCall.Instance.Call(() => onInactive.Invoke(ip, deserialized.port, deserialized.info));
+											Threads.APC.MonoBehaviourCall.Instance.Call(() => onInactive.Invoke(endpoint, deserialized.info));
 										}
 									}
 								}
@@ -277,7 +277,7 @@ namespace CLARTE.Net.Discovery
 									discovered.Add(endpoint, new Info { info = deserialized.info, lastSeen = GetCurrentTime() });
 								}
 
-								Threads.APC.MonoBehaviourCall.Instance.Call(() => onDiscovered.Invoke(ip, deserialized.port, deserialized.info));
+								Threads.APC.MonoBehaviourCall.Instance.Call(() => onDiscovered.Invoke(endpoint, deserialized.info));
 							}
 						}
 						else if(!deserialized.exist && already_discovered)
@@ -287,7 +287,7 @@ namespace CLARTE.Net.Discovery
 								discovered.Remove(endpoint);
 							}
 
-							Threads.APC.MonoBehaviourCall.Instance.Call(() => onLost.Invoke(ip, deserialized.port, deserialized.info));
+							Threads.APC.MonoBehaviourCall.Instance.Call(() => onLost.Invoke(endpoint, deserialized.info));
 						}
 					}
 				}
@@ -370,7 +370,7 @@ namespace CLARTE.Net.Discovery
 
 				foreach(KeyValuePair<IPEndPoint, IServiceInfo> lost in pendingLost)
 				{
-					Threads.APC.MonoBehaviourCall.Instance.Call(() => onLost.Invoke(lost.Key.Address, (ushort) lost.Key.Port, lost.Value));
+					Threads.APC.MonoBehaviourCall.Instance.Call(() => onLost.Invoke(lost.Key, lost.Value));
 				}
 			}
 		}

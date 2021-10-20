@@ -13,7 +13,7 @@ namespace CLARTE.Net.Discovery
 	public class Broadcaster : MonoBehaviour
 	{
 		[Serializable]
-		public class ReceiveCallback : UnityEvent<IPAddress, int, byte[]>
+		public class ReceiveCallback : UnityEvent<IPEndPoint, byte[]>
 		{
 
 		}
@@ -133,7 +133,7 @@ namespace CLARTE.Net.Discovery
 
 					if(datagram.Length > 0 && (broadcastToLocalhost || !localAddresses.Contains(from.Address)))
 					{
-						Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceive.Invoke(from.Address, from.Port, datagram));
+						Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceive.Invoke(from, datagram));
 					}
 				}
 			}
