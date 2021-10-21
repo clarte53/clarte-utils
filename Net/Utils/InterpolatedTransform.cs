@@ -82,6 +82,22 @@ namespace CLARTE.Net.Utils
 		#endregion
 
 		#region MonoBehaviour callbacks
+		protected void OnDisable()
+		{
+			// We have finished interpolation & extrapolation is desactivated: we have nothing left to do
+			if (bufferedState[0] != null)
+			{
+				SetTransform(bufferedState[0].position, bufferedState[0].rotation, bufferedState[0].scale, relative);
+			}
+
+			for (int i = 0; i < bufferedState.Length; i++)
+			{
+				bufferedState[i] = null;
+			}
+
+			timestamp = 0;
+		}
+
 		// This only runs where the component is enabled, which is only on remote peers (server/clients)
 		protected void Update()
 		{
@@ -215,26 +231,6 @@ namespace CLARTE.Net.Utils
 					}
 				}
 			}
-		}
-
-		public void StopInterpolation(State state)
-		{
-			Receive(state);
-
-			// We have finished interpolation & extrapolation is desactivated: we have nothing left to do
-			if (bufferedState[0] != null)
-			{
-				SetTransform(bufferedState[0].position, bufferedState[0].rotation, bufferedState[0].scale, relative);
-			}
-
-			for (int i = 0; i < bufferedState.Length; i++)
-			{
-				bufferedState[i] = null;
-			}
-
-			timestamp = 0;
-
-			enabled = false;
 		}
 		#endregion
 
