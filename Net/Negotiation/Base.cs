@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.Sockets;
 using UnityEngine;
 using CLARTE.Memory;
+using CLARTE.Net.Utils;
 using CLARTE.Serialization;
 
 namespace CLARTE.Net.Negotiation
@@ -39,20 +40,6 @@ namespace CLARTE.Net.Negotiation
 			#endregion
 		}
 
-		[Serializable]
-		public class PortRange
-		{
-			#region Members
-			public const ushort maxPoolSize = 1024;
-			// Avoid IANA system or well-known ports that requires admin privileges
-			public const ushort minAvailablePort = 4096;
-			public const ushort maxAvailablePort = 65535;
-
-			public ushort minPort = minAvailablePort;
-			public ushort maxPort = maxAvailablePort;
-			#endregion
-		}
-
 		protected class UdpConnectionParams
 		{
 			public Message.Negotiation.Parameters param;
@@ -64,13 +51,12 @@ namespace CLARTE.Net.Negotiation
 		#region Members
 		protected static readonly TimeSpan defaultHeartbeat = new TimeSpan(5 * TimeSpan.TicksPerSecond);
 
-		public List<PortRange> openPorts;
+		public List<PortManager.Range> openPorts;
 
 		protected Binary serializer;
 		protected Dictionary<Guid, Connection.Tcp> monitors;
 		protected Dictionary<Guid, Connection.Base[]> openedChannels;
 		protected HashSet<Connection.Tcp> initializedConnections;
-		protected HashSet<ushort> availablePorts;
 		protected State state;
 		#endregion
 
@@ -227,6 +213,7 @@ namespace CLARTE.Net.Negotiation
 			state = State.STARTED;
 
 			// Initialize singletons while in unity thread, if necessary
+			PortManager.Instance.GetType();
 			Threads.APC.MonoBehaviourCall.Instance.GetType();
 			Pattern.Factory<Message.Base, byte>.Initialize(Pattern.Factory.ByteConverter);
 
@@ -236,33 +223,6 @@ namespace CLARTE.Net.Negotiation
 			openedChannels = new Dictionary<Guid, Connection.Base[]>();
 
 			initializedConnections = new HashSet<Connection.Tcp>();
-
-			availablePorts = new HashSet<ushort>();
-
-			foreach(PortRange range in openPorts)
-			{
-				if(availablePorts.Count < PortRange.maxPoolSize)
-				{
-					ushort start = Math.Min(range.minPort, range.maxPort);
-					ushort end = Math.Max(range.minPort, range.maxPort);
-
-					start = Math.Max(start, PortRange.minAvailablePort);
-					end = Math.Min(end, PortRange.maxAvailablePort);
-
-					// Ok because start >= PortRange.minAvailablePort, i.e. > 0
-					end = Math.Min(end, (ushort) (start + (PortRange.maxPoolSize - availablePorts.Count - 1)));
-
-					for(ushort port = start; port <= end; port++)
-					{
-						availablePorts.Add(port);
-					}
-				}
-			}
-
-			foreach(Discovery.Broadcaster broadcaster in FindObjectsOfType<Discovery.Broadcaster>())
-			{
-				availablePorts.Remove(broadcaster.port);
-			}
 		}
 
 		protected void OnDisable()
@@ -282,20 +242,20 @@ namespace CLARTE.Net.Negotiation
 		{
 			if(openPorts == null)
 			{
-				openPorts = new List<PortRange>();
+				openPorts = new List<PortManager.Range>();
 			}
 
 			if(openPorts.Count <= 0)
 			{
-				openPorts.Add(new PortRange());
+				openPorts.Add(new PortManager.Range());
 			}
 
-			foreach(PortRange range in openPorts)
+			foreach(PortManager.Range range in openPorts)
 			{
 				if(range.minPort == 0 && range.maxPort == 0)
 				{
-					range.minPort = PortRange.minAvailablePort;
-					range.maxPort = PortRange.maxAvailablePort;
+					range.minPort = PortManager.Range.minAvailablePort;
+					range.maxPort = PortManager.Range.maxAvailablePort;
 				}
 			}
 		}
@@ -416,22 +376,6 @@ namespace CLARTE.Net.Negotiation
 		{
 			SendOthers(Guid.Empty, channel, data, dispose_buffer);
 		}
-
-		protected void ReservePort(ushort port)
-		{
-			lock(availablePorts)
-			{
-				availablePorts.Remove(port);
-			}
-		}
-
-		public void ReleasePort(ushort port)
-		{
-			lock(availablePorts)
-			{
-				availablePorts.Add(port);
-			}
-		}
 		#endregion
 	}
 
@@ -496,8 +440,6 @@ namespace CLARTE.Net.Negotiation
 
 		protected UdpConnectionParams SendUdpParams(Connection.Tcp connection, Message.Negotiation.Parameters param)
 		{
-			bool success = false;
-
 			UdpConnectionParams udp_param = new UdpConnectionParams
 			{
 				param = param,
@@ -515,35 +457,19 @@ namespace CLARTE.Net.Negotiation
 
 			if(channels != null && param.channel < channels.Count)
 			{
-				while(!success)
+				ushort? port = null;
+
+				while (!port.HasValue)
 				{
-					lock(availablePorts)
+					port = PortManager.Instance.ReserveRandomPort(openPorts);
+
+					if(port.HasValue)
 					{
-						HashSet<ushort>.Enumerator it = availablePorts.GetEnumerator();
+						udp_param.localPort = port.Value;
 
-						if(it.MoveNext())
-						{
-							udp_param.localPort = it.Current;
-
-							availablePorts.Remove(udp_param.localPort);
-						}
-						else
-						{
-							udp_param.localPort = 0;
-
-							success = true;
-						}
-					}
-
-					if(udp_param.localPort > 0)
-					{
 						try
 						{
 							udp_param.udp = new UdpClient(udp_param.localPort, AddressFamily.InterNetwork);
-
-							ReservePort(udp_param.localPort);
-
-							success = true;
 						}
 						catch(SocketException)
 						{
@@ -552,7 +478,7 @@ namespace CLARTE.Net.Negotiation
 
 							udp_param.localPort = 0;
 
-							success = false;
+							port = null;
 						}
 					}
 				}

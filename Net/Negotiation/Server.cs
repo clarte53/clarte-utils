@@ -165,7 +165,7 @@ namespace CLARTE.Net.Negotiation
 			{
 				state = State.INITIALIZING;
 
-				availablePorts.Remove(port);
+				Utils.PortManager.Instance.ReservePort(port);
 
 				stopEvent = new ManualResetEvent(false);
 

@@ -65,7 +65,7 @@ namespace CLARTE.Net.Negotiation.Connection
 				// Release the used port
 				if (parent != null && port != 0)
 				{
-					parent.ReleasePort(port);
+					Utils.PortManager.Instance.ReleasePort(port);
 				}
 			}
 
