@@ -77,8 +77,10 @@ namespace CLARTE.Net.Negotiation
 		{
 			if(state == State.RUNNING && connection != null && connection.AutoReconnect)
 			{
-				if(connection != null && CloseMonitor(connection.Remote))
+				if(connection != null && monitors.ContainsKey(connection.Remote))
 				{
+					Disconnect();
+
 					Connect();
 				}
 				else
