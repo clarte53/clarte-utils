@@ -65,7 +65,8 @@ namespace CLARTE.Net.Negotiation
 			#region Public methods
 			public uint SerializationCallback(Binary serializer, ref Binary.Buffer buffer)
 			{
-				return serializer != null && buffer != null ? serializer.ToBytes(ref buffer, 0, input) : 0;
+				// We must serialize as object to properly serialize IBinaryTypeMapped objects without overhead
+				return serializer != null && buffer != null ? serializer.ToBytes(ref buffer, 0, (object) input) : 0;
 			}
 
 			public void SaveBuffer(Binary.Buffer buffer)
@@ -87,7 +88,11 @@ namespace CLARTE.Net.Negotiation
 			#region Public methods
 			public uint DeserializationCallback(Binary serializer, Binary.Buffer buffer)
 			{
-				return serializer.FromBytes(buffer, 0, out data);
+				uint read = serializer.FromBytes(buffer, 0, out object d);
+
+				data = d as IBinarySerializable;
+
+				return read;
 			}
 			#endregion
 		}
