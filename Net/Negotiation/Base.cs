@@ -352,7 +352,12 @@ namespace CLARTE.Net.Negotiation
 			{
 				lock(openedChannels)
 				{
-					foreach(KeyValuePair<Guid, Connection.Base[]> pair in openedChannels)
+					if (dispose_buffer)
+					{
+						data.SetReferencesCount((uint)openedChannels.Count);
+					}
+
+					foreach (KeyValuePair<Guid, Connection.Base[]> pair in openedChannels)
 					{
 						if(remote == Guid.Empty || pair.Key != remote)
 						{
@@ -362,6 +367,13 @@ namespace CLARTE.Net.Negotiation
 							}
 
 							pair.Value[channel].SendAsync(data, dispose_buffer);
+						}
+						else
+						{
+							if (dispose_buffer)
+							{
+								data.DecrementReferencesCount();
+							}
 						}
 					}
 				}
