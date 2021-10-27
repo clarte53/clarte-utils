@@ -250,6 +250,10 @@ namespace CLARTE.Serialization
 				{
 					throw new DeserializationException("An error occured during deserialization.", result.Exception);
 				}
+				else if (result.Result != buffer.Size)
+				{
+					throw new DeserializationException("Not all available data was used.", null);
+				}
 			}
 		}
 
@@ -336,7 +340,7 @@ namespace CLARTE.Serialization
 				{
 					uint read = deserialization_callback(this, buffer);
 
-					if (read != buffer.Data.Length)
+					if (read != buffer.Size)
 					{
 						throw new DeserializationException("Not all available data was used.", null);
 					}
