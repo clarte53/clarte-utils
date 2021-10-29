@@ -67,6 +67,11 @@ namespace CLARTE.Net.Utils
 		}
 
 		#region Members
+		protected const uint bufferedStateSize = 20;
+		protected const uint timeOffsetsSize = 20;
+		protected const uint timeOffsetsMinSize = 5;
+		protected const float timeOffsetsMaxDeviationPercentage = 0.25f;
+
 		[Range(1, 100)]
 		public float networkSendRate = 10f; // In Hz
 		[Range(0, 10)]
@@ -76,12 +81,19 @@ namespace CLARTE.Net.Utils
 		public bool relative = true;
 
 		// We store twenty states with "playback" information
-		protected State[] bufferedState = new State[20];
+		protected State[] bufferedState;
+		protected DataStructures.CircularBuffer<float> timeOffsets;
 		// Keep track of what slots are used
 		protected int timestamp;
 		#endregion
 
 		#region MonoBehaviour callbacks
+		protected void Awake()
+		{
+			bufferedState = new State[bufferedStateSize];
+			timeOffsets = new DataStructures.CircularBuffer<float>(timeOffsetsSize);
+		}
+
 		protected void OnDisable()
 		{
 			// We have finished interpolation & extrapolation is desactivated: we have nothing left to do
@@ -101,7 +113,7 @@ namespace CLARTE.Net.Utils
 		// This only runs where the component is enabled, which is only on remote peers (server/clients)
 		protected void Update()
 		{
-			float current_time = Time.realtimeSinceStartup;
+			float current_time = Time.realtimeSinceStartup - AverageTimeOffset();
 			float interpolation_time = current_time - interpolatedFrames / networkSendRate;
 			// We have a window of interpolationBackTime where we basically play 
 			// By having interpolationBackTime the average ping, you will usually use interpolation.
@@ -207,8 +219,15 @@ namespace CLARTE.Net.Utils
 		{
 			if (enabled)
 			{
-				// TODO: Should be the sent timestamp, but the client / server does not share the same time. It would requires a synchronized time.
-				state.timestamp = Time.realtimeSinceStartup;
+				float time_offset = Time.realtimeSinceStartup - state.timestamp;
+
+				float average = AverageTimeOffset();
+
+				// Add time offset to pool with outlier filtering
+				if (timeOffsets.Count < timeOffsetsMinSize || (Mathf.Abs(time_offset) > Vector3.kEpsilon ? 1f - Mathf.Abs(average / time_offset) : Mathf.Abs(average)) <= timeOffsetsMaxDeviationPercentage)
+				{
+					timeOffsets.AddLast(time_offset);
+				}
 
 				// Shift buffer contents, oldest data erased, 18 becomes 19, ... , 0 becomes 1
 				for (int i = bufferedState.Length - 1; i >= 1; i--)
@@ -261,6 +280,20 @@ namespace CLARTE.Net.Utils
 					transform.localScale = scale;
 				}
 			}
+		}
+
+		protected float AverageTimeOffset()
+		{
+			float average = 0f;
+			uint count = 0;
+
+			foreach (float offset in timeOffsets)
+			{
+				average += offset;
+				count++;
+			}
+
+			return count != 0 ? average / count : 0f;
 		}
 		#endregion
 	}
