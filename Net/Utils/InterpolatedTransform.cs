@@ -247,11 +247,19 @@ namespace CLARTE.Net.Utils
 			{
 				transform.position = position;
 				transform.rotation = rotation;
-				transform.localScale = new Vector3(
-					scale.x / transform.lossyScale.x,
-					scale.y / transform.lossyScale.y,
-					scale.z / transform.lossyScale.z
-				);
+
+				if (transform.parent != null)
+				{
+					transform.localScale = new Vector3(
+						scale.x / transform.parent.lossyScale.x,
+						scale.y / transform.parent.lossyScale.y,
+						scale.z / transform.parent.lossyScale.z
+					);
+				}
+				else
+				{
+					transform.localScale = scale;
+				}
 			}
 		}
 		#endregion
