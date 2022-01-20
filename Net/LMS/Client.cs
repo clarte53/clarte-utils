@@ -193,6 +193,34 @@ namespace CLARTE.Net.LMS
 			HttpGetArray("users/groups/list", result_callback, ErrorHandlerPrintExec(result_callback), null);
 		}
 
+		public void CreateTrainerAdmin(string organization, string user_name, string password, string first_name, string last_name)
+		{
+			Dictionary<string, string> uri_parameters = new Dictionary<string, string>
+			{
+				{ "organization", organization},
+				{ "username"    , user_name },
+				{ "password"    , password},
+				{ "first_name"  , first_name},
+				{ "last_name"   , last_name},
+			};
+
+			HttpPost<bool>("admin/trainers/create", null, ErrorHandlerPrint, null, uri_parameters);
+			
+		}
+
+		public void CreateOrganization(string name, uint license_duration, Action<Organization> result_callback)
+		{
+			HttpGet<Organization>("admin/organizations/create", result_callback, ErrorHandlerPrint, new Dictionary<string, string>
+			{
+				{ "name", name },
+				{ "license_duration", license_duration.ToString() },
+			});
+		}
+		public void GetOrganizationList(Action<List<Organization>> result_callback)
+		{
+			HttpGetArray("admin/organizations/list", result_callback, ErrorHandlerPrintExec(result_callback), null);
+		}
+
 		public void RegisterApplication(Content.Application application)
 		{
 			HttpGet<Entities.Application>(string.Format("lms/application/{0}/register", application.Guid), null, ErrorHandlerPrint, new Dictionary<string, string>
