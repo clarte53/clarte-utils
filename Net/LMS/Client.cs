@@ -193,19 +193,41 @@ namespace CLARTE.Net.LMS
 			HttpGetArray("users/groups/list", result_callback, ErrorHandlerPrintExec(result_callback), null);
 		}
 
+		public void CreateGroup(string name, Action<Group> result_callback)
+		{
+			HttpGet<Group>("users/groups/create", result_callback, ErrorHandlerPrint, new Dictionary<string, string>
+			{
+				{ "name", name },
+			});
+		}
 		public void CreateTrainerAdmin(string organization, string user_name, string password, string first_name, string last_name)
 		{
 			Dictionary<string, string> uri_parameters = new Dictionary<string, string>
 			{
 				{ "organization", organization},
-				{ "username"    , user_name },
-				{ "password"    , password},
-				{ "first_name"  , first_name},
-				{ "last_name"   , last_name},
+				{ "username"    ,	 user_name},
+				{ "password"    ,	  password},
+				{ "first_name"  ,	first_name},
+				{ "last_name"   ,	 last_name},
 			};
 
 			HttpPost<bool>("admin/trainers/create", null, ErrorHandlerPrint, null, uri_parameters);
 			
+		}
+
+		public void CreateUser(string organization, string group, string user_name, string password, string first_name, string last_name)
+		{
+			Dictionary<string, string> uri_parameters = new Dictionary<string, string>
+			{
+				{ "organization", organization},
+				{"group"		,		group },
+				{ "username"    ,	user_name },
+				{ "password"    ,	  password},
+				{ "first_name"  ,	first_name},
+				{ "last_name"   ,	 last_name},
+			};
+
+			HttpPost<bool>("users/create", null, ErrorHandlerPrint, null, uri_parameters);
 		}
 
 		public void CreateOrganization(string name, uint license_duration, Action<Organization> result_callback)
