@@ -230,6 +230,29 @@ namespace CLARTE.Net.LMS
 			HttpPost<bool>("users/create", null, ErrorHandlerPrint, null, uri_parameters);
 		}
 
+		public void UpdateUser(string password, string first_name, string last_name, Action<bool> result_callback)
+		{
+			Dictionary<string, string> uri_parameters = new Dictionary<string, string>
+			{
+				{ "password"    ,     password},
+				{ "first_name"  ,   first_name},
+				{ "last_name"   ,    last_name},
+			};
+
+			HttpPost<User>("users/update", x =>
+			{
+				User = x;
+
+				result_callback?.Invoke(true);
+			}
+			, (code, message) =>
+			{
+				Debug.LogError(message);
+
+				result_callback?.Invoke(false);
+			}, null, uri_parameters);
+		}
+
 		public void CreateOrganization(string name, uint license_duration, Action<Organization> result_callback)
 		{
 			HttpGet<Organization>("admin/organizations/create", result_callback, ErrorHandlerPrint, new Dictionary<string, string>
