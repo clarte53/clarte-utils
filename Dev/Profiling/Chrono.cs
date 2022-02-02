@@ -39,6 +39,14 @@ namespace CLARTE.Dev.Profiling
 		}
 
 		/// <summary>
+		/// Retart chronometer
+		/// </summary>
+		public void Restart()
+		{
+			stopWatch.Restart();
+		}
+
+		/// <summary>
 		/// Get elapsed time in seconds
 		/// </summary>
 		/// <returns></returns>

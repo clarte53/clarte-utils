@@ -472,6 +472,59 @@ namespace CLARTE.Geometry
 
 			return true;
 		}
+		
+		static public Capsule CapsuleCollider2Capsule(CapsuleCollider collider)
+        {
+			Vector3 capsule_direction_local;
+			float capsule_scale_1;
+			float capsule_scale_2;
+
+			switch(collider.direction)
+			{
+				case 0:
+					capsule_direction_local = Vector3.right;
+					capsule_scale_1 = collider.gameObject.transform.lossyScale.y;
+					capsule_scale_2 = collider.gameObject.transform.lossyScale.z;
+					break;
+				case 1:
+					capsule_direction_local = Vector3.up;
+					capsule_scale_1 = collider.gameObject.transform.lossyScale.x;
+					capsule_scale_2 = collider.gameObject.transform.lossyScale.z;
+					break;
+				case 2:
+					capsule_direction_local = Vector3.forward;
+					capsule_scale_1 = collider.gameObject.transform.lossyScale.x;
+					capsule_scale_2 = collider.gameObject.transform.lossyScale.y;
+					break;
+				default:					
+					Debug.LogError("Direction id should be 0, 1 or 2");
+					return default(Capsule);
+			}
+
+			float radius = collider.radius * Mathf.Max(capsule_scale_1, capsule_scale_2);
+
+			Vector3 capsule_ext1_world = collider.gameObject.transform.TransformPoint(collider.center + 0.5f * capsule_direction_local * collider.height);
+			Vector3 capsule_ext2_world = collider.gameObject.transform.TransformPoint(collider.center - 0.5f * capsule_direction_local * collider.height);
+
+			Vector3 capsule_direction_world = collider.gameObject.transform.TransformDirection(capsule_direction_local);
+
+			Vector3 capsule_f1_world = capsule_ext1_world - capsule_direction_world * radius;
+			Vector3 capsule_f2_world = capsule_ext2_world + capsule_direction_world * radius;
+
+			return new Capsule(capsule_f1_world, capsule_f2_world, radius);
+		}
+
+		/// <summary>
+		/// Checks whether two capsules are intersecting.
+		/// Two capsules intersect <=> radius 1 + radius 2 >= dist(axis 1, axis2)
+		/// </summary>
+		/// <param name="capsule1">1st capsule</param>
+		/// <param name="capsule2">2nd capsule</param>
+		/// <returns>True if capsules intersect, false otherwise</returns>
+		static public bool CapsuleCapsuleIntersection(CapsuleCollider capsule1, CapsuleCollider capsule2)
+        {
+			return CapsuleCapsuleIntersection(CapsuleCollider2Capsule(capsule1), CapsuleCollider2Capsule(capsule2));
+		}
 
 		/// <summary>
 		/// Checks whether two capsules are intersecting.
@@ -482,20 +535,10 @@ namespace CLARTE.Geometry
 		/// <returns>True if capsules intersect, false otherwise</returns>
 		static public bool CapsuleCapsuleIntersection(Capsule capsule1, Capsule capsule2)
 		{
-			// Compute (squared) distance between the inner structures of the capsules
-			Vector3 c1, c2;
+			float dist = CapsuleCapsuleDistance(capsule1, capsule2);
 
-			Segment s1 = new Segment(capsule1.f1, capsule1.f2);
-			Segment s2 = new Segment(capsule2.f1, capsule2.f2);
-
-			SegmentSegmentClosestPoints(s1, s2, out c1, out c2);
-
-			float sqr_dist = Vector3.Dot(c1 - c2, c1 - c2);
-
-			// If (squared) distance smaller than (squared) sum of radii, they collide
-			float radius = capsule1.r + capsule2.r;
-
-			return sqr_dist <= radius * radius;
+			// If the distance is negative or nil, they collide
+			return dist <= 0;
 		}
 
 		/// <summary>
@@ -1217,6 +1260,37 @@ namespace CLARTE.Geometry
 			closest_point2 = segment2.p1 + d2 * t;
 
 			return true;
+		}
+		#endregion
+
+		#region Distances
+		/// <summary>
+		/// Computes the distance between 2 capsules
+		/// </summary>
+		/// <param name="capsule1">1st capsule</param>
+		/// <param name="capsule2">2nd capsule</param>
+		/// <returns>Distance between the surfaces of the capsules</returns>
+		static public float CapsuleCapsuleDistance(CapsuleCollider capsule1, CapsuleCollider capsule2)
+        {
+			return CapsuleCapsuleDistance(CapsuleCollider2Capsule(capsule1), CapsuleCollider2Capsule(capsule2));
+        }
+
+		/// <summary>
+		/// Computes the distance between 2 capsules
+		/// </summary>
+		/// <param name="capsule1">1st capsule</param>
+		/// <param name="capsule2">2nd capsule</param>
+		/// <returns>Distance between the surfaces of the capsules</returns>
+		static public float CapsuleCapsuleDistance(Capsule capsule1, Capsule capsule2)
+		{
+			Vector3 c1, c2;
+
+			Segment s1 = new Segment(capsule1.f1, capsule1.f2);
+			Segment s2 = new Segment(capsule2.f1, capsule2.f2);
+
+			SegmentSegmentClosestPoints(s1, s2, out c1, out c2);
+
+			return Mathf.Max(0.0f, Vector3.Magnitude(c2 - c1) - capsule1.r - capsule2.r);
 		}
 		#endregion
 

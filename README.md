@@ -2,7 +2,8 @@ Clarte Utils
 ===============
 
 This repository contains shared utility code. It only defines independent and
-reusable classes / modules intended to be used in many projects.
+reusable classes / modules intended to be used in many projects. It depends on
+[Unity UI package](https://docs.unity3d.com/Packages/com.unity.ugui@1.0/manual/index.html).
 
 Content
 ===============
@@ -71,7 +72,7 @@ Other modules
 ===============
 
 This graph show all modules available in [gitlab](https://gitlab.clarte.asso.fr/modules)
-around clarte-utils and more. it also show [dependances](https://gitlab.clarte.asso.fr/dependances) whitch contains c++ modules usable as dll in unity. Finally it show a "dev-..."
+around clarte-utils and more. it also show [dependances](https://gitlab.clarte.asso.fr/dependances) which contains c++ modules usable as dll in unity. Finally it show a "dev-..."
 unity project, classically used to develop a module.
 
 Red color is used for modules that are empty, blue for unity project.
