@@ -13,7 +13,7 @@ namespace CLARTE.Net.Discovery
 	public class Broadcaster : MonoBehaviour
 	{
 		[Serializable]
-		public class ReceiveCallback : UnityEvent<IPAddress, int, byte[]>
+		public class ReceiveCallback : UnityEvent<IPEndPoint, byte[]>
 		{
 
 		}
@@ -36,51 +36,54 @@ namespace CLARTE.Net.Discovery
 			// Make sure that singleton is initialized in Unity thread before first use
 			Threads.APC.MonoBehaviourCall.Instance.GetType();
 
-			localAddresses = new HashSet<IPAddress>();
-			broadcastAddresses = new List<IPEndPoint>();
-
-			foreach(NetworkInterface net in NetworkInterface.GetAllNetworkInterfaces())
+			if (Utils.PortManager.Instance.ReservePort(port))
 			{
-				if(net != null && (net.NetworkInterfaceType == NetworkInterfaceType.Wireless80211 || net.NetworkInterfaceType == NetworkInterfaceType.Ethernet))
+				localAddresses = new HashSet<IPAddress>();
+				broadcastAddresses = new List<IPEndPoint>();
+
+				foreach (NetworkInterface net in NetworkInterface.GetAllNetworkInterfaces())
 				{
-					foreach(UnicastIPAddressInformation unicast_info in net.GetIPProperties().UnicastAddresses)
+					if (net != null && (net.NetworkInterfaceType == NetworkInterfaceType.Wireless80211 || net.NetworkInterfaceType == NetworkInterfaceType.Ethernet))
 					{
-						if(unicast_info.Address.AddressFamily == AddressFamily.InterNetwork)
+						foreach (UnicastIPAddressInformation unicast_info in net.GetIPProperties().UnicastAddresses)
 						{
-							byte[] address = unicast_info.Address.GetAddressBytes();
-							byte[] mask = unicast_info.IPv4Mask.GetAddressBytes();
-
-							for(int i = 0; i < address.Length && i < mask.Length; i++)
+							if (unicast_info.Address.AddressFamily == AddressFamily.InterNetwork)
 							{
-								address[i] |= (byte) ~mask[i];
+								byte[] address = unicast_info.Address.GetAddressBytes();
+								byte[] mask = unicast_info.IPv4Mask.GetAddressBytes();
+
+								for (int i = 0; i < address.Length && i < mask.Length; i++)
+								{
+									address[i] |= (byte)~mask[i];
+								}
+
+								IPAddress broadcast = new IPAddress(address);
+
+								localAddresses.Add(unicast_info.Address);
+								broadcastAddresses.Add(new IPEndPoint(broadcast, port));
 							}
-
-							IPAddress broadcast = new IPAddress(address);
-
-							localAddresses.Add(unicast_info.Address);
-							broadcastAddresses.Add(new IPEndPoint(broadcast, port));
 						}
 					}
 				}
+
+				udp = new UdpClient()
+				{
+					ExclusiveAddressUse = !broadcastToLocalhost,
+					EnableBroadcast = true
+				};
+
+				// To send/receive on the same host.
+				udp.Client.MulticastLoopback = broadcastToLocalhost;
+				udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, broadcastToLocalhost);
+
+				udp.Client.Bind(new IPEndPoint(IPAddress.Any, port));
+
+				stop = new ManualResetEvent(false);
+
+				thread = new Threads.Thread(Listener);
+
+				thread.Start();
 			}
-
-			udp = new UdpClient()
-			{
-				ExclusiveAddressUse = !broadcastToLocalhost,
-				EnableBroadcast = true
-			};
-
-			// To send/receive on the same host.
-			udp.Client.MulticastLoopback = broadcastToLocalhost;
-			udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, broadcastToLocalhost);
-
-			udp.Client.Bind(new IPEndPoint(IPAddress.Any, port));
-
-			stop = new ManualResetEvent(false);
-
-			thread = new Threads.Thread(Listener);
-
-			thread.Start();
 		}
 
 		protected void OnDestroy()
@@ -133,7 +136,7 @@ namespace CLARTE.Net.Discovery
 
 					if(datagram.Length > 0 && (broadcastToLocalhost || !localAddresses.Contains(from.Address)))
 					{
-						Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceive.Invoke(from.Address, from.Port, datagram));
+						Threads.APC.MonoBehaviourCall.Instance.Call(() => onReceive.Invoke(from, datagram));
 					}
 				}
 			}

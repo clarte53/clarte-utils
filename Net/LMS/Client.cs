@@ -558,11 +558,7 @@ namespace CLARTE.Net.LMS
 
 			if(query.request != null)
 			{
-				if(request.isNetworkError)
-				{
-					query.onFailure?.Invoke(0, string.Format("Error while processing '{0}' request: '{1}'", request.uri.GetLeftPart(UriPartial.Path), request.error));
-				}
-				else
+				if(request.result == UnityWebRequest.Result.Success)
 				{
 					switch(request.responseCode)
 					{
@@ -576,6 +572,10 @@ namespace CLARTE.Net.LMS
 							query.onFailure?.Invoke(request.responseCode, string.Format("Failed to access '{0}': status = {1}", request.uri.GetLeftPart(UriPartial.Path), request.responseCode));
 							break;
 					}
+				}
+				else
+				{
+					query.onFailure?.Invoke(0, string.Format("Error while processing '{0}' request: '{1}'", request.uri.GetLeftPart(UriPartial.Path), request.error));
 				}
 
 				request.downloadHandler.Dispose();

@@ -192,7 +192,7 @@ namespace CLARTE.Serialization
 			{
 				buffer = GetBuffer(default_buffer_size);
 
-				uint written = serialization_callback(this, ref buffer);
+				buffer.Size = serialization_callback(this, ref buffer);
 			}
 			catch (Exception e)
 			{
@@ -249,6 +249,10 @@ namespace CLARTE.Serialization
 				if (result.Exception != null)
 				{
 					throw new DeserializationException("An error occured during deserialization.", result.Exception);
+				}
+				else if (result.Result != buffer.Size)
+				{
+					throw new DeserializationException("Not all available data was used.", null);
 				}
 			}
 		}
@@ -336,7 +340,7 @@ namespace CLARTE.Serialization
 				{
 					uint read = deserialization_callback(this, buffer);
 
-					if (read != buffer.Data.Length)
+					if (read != buffer.Size)
 					{
 						throw new DeserializationException("Not all available data was used.", null);
 					}

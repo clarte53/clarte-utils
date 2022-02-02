@@ -7,25 +7,25 @@ namespace CLARTE.Net.Discovery
 	public static class Events
 	{
 		[Serializable]
-		public class OnDiscoveredCallback : UnityEvent<IPAddress, ushort, IServiceInfo>
+		public class OnDiscoveredCallback : UnityEvent<IPEndPoint, IServiceInfo>
 		{
 
 		}
 
 		[Serializable]
-		public class OnLostCallback : UnityEvent<IPAddress, ushort, IServiceInfo>
+		public class OnLostCallback : UnityEvent<IPEndPoint, IServiceInfo>
 		{
 
 		}
 
 		[Serializable]
-		public class OnActiveCallback : UnityEvent<IPAddress, ushort, IServiceInfo>
+		public class OnActiveCallback : UnityEvent<IPEndPoint, IServiceInfo>
 		{
 
 		}
 
 		[Serializable]
-		public class OnInactiveCallback : UnityEvent<IPAddress, ushort, IServiceInfo>
+		public class OnInactiveCallback : UnityEvent<IPEndPoint, IServiceInfo>
 		{
 
 		}

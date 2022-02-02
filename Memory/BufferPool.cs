@@ -15,7 +15,8 @@ namespace CLARTE.Memory
 		public class Buffer : IDisposable
 		{
 			#region Members
-			private bool disposed;
+			private object referencesLock;
+			private uint referencesCount;
 			#endregion
 
 			#region Getter / Setter
@@ -53,7 +54,8 @@ namespace CLARTE.Memory
 				Size = 0;
 				ResizeCount = 0;
 
-				disposed = false;
+				referencesLock = new object();
+				referencesCount = 1;
 			}
 
 			/// <summary>
@@ -103,9 +105,25 @@ namespace CLARTE.Memory
 			/// Dispose of buffer and return associated ressources to the pool.
 			/// </summary>
 			/// <param name="disposing">If true, release the memory to the pool.</param>
-			protected virtual void Dispose(bool disposing)
+			/// <returns>True if the object was disposed, false otherwise.</returns>
+			protected virtual bool Dispose(bool disposing)
 			{
-				if (!disposed)
+				bool dispose = false;
+
+				lock (referencesLock)
+				{
+					if (referencesCount > 0)
+					{
+						referencesCount--;
+
+						if (referencesCount == 0)
+						{
+							dispose = true;
+						}
+					}
+				}
+
+				if(dispose)
 				{
 					if (disposing)
 					{
@@ -120,9 +138,9 @@ namespace CLARTE.Memory
 					Size = 0;
 					Data = null;
 					Manager = null;
-
-					disposed = true;
 				}
+
+				return dispose;
 			}
 
 			/// <summary>
@@ -131,11 +149,47 @@ namespace CLARTE.Memory
 			public void Dispose()
 			{
 				// Pass true in dispose method to clean managed resources too and say GC to skip finalize in next line.
-				Dispose(true);
+				if(Dispose(true))
+				{
+					// If dispose is called already then say GC to skip finalize on this instance.
+					// TODO: uncomment next line if finalizer is replaced above.
+					GC.SuppressFinalize(this);
+				}
+			}
+			#endregion
 
-				// If dispose is called already then say GC to skip finalize on this instance.
-				// TODO: uncomment next line if finalizer is replaced above.
-				GC.SuppressFinalize(this);
+			#region References count
+			public void SetReferencesCount(uint count)
+			{
+				lock(referencesLock)
+				{
+					if (referencesCount != 0)
+					{
+						referencesCount = Math.Max(count, 1);
+					}
+				}
+			}
+
+			public void IncrementReferencesCount()
+			{
+				lock (referencesLock)
+				{
+					if (referencesCount != 0)
+					{
+						referencesCount = (uint)Math.Min(((long)referencesCount) + 1, uint.MaxValue);
+					}
+				}
+			}
+
+			public void DecrementReferencesCount()
+			{
+				lock (referencesLock)
+				{
+					if (referencesCount != 0)
+					{
+						referencesCount = Math.Max(referencesCount - 1, 1);
+					}
+				}
 			}
 			#endregion
 
@@ -152,9 +206,17 @@ namespace CLARTE.Memory
 				Size = other.Size;
 				ResizeCount = other.ResizeCount;
 
-				disposed = other.disposed;
-
 				other.Data = null;
+
+				lock (other.referencesLock)
+				{
+					lock (referencesLock)
+					{
+						referencesCount = other.referencesCount;
+					}
+
+					other.referencesCount = 1;
+				}
 
 				// Release other buffer without releasing memory, as ownership is transfered to us.
 				other.Dispose(false);
@@ -229,10 +291,6 @@ namespace CLARTE.Memory
 		/// </summary>
 		public class Buffer<T> : Buffer
 		{
-			#region Members
-			private bool disposed;
-			#endregion
-
 			#region Getter / Setter
 			/// <summary>
 			/// Get the context associated with the buffer.
@@ -250,8 +308,6 @@ namespace CLARTE.Memory
 			protected Buffer(BufferPool manager, T context) : base(manager)
 			{
 				Context = context;
-
-				disposed = false;
 			}
 
 			/// <summary>
@@ -289,8 +345,6 @@ namespace CLARTE.Memory
 			public Buffer(BufferPool manager, T context, uint min_size) : base(manager, min_size)
 			{
 				Context = context;
-
-				disposed = false;
 			}
 
 			/// <summary>
@@ -303,8 +357,6 @@ namespace CLARTE.Memory
 			public Buffer(BufferPool manager, T context, byte[] existing_data, bool add_to_pool = false) : base(manager, existing_data, add_to_pool)
 			{
 				Context = context;
-
-				disposed = false;
 			}
 			#endregion
 
@@ -313,9 +365,12 @@ namespace CLARTE.Memory
 			/// Dispose of buffer and return associated ressources to the pool.
 			/// </summary>
 			/// <param name="disposing">If true, release the memory to the pool.</param>
-			protected override void Dispose(bool disposing)
+			/// <returns>True if the object was disposed, false otherwise.</returns>
+			protected override bool Dispose(bool disposing)
 			{
-				if (!disposed)
+				bool dispose = base.Dispose(disposing);
+
+				if (dispose)
 				{
 					if (disposing)
 					{
@@ -327,28 +382,13 @@ namespace CLARTE.Memory
 
 					// TODO: set fields of large size with null value.
 					Context = default(T);
-
-					disposed = true;
 				}
 
-				base.Dispose(disposing);
+				return dispose;
 			}
 			#endregion
 
 			#region Mutations
-			/// <summary>
-			/// Transfert data ownership from other buffer to us.
-			/// </summary>
-			/// <remarks>Context is not transfered from other buffer. After calling this method, the other buffer is disposed automatically and ownership of data is transfered to us.</remarks>
-			/// <typeparam name="U">The type of context of the other buffer.</typeparam>
-			/// <param name="other">Other buffer to get data from.</param>
-			protected void Transfert<U>(Buffer<U> other)
-			{
-				disposed = other.disposed;
-
-				base.Transfert(other);
-			}
-
 			/// <summary>
 			/// Transform current buffer into another buffer with same data but different context.
 			/// </summary>
