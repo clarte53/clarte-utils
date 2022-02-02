@@ -193,6 +193,29 @@ namespace CLARTE.Net.LMS
 			HttpGetArray("users/groups/list", result_callback, ErrorHandlerPrintExec(result_callback), null);
 		}
 
+		public void UpdateUser(string password, string first_name, string last_name, Action<bool> result_callback)
+		{
+			Dictionary<string, string> uri_parameters = new Dictionary<string, string>
+			{
+				{ "password"    ,     password},
+				{ "first_name"  ,   first_name},
+				{ "last_name"   ,    last_name},
+			};
+
+			HttpPost<User>("users/update", x =>
+			{
+				User = x;
+
+				result_callback?.Invoke(true);
+			}
+			, (code, message) =>
+			{
+				Debug.LogError(message);
+
+				result_callback?.Invoke(false);
+			}, null, uri_parameters);
+		}
+
 		public void RegisterApplication(Content.Application application)
 		{
 			HttpGet<Entities.Application>(string.Format("lms/application/{0}/register", application.Guid), null, ErrorHandlerPrint, new Dictionary<string, string>
@@ -329,6 +352,38 @@ namespace CLARTE.Net.LMS
 			HttpGet("lms/exercise/history", result_callback, ErrorHandlerExec(result_callback), parameters.Count > 0 ? parameters : null);
 		}
 
+		#region Adminitrator only
+		public void CreateTrainerAdmin(string organization, string user_name, string password, string first_name, string last_name)
+		{
+			Dictionary<string, string> uri_parameters = new Dictionary<string, string>
+			{
+				{ "organization", organization},
+				{ "username"    ,    user_name},
+				{ "password"    ,     password},
+				{ "first_name"  ,   first_name},
+				{ "last_name"   ,    last_name},
+			};
+
+			HttpPost<bool>("admin/trainers/create", null, ErrorHandlerPrint, null, uri_parameters);
+
+		}
+
+		public void CreateOrganization(string name, uint license_duration, Action<Organization> result_callback)
+		{
+			HttpGet<Organization>("admin/organizations/create", result_callback, ErrorHandlerPrint, new Dictionary<string, string>
+			{
+				{ "name", name },
+				{ "license_duration", license_duration.ToString() },
+			});
+		}
+
+		public void GetOrganizationList(Action<List<Organization>> result_callback)
+		{
+			HttpGetArray("admin/organizations/list", result_callback, ErrorHandlerPrintExec(result_callback), null);
+		}
+		#endregion
+
+		#region trainers only
 		/// <summary>
 		/// Get specified user history. Only trainers have sufficient rights to call this method.
 		/// </summary>
@@ -352,6 +407,35 @@ namespace CLARTE.Net.LMS
 
 			HttpGet(string.Format("lms/exercise/history/{0}", user), result_callback, ErrorHandlerExec(result_callback), parameters.Count > 0 ? parameters : null);
 		}
+
+		public void CreateUser(string organization, string group, string user_name, string password, string first_name, string last_name)
+		{
+			Dictionary<string, string> uri_parameters = new Dictionary<string, string>
+			{
+				{ "organization", organization},
+				{"group"        ,       group },
+				{ "username"    ,   user_name },
+				{ "password"    ,     password},
+				{ "first_name"  ,   first_name},
+				{ "last_name"   ,    last_name},
+			};
+
+			HttpPost<bool>("users/create", null, ErrorHandlerPrint, null, uri_parameters);
+		}
+
+		public void DeleteUser(long id)
+		{
+			HttpGet<bool>(string.Format("users/{0}/delete", id), null, ErrorHandlerPrint);
+		}
+
+		public void CreateGroup(string name, Action<Group> result_callback)
+		{
+			HttpGet<Group>("users/groups/create", result_callback, ErrorHandlerPrint, new Dictionary<string, string>
+			{
+				{ "name", name },
+			});
+		}
+		#endregion
 		#endregion
 
 		#region Internal methods
