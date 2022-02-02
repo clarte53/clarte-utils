@@ -1,7 +1,7 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using System.Collections.Generic;
+using System.IO;
 using System.Threading;
+using UnityEngine;
 using UnityEngine.Events;
 using CLARTE.Serialization;
 
@@ -48,27 +48,38 @@ namespace CLARTE.Replay
         [Header("Monitoring events")]
         public CommandUnityEvent onCommandExecuted;
 
+        /// <summary>Serialiser used to read and write data to / from disk</summary>
+        private Binary serializer;
+
         /// <summary>Command list</summary>
-        private List<Command> commands = new List<Command>();
+        private List<Command> commands;
 
         /// <summary>Mutext to avoid unordered command execution</summary>
-        private Mutex commandLck = new Mutex();
+        private Mutex commandLck;
 
         /// <summary>replay position in command list for replay mode</summary>
-        private int replayPosition = 0;
+        private int replayPosition;
 
         /// <summary>time stamp to fast forward to for replay mode</summary>
-        private double goto_timestamp = -1f;
+        private double goto_timestamp;
         #endregion
 
         #region Properties
         /// <summary>
         /// Get last timestamp in the simulation. used for example to set a slider max value.
         /// </summary>
-        public float LastCommandTimeStamp { get {
-                if (commands.Count <= 0) { return 0; }
+        public float LastCommandTimeStamp
+        {
+            get
+            {
+                if (commands.Count <= 0)
+                {
+                    return 0;
+                }
+
                 return (float) commands[commands.Count - 1].TimeStamp;
-            } }
+            }
+        }
 
         /// <summary>
         /// Current replay mode.
@@ -79,6 +90,12 @@ namespace CLARTE.Replay
         #region MonoBehaviour callbacks
         private void Awake()
         {
+            serializer = new Binary();
+            commands = new List<Command>();
+            commandLck = new Mutex();
+            replayPosition = 0;
+            goto_timestamp = -1f;
+
             Wait();
         }
 
@@ -227,7 +244,12 @@ namespace CLARTE.Replay
         /// <param name="filename">file path</param>
         public void Save(string filename)
         {
-            System.IO.File.WriteAllBytes(filename, (new Binary()).Serialize(commands));
+            Binary.Buffer buffer = serializer.Serialize(commands);
+
+            using(FileStream stream = new FileStream(filename, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                stream.Write(buffer.Data, 0, (int) buffer.Size);
+            }
         }
 
         /// <summary>
@@ -237,7 +259,7 @@ namespace CLARTE.Replay
         /// <param name="filename">file path</param>
         public void Load(string filename)
         {
-            commands = (new Binary()).Deserialize(System.IO.File.ReadAllBytes(filename)) as List<Command>;
+            commands = serializer.Deserialize(File.ReadAllBytes(filename)) as List<Command>;
         }
 		#endregion
 	}
