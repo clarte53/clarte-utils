@@ -220,7 +220,7 @@ namespace CLARTE.Net.LMS
 			});
 		}
 
-		public void AddExerciseRecord(Content.Exercise<T> exercise, TimeSpan duration, bool success, float grade, uint nb_challenges_validated, byte[] debrief_data = null)
+		public void AddExerciseRecord(Content.Exercise<T> exercise, TimeSpan duration, bool success, float grade, uint nb_challenges_validated, byte[] debrief_data = null, Action<long> result_callback = null)
 		{
 			Dictionary<string, string> uri_parameters = new Dictionary<string, string>
 			{
@@ -240,20 +240,28 @@ namespace CLARTE.Net.LMS
 				};
 			}
 
-			HttpPost<bool>(string.Format("lms/exercise/{0}/record", exercise.Guid), null, ErrorHandlerPrint, uri_parameters, post_parameters);
+			HttpPost(string.Format("lms/exercise/{0}/record", exercise.Guid), result_callback, ErrorHandlerPrint, uri_parameters, post_parameters);
 		}
 
-		public void AddSpectatorRecord(Content.Exercise<T> exercise, TimeSpan duration)
+		public void DeleteExerciseRecord(long id, Action<bool> result_callback = null)
 		{
-			HttpGet<bool>(string.Format("lms/exercise/{0}/spectator/record", exercise.Guid), null, ErrorHandlerPrint, new Dictionary<string, string>
+			HttpGet("lms/exercise/record/delete", result_callback, ErrorHandlerPrint, new Dictionary<string, string>
+			{
+				{ "id", id.ToString() },
+			});
+		}
+
+		public void AddSpectatorRecord(Content.Exercise<T> exercise, TimeSpan duration, Action<long> result_callback = null)
+		{
+			HttpGet(string.Format("lms/exercise/{0}/spectator/record", exercise.Guid), result_callback, ErrorHandlerPrint, new Dictionary<string, string>
 			{
 				{ "duration", ((uint) duration.TotalSeconds).ToString() },
 			});
 		}
 
-		public void AddDebriefRecord(Content.Exercise<T> exercise, TimeSpan duration)
+		public void AddDebriefRecord(Content.Exercise<T> exercise, TimeSpan duration, Action<long> result_callback = null)
 		{
-			HttpGet<bool>(string.Format("lms/exercise/{0}/debrief/record", exercise.Guid), null, ErrorHandlerPrint, new Dictionary<string, string>
+			HttpGet(string.Format("lms/exercise/{0}/debrief/record", exercise.Guid), result_callback, ErrorHandlerPrint, new Dictionary<string, string>
 			{
 				{ "duration", ((uint) duration.TotalSeconds).ToString() },
 			});
